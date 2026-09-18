@@ -1,0 +1,4 @@
+duckdb
+requests
+pytest
+ruff

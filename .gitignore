@@ -1,0 +1,17 @@
+# Secrets — never commit the FRED API key
+.env
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Raw landing zone for assessor pulls (large, re-creatable)
+etl/raw/
+*.duckdb.wal
+
+# OS / editor
+.DS_Store

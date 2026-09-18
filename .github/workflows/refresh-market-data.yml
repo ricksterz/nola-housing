@@ -1,0 +1,54 @@
+name: Monthly Market Data Refresh (Redfin, Zillow, FRED)
+
+# Same cadence as the Houston job: Redfin and Zillow publish the prior month
+# early in the month; the FRED HPI series (quarterly metro, annual parish) and
+# the weekly mortgage rate simply pick up whatever new observations exist.
+# Independent of the assessor leg, which has its own schedule.
+
+on:
+  schedule:
+    - cron: "0 6 5 * *"  # 06:00 UTC on the 5th of each month
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Limit to one source (redfin | zillow | fred); blank = all"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install duckdb requests
+
+      - name: Refresh Redfin / Zillow / FRED and rebuild the join
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: |
+          if [ -n "${{ github.event.inputs.only }}" ]; then
+            python -m etl.refresh_market_data --only "${{ github.event.inputs.only }}"
+          else
+            python -m etl.refresh_market_data
+          fi
+
+      - name: Commit and push if data changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add etl/nola_housing.duckdb
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Monthly market data refresh: Redfin, Zillow, FRED"
+            git push
+          fi

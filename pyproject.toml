@@ -1,0 +1,22 @@
+[project]
+name = "nola-housing"
+version = "0.1.0"
+description = "Property + market data ETL for Jefferson Parish (Metairie) and Orleans Parish (New Orleans)"
+requires-python = ">=3.11"
+dependencies = [
+    "duckdb>=1.1",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
