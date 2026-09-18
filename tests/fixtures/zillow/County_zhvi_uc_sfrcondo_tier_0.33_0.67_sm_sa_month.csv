@@ -1,0 +1,5 @@
+RegionID,SizeRank,RegionName,RegionType,StateName,State,Metro,StateCodeFIPS,MunicipalCodeFIPS,2025-11-30,2025-12-31,2026-01-31,2026-02-28,2026-03-31
+1181,100,Jefferson Parish,county,LA,LA,"New Orleans-Metairie, LA",22,051,265000,266000,267000,268000,269000
+1182,100,Orleans Parish,county,LA,LA,"New Orleans-Metairie, LA",22,071,310000,311000,312000,,314000
+2000,100,Harris County,county,TX,TX,"Houston-The Woodlands-Sugar Land, TX",48,201,280000,280000,280000,280000,280000
+1183,100,Jefferson County,county,TX,TX,"Beaumont-Port Arthur, TX",48,245,150000,150000,150000,150000,150000

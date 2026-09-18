@@ -1,0 +1,5 @@
+RegionID,SizeRank,RegionName,RegionType,StateName,State,City,Metro,CountyName,2025-11-30,2025-12-31,2026-01-31,2026-02-28,2026-03-31
+72405,2000,70005,zip,LA,LA,Metairie,"New Orleans-Metairie, LA",Jefferson Parish,612000,613500,615000,616000,618000
+72470,2000,70118,zip,LA,LA,New Orleans,"New Orleans-Metairie, LA",Orleans Parish,498000,499000,500500,501000,503000
+72401,2000,70001,zip,LA,LA,Metairie,"New Orleans-Metairie, LA",Jefferson Parish,305000,305500,306000,306200,307000
+91853,2000,77008,zip,TX,TX,Houston,"Houston-The Woodlands-Sugar Land, TX",Harris County,590000,590000,590000,590000,590000
