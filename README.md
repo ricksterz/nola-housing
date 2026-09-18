@@ -76,6 +76,46 @@ ZILLOW_SOURCE_DIR=tests/fixtures/zillow \
 python -m etl.build_db --db /tmp/smoke.duckdb --skip-assessor
 ```
 
+## App (backend + frontend)
+
+The New Orleans–Metairie counterpart of heightscomps.com, on the same stack (FastAPI
+over DuckDB; Vite + React + recharts; static export for GitHub Pages) with a
+wider feature set:
+
+| View | What it shows |
+|---|---|
+| Market Overview | One area at a time (metro, parish or any of 24 ZIPs): KPI tiles with YoY deltas and sparklines, then home value vs. sale price, rent, DOM, listings pipeline, inventory, months of supply, $/sqft and negotiation charts. Every chart has a table twin. |
+| ZIP Scorecard | All ZIPs side by side: latest reading, YoY, heat-shaded cells (one-hue ramp for magnitude, blue/red for change), 24-month sparkline; sortable, filter by parish; click through to the overview. Plus gross rent yield (rent vs. buy) and monthly payment on the median sale at an adjustable rate. |
+| Compare | Overlay up to six areas on one metric, optionally indexed to 100, with small multiples. Colors are bound to the area, not its rank. |
+| Macro | Metro vs. parish ZHVI/ZORI indexed; with FRED loaded: 30-yr mortgage rate, FHFA HPI (metro, Jefferson, Orleans) and realtor.com listing series. |
+| Property Lookup | Assessor parcel record, value history, indicative value from the ZIP's $/sqft, ZIP market context. |
+
+Charts follow the dataviz rules in this repo's tooling: no dual axes, a fixed
+8-slot categorical palette validated for color-vision deficiency in both themes,
+hairline grids, 2px lines, and a table view behind every chart.
+
+```bash
+# Backend (reads etl/nola_housing.duckdb)
+pip install -r backend/requirements.txt
+uvicorn backend.main:app --port 8000
+
+# Frontend (dev, against the backend)
+cd frontend && npm install && npm run dev
+
+# Static site (GitHub Pages / previews): bake JSON, then build
+python -m etl.export_static
+cd frontend && VITE_STATIC_DATA=true npm run build   # add VITE_BASE=/nola-housing/ for Pages
+```
+
+`etl/export_static.py` writes `frontend/public/data/` (meta, macro, scorecard,
+compare, per-geography trends, per-parcel JSON). `deploy-pages.yml` runs it and
+deploys after every push to `main` and after each successful data refresh; enable
+Pages in **Settings → Pages → Source: GitHub Actions**.
+
+API: `GET /api/market/trend?geo_level=zip&geo_id=70005`, `/api/market/compare`,
+`/api/market/scorecard`, `/api/market/macro_index`, `/api/macro/snapshot`,
+`/api/property/lookup?address=`, `/api/property/suggest?q=`, `/api/meta`.
+
 ## Output schema
 
 Shared "parcel + market" schema (what the comps app reads):

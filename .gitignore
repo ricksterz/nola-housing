@@ -15,3 +15,10 @@ etl/raw/
 
 # OS / editor
 .DS_Store
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Static export (regenerated from the DuckDB snapshot by the deploy workflow)
+frontend/public/data/
