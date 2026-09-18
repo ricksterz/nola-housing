@@ -1,0 +1,94 @@
+name: Assessor Refresh (Jefferson annual, Orleans open rolls)
+
+# Cadence follows the parishes' assessment calendars, not the market feeds:
+#   Orleans    rolls open Jul 15 – Aug 15 (statutory exception). Daily runs
+#              across the window capture the preliminary values at open and the
+#              final values after close.
+#   Jefferson  annual. Rolls are open for inspection Aug 15 – Sep 15 and
+#              certified after; daily runs Aug 15 – Sep 30.
+# Each run first probes the official bulk options; only if none answers does
+# it batch-pull the public search UI under the per-run request budget
+# (ASSESSOR_MAX_REQUESTS_PER_RUN, ~3 s apart). Progress is checkpointed in
+# the database, so the daily runs resume where the previous one stopped.
+
+on:
+  schedule:
+    - cron: "0 6 15-31 7 *"  # Orleans window opens Jul 15
+    - cron: "0 6 1-20 8 *"   # Orleans window closes Aug 15 (+5 days for final values)
+    - cron: "0 6 15-31 8 *"  # Jefferson inspection period opens Aug 15
+    - cron: "0 6 1-30 9 *"   # Jefferson certification
+  workflow_dispatch:
+    inputs:
+      parish:
+        description: "Parish to refresh (jefferson | orleans | both)"
+        required: false
+        default: "both"
+      tax_year:
+        description: "Roll year to tag the pull with (default: current year)"
+        required: false
+        default: ""
+      max_records:
+        description: "Cap records per parish (smoke test); blank = no cap"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: assessor-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install duckdb requests
+
+      - name: Restore raw landing zone (HTML/JSON payloads from earlier runs)
+        uses: actions/cache@v4
+        with:
+          path: etl/raw
+          key: assessor-raw-${{ github.run_id }}
+          restore-keys: assessor-raw-
+
+      - name: Report official bulk options
+        env:
+          ASSESSOR_CONTACT: ${{ secrets.ASSESSOR_CONTACT }}
+        run: python -m etl.probe_assessor_bulk
+
+      - name: Refresh assessor data and rebuild the join
+        env:
+          ASSESSOR_CONTACT: ${{ secrets.ASSESSOR_CONTACT }}
+          ASSESSOR_SEED_FILE: ${{ vars.ASSESSOR_SEED_FILE }}
+          ASSESSOR_MAX_REQUESTS_PER_RUN: ${{ vars.ASSESSOR_MAX_REQUESTS_PER_RUN || '5000' }}
+        run: |
+          ARGS=""
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            ARGS="--auto"
+          elif [ "${{ github.event.inputs.parish }}" != "both" ] && [ -n "${{ github.event.inputs.parish }}" ]; then
+            ARGS="--parish ${{ github.event.inputs.parish }}"
+          fi
+          [ -n "${{ github.event.inputs.tax_year }}" ] && ARGS="$ARGS --tax-year ${{ github.event.inputs.tax_year }}"
+          [ -n "${{ github.event.inputs.max_records }}" ] && ARGS="$ARGS --max-records ${{ github.event.inputs.max_records }}"
+          python -m etl.refresh_assessor $ARGS
+
+      - name: Commit and push if data changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add etl/nola_housing.duckdb
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Assessor refresh: $(date -u +%Y-%m-%d)"
+            git push
+          fi
