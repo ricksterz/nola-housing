@@ -159,7 +159,7 @@ function ParcelCard({ data, trend, theme }) {
           <div className="method-note">
             {fmt.int(v.sqft_used)} sq ft × the ZIP's Redfin median sale price per square foot over the last {v.months_used} months
             (25th / 50th / 75th percentile ≈ ${v.ppsf_low} / ${v.ppsf_mid} / ${v.ppsf_high} per sq ft, as of {fmt.monthYear(v.as_of)}).
-            A market-level indicator scaled to this home's size — not a comps-based appraisal; condition, lot and renovations are not considered.
+            A market-level indicator scaled to this home's size — not a professional appraisal; condition, lot and renovations are not considered.
           </div>
         </div>
       )}

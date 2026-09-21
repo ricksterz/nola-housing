@@ -83,7 +83,7 @@ export default function App() {
               <ThemeToggle theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />
             </div>
             <h1 className="app-title">
-              NOLA Comps<span className="accent">.</span>
+              NOLA Housing Pulse<span className="accent">.</span>
             </h1>
             <p className="app-subtitle">
               Home values, rents, market velocity and parcel records for <b>Metairie</b>, <b>Old Metairie</b> and{" "}

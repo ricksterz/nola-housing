@@ -5,7 +5,7 @@ from . import queries
 from .db import get_connection
 from .routers import market, property
 
-app = FastAPI(title="NOLA Comps API — New Orleans & Metairie housing")
+app = FastAPI(title="NOLA Housing Pulse API — New Orleans & Metairie housing")
 
 app.add_middleware(
     CORSMiddleware,

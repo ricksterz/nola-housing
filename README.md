@@ -78,7 +78,7 @@ python -m etl.build_db --db /tmp/smoke.duckdb --skip-assessor
 
 ## App (backend + frontend)
 
-The New Orleans–Metairie counterpart of heightscomps.com, on the same stack (FastAPI
+**NOLA Housing Pulse** is the New Orleans–Metairie counterpart of heightscomps.com, on the same stack (FastAPI
 over DuckDB; Vite + React + recharts; static export for GitHub Pages) with a
 wider feature set:
 
