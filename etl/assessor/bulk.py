@@ -27,8 +27,17 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "PARCEL",
         "APN",
         "ASSESSMENT_NUMBER",
+        "TAXROLLPAR",  # Jefferson PAO_MAP_2025: 10-digit tax roll parcel number
     ),
-    "tax_bill_number": ("TAX_BILL", "TAXBILL", "TAX_BILL_NO", "TAXBILLNO", "BILL_NUMBER", "TAX_BILL_NUMBER"),
+    "tax_bill_number": (
+        "TAX_BILL",
+        "TAXBILL",
+        "TAX_BILL_NO",
+        "TAXBILLNO",
+        "BILL_NUMBER",
+        "TAX_BILL_NUMBER",
+        "TAXBILLID",  # Orleans ParcelSearch
+    ),
     "site_address": (
         "SITE_ADDR",
         "SITUS",
@@ -38,13 +47,14 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "ADDRESS",
         "FULL_ADDRESS",
         "SITEADDRESS",
+        "PARCELADDR",  # Jefferson PAO_MAP_2025
     ),
     "city": ("CITY", "SITUS_CITY", "MUNICIPALITY"),
     "zip_code": ("ZIP", "ZIPCODE", "ZIP_CODE", "SITUS_ZIP", "POSTAL"),
-    "owner_name": ("OWNER", "OWNER_NAME", "OWNERNAME", "OWNER1", "TAXPAYER"),
+    "owner_name": ("OWNER", "OWNER_NAME", "OWNERNAME", "OWNER1", "TAXPAYER", "OWNERNME1"),
     "mailing_address": ("MAIL_ADDR", "MAILING_ADDRESS", "OWNER_ADDRESS", "MAILADDRESS"),
     "legal_description": ("LEGAL", "LEGAL_DESC", "LEGAL_DESCRIPTION", "LGL_DESC"),
-    "subdivision": ("SUBDIVISION", "SUBDIV", "SUBDIVISION_NAME"),
+    "subdivision": ("SUBDIVISION", "SUBDIV", "SUBDIVISION_NAME", "PARCELSUBD"),
     "property_class": ("PROP_CLASS", "PROPERTY_CLASS", "CLASS", "LAND_USE", "USE_CODE", "PROPERTY_TYPE"),
     "land_area": ("LAND_AREA", "LOT_SQFT", "SQ_FT_LAND", "LAND_SQFT", "ACRES", "SHAPE_AREA"),
     "building_area": (
@@ -58,7 +68,15 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     ),
     "year_built": ("YEAR_BUILT", "YR_BUILT", "YRBUILT", "BUILT"),
     "land_val": ("LAND_VALUE", "LAND_VAL", "LANDVALUE", "LAND_MKT_VAL", "LAND_MARKET_VALUE"),
-    "bld_val": ("IMPROVEMENT_VALUE", "IMPR_VAL", "IMP_VALUE", "BLDG_VALUE", "BUILDING_VALUE", "IMPROVEMENTS"),
+    "bld_val": (
+        "IMPROVEMENT_VALUE",
+        "IMPR_VAL",
+        "IMP_VALUE",
+        "BLDG_VALUE",
+        "BUILDING_VALUE",
+        "IMPROVEMENTS",
+        "IMPROVEMEN",  # Jefferson PAO_MAP_2025 (Esri-truncated "IMPROVEMENT")
+    ),
     "tot_mkt_val": (
         "TOTAL_VALUE",
         "TOTAL_MARKET_VALUE",
@@ -74,6 +92,7 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "TOTAL_ASSESSED_VALUE",
         "ASSESSMENT",
         "ASSD_VAL",
+        "ASSESSED_V",  # Jefferson PAO_MAP_2025 (Esri-truncated "ASSESSED_VAL")
     ),
     "homestead_exempt_val": (
         "HOMESTEAD",
@@ -81,11 +100,19 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "HMSTD_EXEMPT",
         "EXEMPT_VALUE",
         "HOMESTEAD_VALUE",
+        "HOMESTEADV",  # Jefferson PAO_MAP_2025
     ),
     "taxable_val": ("TAXABLE_VALUE", "TAXABLE", "NET_ASSESSED", "TAXABLE_ASSESSED"),
     "tax_year": ("TAX_YEAR", "TAXYEAR", "ROLL_YEAR", "ASSESSMENT_YEAR", "YEAR"),
     "last_sale_date": ("SALE_DATE", "LAST_SALE_DATE", "SALEDATE", "DEED_DATE", "TRANSFER_DATE"),
-    "last_sale_price": ("SALE_PRICE", "LAST_SALE_PRICE", "SALEPRICE", "SALE_AMOUNT", "CONSIDERATION"),
+    "last_sale_price": (
+        "SALE_PRICE",
+        "LAST_SALE_PRICE",
+        "SALEPRICE",
+        "SALE_AMOUNT",
+        "CONSIDERATION",
+        "SALESPRICE",
+    ),
 }
 
 REQUIRED_ANY = ("owner_name", "assessed_val", "tot_mkt_val", "site_address")
@@ -185,7 +212,7 @@ def fetch_arcgis(
             lat, lng = _centroid(feat.get("geometry"))
             mapped.setdefault("lat", lat)
             mapped.setdefault("lng", lng)
-            if mapped.get("parcel_id") in (None, ""):
+            if not str(mapped.get("parcel_id") or "").strip():
                 continue
             out.append(record_from_mapping(parish, parish_fips, mapped, extra={"raw": attrs}))
             if max_records and len(out) >= max_records:
@@ -255,7 +282,7 @@ def fetch_socrata(
                 elif "latitude" in loc:
                     mapped.setdefault("lat", loc.get("latitude"))
                     mapped.setdefault("lng", loc.get("longitude"))
-            if mapped.get("parcel_id") in (None, ""):
+            if not str(mapped.get("parcel_id") or "").strip():
                 continue
             out.append(record_from_mapping(parish, parish_fips, mapped, extra={"raw": row}))
             if max_records and len(out) >= max_records:
