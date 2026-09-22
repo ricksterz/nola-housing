@@ -3,6 +3,7 @@
 
 # Python
 .venv/
+.venv-backend/
 venv/
 __pycache__/
 *.pyc

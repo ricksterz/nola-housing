@@ -119,7 +119,7 @@ export default function Compare({ ctx }) {
         Pick up to {MAX} areas. Each keeps its color while selected.
       </div>
 
-      {error && <div className="error">Error: {error}</div>}
+      {error && <div className="error">Could not load market data: {error}</div>}
       {!compare && !error && <div className="loading">Loading…</div>}
 
       {compare && selected.length > 0 && (
