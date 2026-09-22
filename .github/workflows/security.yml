@@ -52,8 +52,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - run: pip install bandit
-      - run: bandit -r etl backend -x etl/raw
+      - run: pip install "bandit[toml]"
+      - run: bandit -c pyproject.toml -r etl backend -x etl/raw
 
   npm-audit:
     name: Frontend dependency audit (npm audit)
