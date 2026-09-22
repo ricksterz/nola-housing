@@ -11,10 +11,20 @@ function slugify(address) {
 }
 
 async function get(path) {
-  const res = await fetch(`${BASE_URL}${path}`);
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`);
+  } catch {
+    throw new Error(`Can't reach the API at ${BASE_URL}. Is the backend running?`);
+  }
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
-    throw new Error(detail.detail || `Request failed: ${res.status}`);
+    if (detail.detail) throw new Error(detail.detail);
+    throw new Error(
+      res.status === 404
+        ? "Not found."
+        : `The server had a problem (HTTP ${res.status}). Try again in a moment.`
+    );
   }
   return res.json();
 }
@@ -89,7 +99,9 @@ export async function getPropertyLookup(address) {
       const index = await getAddressIndex();
       const match = index.find((a) => a.startsWith(needle)) || index.find((a) => a.includes(needle));
       if (match) return getStatic(`property/${slugify(match)}.json`);
-      throw new Error(`No assessor record found for '${address.trim()}'`);
+      throw new Error(
+        `No assessor record matches "${address.trim()}". Pick an address from the suggestions as you type, or double-check the spelling and street type (Rd/St/Ave/Dr).`
+      );
     }
   }
   return get(`/api/property/lookup?address=${encodeURIComponent(address)}`);

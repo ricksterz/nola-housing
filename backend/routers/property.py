@@ -11,7 +11,12 @@ def property_lookup(address: str):
     data = queries.property_lookup(get_connection(), address)
     if data is None:
         raise HTTPException(
-            status_code=404, detail=f"No assessor record found for address '{address.strip()}'"
+            status_code=404,
+            detail=(
+                f'No assessor record matches "{address.strip()}". '
+                "Pick an address from the suggestions as you type, or double-check the "
+                "spelling and street type (Rd/St/Ave/Dr)."
+            ),
         )
     return data
 
