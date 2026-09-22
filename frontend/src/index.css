@@ -138,6 +138,13 @@ a { color: var(--blue); }
 .stat-label { font-size: 11px; font-weight: 500; color: var(--text-dim); letter-spacing: 0.02em; text-transform: uppercase; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-value { font-size: 17px; font-weight: 650; color: var(--text-bright); letter-spacing: -0.01em; overflow-wrap: anywhere; }
 .stat-value--accent { color: var(--gold); }
+
+/* ---------- Parcel card ---------- */
+.parcel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.parcel-address { font-family: var(--serif); font-size: clamp(18px, 3vw, 22px); font-weight: 700; color: var(--text-bright); letter-spacing: -0.01em; line-height: 1.25; }
+.parcel-sub { font-size: 12.5px; color: var(--text-dim); margin-top: 3px; }
+.stat-section + .stat-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border-alt); }
+.stat-section-title { font-size: 11px; font-weight: 650; color: var(--text-dimmer); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 12px; }
 .stat-note { font-size: 10.5px; color: var(--text-dimmer); margin-top: 2px; font-variant-numeric: tabular-nums; }
 .stat-delta { font-size: 11.5px; font-weight: 600; margin-top: 2px; }
 .stat-delta.up { color: var(--up); }

@@ -54,7 +54,11 @@ export default function Property({ ctx }) {
     getPropertyLookup(addr)
       .then((d) => {
         setData(d);
-        navigate({ q: addr }, { replace: true });
+        // Show the full "street, city, LA zip" once we know it — the search key stays the
+        // plain street address (getPropertyLookup strips anything after the first comma).
+        const full = d.parcel.full_address || addr;
+        setAddress(full);
+        navigate({ q: full }, { replace: true });
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -79,9 +83,9 @@ export default function Property({ ctx }) {
   }
 
   function pick(a) {
-    setAddress(a);
+    setAddress(a.full);
     setSuggestOpen(false);
-    search(a);
+    search(a.address);
   }
 
   function onKeyDown(e) {
@@ -146,7 +150,7 @@ export default function Property({ ctx }) {
           <div className="suggestions" id="address-suggestions" role="listbox">
             {suggestions.map((a, i) => (
               <div
-                key={a}
+                key={a.address}
                 id={`address-suggestion-${i}`}
                 role="option"
                 aria-selected={i === activeIndex}
@@ -154,7 +158,7 @@ export default function Property({ ctx }) {
                 onMouseEnter={() => setActiveIndex(i)}
                 onMouseDown={(e) => { e.preventDefault(); pick(a); }}
               >
-                {highlightMatch(a, address)}
+                {highlightMatch(a.full, address)}
               </div>
             ))}
           </div>
@@ -185,28 +189,55 @@ function highlightMatch(text, query) {
   );
 }
 
+// Every stat is { label, value } with value already null when there's nothing to show — a
+// section renders only if at least one of its stats survived, so the card never shows a wall
+// of "—" placeholders for fields this data source simply doesn't carry (Jefferson's assessor
+// feed has no year built, living area or sale history, for instance).
 function ParcelCard({ data, trend, theme }) {
   const p = data.parcel;
   const v = data.valuation;
-  const stats = [
-    { label: "Address", value: p.site_address || p.site_address_norm },
-    { label: "Parish", value: p.parish === "jefferson" ? "Jefferson" : "Orleans" },
-    v && { label: "Indicative value", value: `${fmtCompactCurrency(v.est_low)} – ${fmtCompactCurrency(v.est_high)}`, accent: true },
-    { label: "Assessor market value", value: fmt.currency(p.tot_mkt_val) },
-    { label: "Assessed value", value: fmt.currency(p.assessed_val) },
-    { label: "Land value", value: fmt.currency(p.land_val) },
-    { label: "Building value", value: fmt.currency(p.bld_val) },
-    { label: "Homestead exemption", value: fmt.currency(p.homestead_exempt_val) },
-    { label: "Taxable value", value: fmt.currency(p.taxable_val) },
-    { label: "Year built", value: fmt.raw(p.year_built) },
-    { label: "Living area", value: p.building_area ? `${fmt.int(p.building_area)} sq ft` : "—" },
-    { label: "Lot", value: p.land_area ? `${fmt.int(p.land_area)} sq ft` : "—" },
-    { label: "Last sale", value: p.last_sale_date ? `${fmt.date(p.last_sale_date)} · ${fmt.currency(p.last_sale_price)}` : "—" },
-    { label: "Owner", value: fmt.raw(p.owner_name) },
-    { label: "Tax bill #", value: fmt.raw(p.tax_bill_number) },
-    { label: "Parcel ID", value: p.parcel_id },
-    { label: "ZIP market", value: p.zhvi ? `ZHVI ${fmtCompactCurrency(p.zhvi)} · median sale ${fmtCompactCurrency(p.redfin_median_sale_price)}` : "—" },
-  ].filter(Boolean);
+  const address = p.full_address || p.site_address || p.site_address_norm;
+
+  const sections = [
+    [
+      "Valuation",
+      [
+        { label: "Assessor market value", value: p.tot_mkt_val ? fmt.currency(p.tot_mkt_val) : null },
+        { label: "Assessed value", value: p.assessed_val != null ? fmt.currency(p.assessed_val) : null },
+        { label: "Land value", value: p.land_val != null ? fmt.currency(p.land_val) : null },
+        { label: "Building value", value: p.bld_val != null ? fmt.currency(p.bld_val) : null },
+        { label: "Homestead exemption", value: p.homestead_exempt_val ? fmt.currency(p.homestead_exempt_val) : null },
+        { label: "Taxable value", value: p.taxable_val != null ? fmt.currency(p.taxable_val) : null },
+      ],
+    ],
+    [
+      "Property",
+      [
+        { label: "Year built", value: p.year_built ? fmt.raw(p.year_built) : null },
+        { label: "Living area", value: p.building_area ? `${fmt.int(p.building_area)} sq ft` : null },
+        { label: "Lot", value: p.land_area ? `${fmt.int(p.land_area)} sq ft` : null },
+        { label: "Property class", value: p.property_class || null },
+        { label: "Subdivision", value: p.subdivision || null },
+      ],
+    ],
+    [
+      "Ownership",
+      [
+        { label: "Owner", value: p.owner_name ? fmt.raw(p.owner_name) : null },
+        { label: "Last sale", value: p.last_sale_date ? `${fmt.date(p.last_sale_date)} · ${fmt.currency(p.last_sale_price)}` : null },
+        { label: "Tax bill #", value: p.tax_bill_number || null },
+      ],
+    ],
+    [
+      "ZIP market context",
+      [
+        { label: "Median home value", value: p.zhvi ? fmtCompactCurrency(p.zhvi) : null },
+        { label: "Median sale price", value: p.redfin_median_sale_price ? fmtCompactCurrency(p.redfin_median_sale_price) : null },
+      ],
+    ],
+  ]
+    .map(([title, items]) => [title, items.filter((s) => s.value)])
+    .filter(([, items]) => items.length > 0);
 
   const history = (data.value_history || []).map((h) => ({ ...h, monthLabel: String(h.tax_year) }));
   const implied = trend && v ? trend.filter((d) => d.zhvi != null).map((d, _, arr) => ({ monthLabel: monthLabel(d.month), month: d.month, implied: Math.round((d.zhvi / arr[arr.length - 1].zhvi) * v.est_mid) })) : [];
@@ -214,24 +245,40 @@ function ParcelCard({ data, trend, theme }) {
   return (
     <>
       <div className="panel">
-        <div className="stat-grid">
-          {stats.map((s) => (
-            <div key={s.label} className="stat">
-              <div className="stat-label">{s.label}</div>
-              <div className={`stat-value${s.accent ? " stat-value--accent" : ""}`}>{s.value}</div>
+        <div className="parcel-header">
+          <div>
+            <div className="parcel-address">{address}</div>
+            <div className="parcel-sub">
+              {p.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · Parcel {p.parcel_id}
             </div>
-          ))}
-        </div>
-        {p.legal_description && (
-          <div style={{ marginTop: 14, paddingTop: 10, borderTop: "1px solid var(--border-alt)", color: "var(--text-dimmer)", fontSize: 12 }}>
-            Legal: {p.legal_description}
           </div>
-        )}
-        {p.lat && p.lng && (
-          <div style={{ marginTop: 8, fontSize: 12 }}>
-            <a href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=17/${p.lat}/${p.lng}`} target="_blank" rel="noreferrer">
+          {p.lat && p.lng && (
+            <a
+              className="btn"
+              href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=17/${p.lat}/${p.lng}`}
+              target="_blank"
+              rel="noreferrer"
+            >
               View on map ↗
             </a>
+          )}
+        </div>
+        {sections.map(([title, items]) => (
+          <div key={title} className="stat-section">
+            <div className="stat-section-title">{title}</div>
+            <div className="stat-grid">
+              {items.map((s) => (
+                <div key={s.label} className="stat">
+                  <div className="stat-label">{s.label}</div>
+                  <div className="stat-value">{s.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {p.legal_description && (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border-alt)", color: "var(--text-dimmer)", fontSize: 12 }}>
+            Legal: {p.legal_description}
           </div>
         )}
       </div>
