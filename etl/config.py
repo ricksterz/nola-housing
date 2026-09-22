@@ -167,15 +167,18 @@ ASSESSOR_SEED_FILE = os.environ.get("ASSESSOR_SEED_FILE")
 
 ASSESSOR_SOURCES = {
     "jefferson": {
-        # Candidate official bulk options, probed in order. Jefferson Parish
-        # publishes GIS through its geoportal; a parcel FeatureServer/MapServer
-        # layer there is the most likely sanctioned bulk path.
+        # Candidate official bulk options, probed in order. The old
+        # geoportal.jeffparish.net host 404s (moved); jpgis.jeffparish.net is
+        # the live GIS host, and PAO_MAP_2025/72 "Parcel Ownership" — not the
+        # bare "Parcels" layer, which is zoning/cadastral only — is the
+        # assessor's own layer: owner, address, land/improvement/assessed
+        # value, homestead exemption. Confirmed against a live parcel query.
         "bulk_candidates": [
             {
                 "kind": "arcgis",
                 "url": os.environ.get(
                     "JEFFERSON_ARCGIS_PARCELS_URL",
-                    "https://geoportal.jeffparish.net/public/rest/services/Parcels/MapServer/0",
+                    "https://jpgis.jeffparish.net/server/rest/services/PAO_MAP_2025/MapServer/72",
                 ),
             },
         ],
@@ -197,10 +200,19 @@ ASSESSOR_SOURCES = {
                 "dataset_id": os.environ.get("ORLEANS_SOCRATA_DATASET_ID", ""),
             },
             {
+                # The old "apps/Parcels" path errors "service not found".
+                # ParcelSearch/MapServer/0 is live and has parcel_id + full
+                # site address, but — unlike Jefferson's PAO layer — no
+                # owner/value fields; gis.nola.gov has no ArcGIS layer or
+                # Socrata dataset with real assessed/market values as of this
+                # check. This candidate will map (parcel_id + site_address
+                # clears REQUIRED_ANY) but records will carry no valuation
+                # data until a real source is found — see the ASSESSOR_SEED_FILE
+                # fallback for value data via nolaassessor.com instead.
                 "kind": "arcgis",
                 "url": os.environ.get(
                     "ORLEANS_ARCGIS_PARCELS_URL",
-                    "https://gis.nola.gov/arcgis/rest/services/apps/Parcels/MapServer/0",
+                    "https://gis.nola.gov/arcgis/rest/services/ParcelSearch/MapServer/0",
                 ),
             },
         ],
