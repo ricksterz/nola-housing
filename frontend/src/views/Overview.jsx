@@ -187,6 +187,23 @@ export default function Overview({ ctx }) {
               <MetricLine metric="redfin_pct_sold_above_list" name="Sold above list %" theme={theme} />
             </LineChart>
           </ChartPanel>
+
+          <ChartPanel
+            title="Market heat"
+            subtitle="Share of listings with a price cut vs. going under contract within 2 weeks (Redfin)"
+            rows={data}
+            columns={[
+              { key: "month", label: "Month", type: "monthYear" },
+              { key: "redfin_pct_price_drops", label: "Price cuts", type: "pct" },
+              { key: "redfin_pct_off_market_2wk", label: "Off market in 2wk", type: "pct" },
+            ]}
+          >
+            <LineChart data={data}>
+              <Frame yFormat="pct" series={2} />
+              <MetricLine metric="redfin_pct_price_drops" name="Price cuts %" theme={theme} />
+              <MetricLine metric="redfin_pct_off_market_2wk" name="Off market in 2wk %" theme={theme} />
+            </LineChart>
+          </ChartPanel>
         </div>
       )}
     </div>

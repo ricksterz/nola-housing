@@ -165,6 +165,8 @@ a { color: var(--blue); }
 .geo-groups { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
 .geo-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .geo-group-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; min-width: 132px; }
+.geo-more { border-style: dashed; color: var(--text-dimmer); background: transparent; }
+.geo-more:hover { color: var(--text); border-color: var(--text-dimmer); }
 
 /* ---------- Inputs ---------- */
 .search-row { display: flex; gap: 10px; margin-bottom: 20px; position: relative; }
