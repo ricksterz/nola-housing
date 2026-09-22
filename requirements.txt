@@ -1,4 +1,4 @@
 duckdb
-requests
-pytest
+requests>=2.33
+pytest>=9.0.3
 ruff

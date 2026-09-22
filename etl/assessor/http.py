@@ -128,7 +128,7 @@ class PoliteSession:
     def _cache(self, resp: requests.Response, cache_key: str | None) -> None:
         if not self.raw_dir:
             return
-        key = cache_key or hashlib.sha1(resp.url.encode()).hexdigest()
+        key = cache_key or hashlib.sha1(resp.url.encode(), usedforsecurity=False).hexdigest()
         ext = ".json" if "json" in resp.headers.get("Content-Type", "") else ".html"
         path = self.raw_dir / (key + ext)
         path.parent.mkdir(parents=True, exist_ok=True)
