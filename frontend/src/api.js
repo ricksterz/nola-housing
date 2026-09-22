@@ -77,13 +77,21 @@ export function getAddressIndex() {
   return addressIndexPromise;
 }
 
+// A suggestion/lookup key is always the plain street address — city/state/zip is display-only
+// (in `.full`) and never round-tripped into a query, so a full formatted address pasted back
+// in (e.g. after picking a suggestion, then hitting Search again) still matches.
+function streetOnly(address) {
+  return address.split(",")[0].trim().toUpperCase().replace(/\s+/g, " ");
+}
+
 export async function suggestAddresses(q) {
-  const needle = q.trim().toUpperCase().replace(/\s+/g, " ");
+  const needle = streetOnly(q);
   if (needle.length < 3) return [];
   if (IS_STATIC) {
     const index = await getAddressIndex();
-    const starts = index.filter((a) => a.startsWith(needle));
-    const contains = starts.length >= 8 ? [] : index.filter((a) => !a.startsWith(needle) && a.includes(needle));
+    const starts = index.filter((a) => a.address.startsWith(needle));
+    const contains =
+      starts.length >= 8 ? [] : index.filter((a) => !a.address.startsWith(needle) && a.address.includes(needle));
     return [...starts, ...contains].slice(0, 8);
   }
   const r = await get(`/api/property/suggest?q=${encodeURIComponent(q)}`);
@@ -91,18 +99,18 @@ export async function suggestAddresses(q) {
 }
 
 export async function getPropertyLookup(address) {
+  const needle = streetOnly(address);
   if (IS_STATIC) {
-    const needle = address.trim().toUpperCase().replace(/\s+/g, " ");
     try {
-      return await getStatic(`property/${slugify(address)}.json`);
+      return await getStatic(`property/${slugify(needle)}.json`);
     } catch {
       const index = await getAddressIndex();
-      const match = index.find((a) => a.startsWith(needle)) || index.find((a) => a.includes(needle));
-      if (match) return getStatic(`property/${slugify(match)}.json`);
+      const match = index.find((a) => a.address.startsWith(needle)) || index.find((a) => a.address.includes(needle));
+      if (match) return getStatic(`property/${match.slug}.json`);
       throw new Error(
-        `No assessor record matches "${address.trim()}". Pick an address from the suggestions as you type, or double-check the spelling and street type (Rd/St/Ave/Dr).`
+        `No assessor record matches "${needle}". Pick an address from the suggestions as you type, or double-check the spelling and street type (Rd/St/Ave/Dr).`
       );
     }
   }
-  return get(`/api/property/lookup?address=${encodeURIComponent(address)}`);
+  return get(`/api/property/lookup?address=${encodeURIComponent(needle)}`);
 }

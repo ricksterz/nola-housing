@@ -210,11 +210,38 @@ def macro_snapshot(con) -> dict:
 
 
 def normalize_address(addr: str) -> str:
+    addr = addr.split(",")[0]  # tolerate a full "street, city, state zip" being passed back in
     return re.sub(r"\s+", " ", addr.strip().upper())
 
 
 def slugify(address: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", address.strip().lower()).strip("-")
+
+
+_ORDINAL = re.compile(r"^(\d+)(st|nd|rd|th)$", re.IGNORECASE)
+
+
+def _title_case_address(s: str) -> str:
+    """str.title() capitalizes after every non-letter, so "2ND AVE" -> "2Nd Ave"; keep
+    ordinal suffixes lowercase ("2nd Ave") since that's the only address-specific case
+    naive title-casing gets wrong here."""
+    words = []
+    for w in s.split(" "):
+        m = _ORDINAL.match(w)
+        words.append(m.group(1) + m.group(2).lower() if m else w.title())
+    return " ".join(words)
+
+
+def full_address(parcel: dict) -> str:
+    """Title-cased street, plus city/state/ZIP when the geocoded fields are known."""
+    addr = _title_case_address(parcel.get("site_address") or parcel.get("site_address_norm") or "")
+    city = parcel.get("city")
+    zip_code = parcel.get("zip_code")
+    if city and zip_code:
+        return f"{addr}, {city}, LA {zip_code}"
+    if city:
+        return f"{addr}, {city}, LA"
+    return addr
 
 
 def property_lookup(con, address: str) -> dict | None:
@@ -235,6 +262,7 @@ def property_lookup(con, address: str) -> dict | None:
     if not rows:
         return None
     parcel = rows[0]
+    parcel["full_address"] = full_address(parcel)
     history = _rows(
         con,
         """SELECT tax_year, land_val, bld_val, tot_mkt_val, assessed_val, homestead_exempt_val, taxable_val
@@ -281,28 +309,28 @@ def implied_valuation(con, parcel: dict) -> dict | None:
     }
 
 
-def suggest(con, q: str, limit: int = 8) -> list[str]:
+def suggest(con, q: str, limit: int = 8) -> list[dict]:
+    """Address suggestions, each carrying the search key (address) and a display string (full)."""
     needle = normalize_address(q)
     if len(needle) < 3:
         return []
-    starts = [
-        r[0]
-        for r in con.execute(
-            "SELECT site_address_norm FROM parcel_market WHERE site_address_norm LIKE ? ORDER BY 1 LIMIT ?",
-            [f"{needle}%", limit],
-        ).fetchall()
-    ]
-    if len(starts) >= limit:
-        return starts
-    contains = [
-        r[0]
-        for r in con.execute(
-            "SELECT site_address_norm FROM parcel_market "
+    starts = _rows(
+        con,
+        "SELECT site_address_norm, city, zip_code FROM parcel_market "
+        "WHERE site_address_norm LIKE ? ORDER BY 1 LIMIT ?",
+        [f"{needle}%", limit],
+    )
+    contains = (
+        []
+        if len(starts) >= limit
+        else _rows(
+            con,
+            "SELECT site_address_norm, city, zip_code FROM parcel_market "
             "WHERE site_address_norm LIKE ? AND site_address_norm NOT LIKE ? ORDER BY 1 LIMIT ?",
             [f"%{needle}%", f"{needle}%", limit - len(starts)],
-        ).fetchall()
-    ]
-    return starts + contains
+        )
+    )
+    return [{"address": r["site_address_norm"], "full": full_address(r)} for r in starts + contains]
 
 
 def meta(con) -> dict:
