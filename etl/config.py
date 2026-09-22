@@ -89,6 +89,26 @@ ZIPS_BY_PARISH = {
 ZIPS = tuple(z for zips in ZIPS_BY_PARISH.values() for z in zips)
 ZIP_TO_PARISH_FIPS = {z: PARISH_FIPS[p] for p, zips in ZIPS_BY_PARISH.items() for z in zips}
 
+# USPS preferred city name per ZIP — for composing a mailing-style full address
+# (distinct from ZIP_NAMES in backend/queries.py, which uses neighborhood
+# names like "Old Metairie" for display, not what USPS expects as the city).
+ZIP_CITY = {
+    "70001": "Metairie",
+    "70002": "Metairie",
+    "70003": "Metairie",
+    "70005": "Metairie",
+    "70006": "Metairie",
+    "70121": "Metairie",
+    "70123": "Harahan",
+    **{z: "New Orleans" for z in ZIPS_BY_PARISH["orleans"]},
+}
+
+# Trimmed ZCTA boundaries (derived from Census TIGER via OpenDataDE's public
+# per-state GeoJSON mirror), filtered to just the ZIPs above — used to backfill
+# zip_code/city from a parcel's lat/lng when the assessor source doesn't carry
+# them (e.g. Jefferson's PAO layer never populates ZIP). See etl/geocode.py.
+ZIP_BOUNDARIES_PATH = ETL_DIR / "data" / "zip_boundaries.geojson"
+
 # ---------------------------------------------------------------------------
 # Redfin Data Center (public S3 bucket, not a scrape). Same feeds the Houston
 # job uses; the *.tsv000.gz objects are the current names of the TSV trackers.

@@ -20,7 +20,7 @@ from datetime import date, datetime, timezone
 
 import duckdb
 
-from . import config
+from . import config, geocode
 from .assessor import ADAPTERS, bulk
 from .assessor.base import PARCEL_FIELDS, ParcelRecord
 from .assessor.http import PoliteSession
@@ -223,6 +223,8 @@ def build_derived(con: duckdb.DuckDBPyConnection) -> None:
 
 def load(con: duckdb.DuckDBPyConnection, parishes=("jefferson", "orleans"), **kwargs) -> list[dict]:
     out = [load_parish(con, p, **kwargs) for p in parishes]
+    n = geocode.backfill_zip_city(con)
+    print(f"  geocode: filled zip/city on {n} rows from lat/lng")
     build_derived(con)
     return out
 
