@@ -14,7 +14,7 @@ from datetime import date
 
 import duckdb
 
-from . import build_join, config, load_assessor
+from . import build_join, config, db_compact, load_assessor
 
 
 def parishes_in_window(today: date | None = None) -> list[str]:
@@ -54,7 +54,8 @@ def main(argv=None):
     )
     print("Rebuilding join...")
     build_join.build(con)
-    con.close()
+    print("Compacting database (DuckDB's VACUUM doesn't reclaim space; a raw copy does)...")
+    db_compact.compact(con, args.db)
     print("Done.")
 
 
