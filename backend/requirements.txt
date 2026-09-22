@@ -1,5 +1,13 @@
 fastapi
 uvicorn[standard]
 duckdb
-requests
+requests>=2.33
 pydantic
+
+# Transitive pins to clear known CVEs (pip-audit) in versions fastapi/uvicorn
+# would otherwise resolve to.
+starlette>=1.3.1
+anyio>=4.14.2
+click>=8.3.3
+python-dotenv>=1.2.2
+urllib3>=2.7.0
