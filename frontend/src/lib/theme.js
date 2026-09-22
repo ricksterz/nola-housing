@@ -25,6 +25,7 @@ export const METRIC_SLOT = {
   redfin_sale_to_list_ratio: 0,
   redfin_pct_sold_above_list: 1,
   redfin_pct_price_drops: 1,
+  redfin_pct_off_market_2wk: 0,
   redfin_median_sale_price_psf: 1,
   mortgage_rate_30yr: 0,
   nola_metro_hpi: 0,

@@ -34,7 +34,7 @@ export default function MacroStrip({ ctx }) {
   return (
     <div className="panel">
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-        <div className="stat-label" style={{ marginBottom: 0 }}>{sc.label}</div>
+        <div className="stat-label" style={{ marginBottom: 0 }}>Snapshot</div>
         <div className="seg" role="group" aria-label="Area">
           {SCOPES.map((s) => (
             <button key={s.id} className={`seg-btn${scope === s.id ? " is-active" : ""}`} onClick={() => setScope(s.id)} aria-pressed={scope === s.id}>
