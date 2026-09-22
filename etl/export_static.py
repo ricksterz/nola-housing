@@ -29,7 +29,13 @@ REDACT_OWNER_NAMES = False  # assessor records are public; mirror the Houston de
 
 def write_json(path: Path, data, compact=False):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, separators=(",", ":")) if compact else json.dumps(data, indent=1))
+    # CodeQL flags this as clear-text storage of sensitive data because parcel records carry
+    # owner_name. Louisiana parcel assessments — owner, address, assessed value — are public
+    # record; the assessors' own sites (jpassessor.net, nolaassessor.com) publish the same
+    # data unencrypted. REDACT_OWNER_NAMES above is the actual opt-out if that changes.
+    path.write_text(  # lgtm[py/clear-text-storage-sensitive-data]
+        json.dumps(data, separators=(",", ":")) if compact else json.dumps(data, indent=1)
+    )
 
 
 def export_market(con):
