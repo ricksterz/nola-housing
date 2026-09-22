@@ -144,13 +144,37 @@ function SourceChips({ meta }) {
 }
 
 function Skyline() {
-  // A quiet, abstract skyline / riverbend — decoration only.
+  // A quiet, abstract Jackson Square — St. Louis Cathedral's triple spires
+  // flanked by the Cabildo and Presbytère, garden trees, a carriage and a
+  // flag — decoration only, so it stays a pure silhouette (no people, no
+  // traffic to draw).
   return (
     <svg className="hero-skyline" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
       <path
-        d="M0 120 L0 90 L40 90 L40 70 L70 70 L70 95 L110 95 L110 60 L130 60 L130 40 L150 40 L150 95 L200 95 L200 80 L240 80 L240 55 L260 55 L260 30 L280 30 L280 95 L330 95 L330 75 L360 75 L360 50 L380 50 L380 95 L430 95 L430 85 L470 85 L470 65 L500 65 L500 95 L560 95 L560 45 L580 45 L580 20 L600 20 L600 95 L650 95 L650 70 L690 70 L690 95 L740 95 L740 60 L770 60 L770 95 L820 95 L820 80 L860 80 L860 35 L880 35 L880 95 L930 95 L930 75 L970 75 L970 95 L1020 95 L1020 55 L1050 55 L1050 95 L1100 95 L1100 85 L1140 85 L1140 70 L1170 70 L1170 95 L1200 95 L1200 120 Z"
+        d="M0 120
+           L0 108 L15 108 L15 96 L30 96 L30 110 L48 110 L48 98 L66 98 L66 112 L84 112 L84 100 L102 100 L102 114 L120 114 L120 104 L140 104 L140 116 L160 116 L160 106 L190 106
+           L190 96 L200 96
+           L200 65 L280 65 L280 42 L310 42 L310 65 L380 65
+           L380 100 L540 100
+           L550 80 L570 80 L590 32 L610 80 L650 80 L670 8 L690 80 L730 80 L750 32 L770 80 L790 80
+           L800 100 L815 100
+           L815 65 L895 65 L895 42 L925 42 L925 65 L995 65
+           L995 96 L1005 96
+           L1015 96 L1015 15 L1035 22 L1015 29 L1015 106
+           L1030 106 L1030 116 L1050 116 L1050 104 L1068 104 L1068 114 L1086 114 L1086 100 L1104 100 L1104 112 L1122 112 L1122 98 L1140 98 L1140 110 L1160 110 L1160 108 L1200 108
+           L1200 120 Z"
         fill="currentColor"
       />
+      {/* Carriage sits in the open gap left of the cathedral, clear of the building silhouettes. */}
+      <g fill="currentColor">
+        <circle cx="410" cy="108" r="9" />
+        <circle cx="457" cy="108" r="9" />
+        <rect x="400" y="88" width="68" height="14" rx="2" />
+        <path d="M400 88 L406 74 L462 74 L468 88 Z" opacity="0.7" />
+        <rect x="474" y="96" width="4" height="12" />
+        <path d="M478 100 L498 100 L498 108 L504 108 L504 92 L508 92 L508 108 L514 108 L514 82 L496 82 L496 92 L478 92 Z" />
+        <circle cx="512" cy="76" r="6" />
+      </g>
     </svg>
   );
 }
