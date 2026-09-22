@@ -70,7 +70,7 @@ export default function Overview({ ctx }) {
         </div>
       )}
 
-      {error && <div className="error">Error: {error}</div>}
+      {error && <div className="error">Could not load market data: {error}</div>}
       {!trend && !error && <div className="loading">Loading…</div>}
 
       {trend && (

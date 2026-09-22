@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
 import { getPropertyLookup, getTrend, suggestAddresses } from "../api";
 import ChartPanel from "../components/ChartPanel";
@@ -7,6 +7,8 @@ import { Frame, currencyAxis, lineProps } from "../components/charts";
 import { monthLabel } from "../lib/rangeUtils";
 import { fmt, fmtCompactCurrency, seriesColor } from "../lib/theme";
 
+const SUGGEST_DEBOUNCE_MS = 150;
+
 export default function Property({ ctx }) {
   const { meta, theme, navigate, url } = ctx;
   const [address, setAddress] = useState(url.q || "");
@@ -14,8 +16,13 @@ export default function Property({ ctx }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [trend, setTrend] = useState(null);
   const count = meta?.property_count ?? null;
+  const boxRef = useRef(null);
+  const debounceRef = useRef(null);
+  const requestSeq = useRef(0);
 
   useEffect(() => {
     if (url.q) search(url.q);
@@ -27,9 +34,19 @@ export default function Property({ ctx }) {
     getTrend("zip", zip).then((t) => setTrend(t.series)).catch(() => setTrend(null));
   }, [data]);
 
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (boxRef.current && !boxRef.current.contains(e.target)) setSuggestOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
   function search(addr = address) {
     if (!addr.trim()) return;
-    setSuggestions([]);
+    setSuggestOpen(false);
     setLoading(true);
     setError(null);
     setData(null);
@@ -43,9 +60,53 @@ export default function Property({ ctx }) {
       .finally(() => setLoading(false));
   }
 
-  async function onInput(v) {
+  function onInput(v) {
     setAddress(v);
-    setSuggestions(await suggestAddresses(v).catch(() => []));
+    setActiveIndex(-1);
+    clearTimeout(debounceRef.current);
+    if (!v.trim()) {
+      setSuggestions([]);
+      setSuggestOpen(false);
+      return;
+    }
+    const seq = ++requestSeq.current;
+    debounceRef.current = setTimeout(async () => {
+      const results = await suggestAddresses(v).catch(() => []);
+      if (seq !== requestSeq.current) return; // a newer keystroke superseded this request
+      setSuggestions(results);
+      setSuggestOpen(results.length > 0);
+    }, SUGGEST_DEBOUNCE_MS);
+  }
+
+  function pick(a) {
+    setAddress(a);
+    setSuggestOpen(false);
+    search(a);
+  }
+
+  function onKeyDown(e) {
+    if (suggestOpen && suggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIndex((i) => (i + 1) % suggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+        return;
+      }
+      if (e.key === "Escape") {
+        setSuggestOpen(false);
+        return;
+      }
+      if (e.key === "Enter" && activeIndex >= 0) {
+        e.preventDefault();
+        pick(suggestions[activeIndex]);
+        return;
+      }
+    }
+    if (e.key === "Enter") search();
   }
 
   return (
@@ -66,20 +127,34 @@ export default function Property({ ctx }) {
         </div>
       )}
 
-      <div className="search-row">
+      <div className="search-row" ref={boxRef}>
         <input
           className="search-input"
           value={address}
           onChange={(e) => onInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && search()}
+          onFocus={() => suggestions.length > 0 && setSuggestOpen(true)}
+          onKeyDown={onKeyDown}
           placeholder="Street address, e.g. 123 METAIRIE RD"
           aria-label="Street address"
+          role="combobox"
+          aria-expanded={suggestOpen}
+          aria-controls="address-suggestions"
+          aria-activedescendant={activeIndex >= 0 ? `address-suggestion-${activeIndex}` : undefined}
+          autoComplete="off"
         />
-        {suggestions.length > 0 && (
-          <div className="suggestions" role="listbox">
-            {suggestions.map((a) => (
-              <div key={a} role="option" className="suggestion" onMouseDown={() => { setAddress(a); search(a); }}>
-                {a}
+        {suggestOpen && (
+          <div className="suggestions" id="address-suggestions" role="listbox">
+            {suggestions.map((a, i) => (
+              <div
+                key={a}
+                id={`address-suggestion-${i}`}
+                role="option"
+                aria-selected={i === activeIndex}
+                className={`suggestion${i === activeIndex ? " suggestion--active" : ""}`}
+                onMouseEnter={() => setActiveIndex(i)}
+                onMouseDown={(e) => { e.preventDefault(); pick(a); }}
+              >
+                {highlightMatch(a, address)}
               </div>
             ))}
           </div>
@@ -89,10 +164,24 @@ export default function Property({ ctx }) {
         </button>
       </div>
 
-      {error && <div className="error">Error: {error}</div>}
+      {error && <div className="error">{error}</div>}
 
       {data && <ParcelCard data={data} trend={trend} theme={theme} />}
     </div>
+  );
+}
+
+function highlightMatch(text, query) {
+  const needle = query.trim();
+  if (!needle) return text;
+  const i = text.toUpperCase().indexOf(needle.toUpperCase());
+  if (i === -1) return text;
+  return (
+    <>
+      {text.slice(0, i)}
+      <b>{text.slice(i, i + needle.length)}</b>
+      {text.slice(i + needle.length)}
+    </>
   );
 }
 
