@@ -10,7 +10,7 @@ import argparse
 
 import duckdb
 
-from . import build_join, config, load_fred, load_redfin, load_zillow
+from . import build_join, config, db_compact, load_fred, load_redfin, load_zillow
 
 
 def main(argv=None):
@@ -32,7 +32,8 @@ def main(argv=None):
         load_fred.load(con)
     print("Rebuilding join...")
     build_join.build(con)
-    con.close()
+    print("Compacting database (DuckDB's VACUUM doesn't reclaim space; a raw copy does)...")
+    db_compact.compact(con, args.db)
     print("Done.")
 
 
