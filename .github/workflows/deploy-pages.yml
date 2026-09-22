@@ -1,0 +1,65 @@
+name: Deploy to GitHub Pages
+
+# Builds the static site (frontend + exported JSON) and deploys it to GitHub
+# Pages. Enable in repo Settings → Pages → Source: "GitHub Actions". Also runs
+# after either data-refresh workflow succeeds, since pushes made with the
+# workflow's GITHUB_TOKEN do not trigger `push` events themselves.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "Monthly Market Data Refresh (Redfin, Zillow, FRED)"
+      - "Assessor Refresh (Jefferson annual, Orleans open rolls)"
+    types: [completed]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install duckdb requests
+      - name: Export static data from the DuckDB snapshot
+        run: python -m etl.export_static
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          VITE_STATIC_DATA: "true"
+          VITE_BASE: "/${{ github.event.repository.name }}/"
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
