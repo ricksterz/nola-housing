@@ -71,12 +71,6 @@ export function getMacroIndex() {
   return get("/api/market/macro_index").catch(() => ({ series: [] }));
 }
 
-let addressIndexPromise = null;
-export function getAddressIndex() {
-  if (!addressIndexPromise) addressIndexPromise = getStatic("addresses.json").catch(() => []);
-  return addressIndexPromise;
-}
-
 // A suggestion/lookup key is always the plain street address — city/state/zip is display-only
 // (in `.full`) and never round-tripped into a query, so a full formatted address pasted back
 // in (e.g. after picking a suggestion, then hitting Search again) still matches.
@@ -84,15 +78,24 @@ function streetOnly(address) {
   return address.split(",")[0].trim().toUpperCase().replace(/\s+/g, " ");
 }
 
+// The address list (133k+ entries, multiple MB) is sharded by its first 3 characters at build
+// time (etl/export_static.py's shard_key — keep these in sync) instead of shipped as one file:
+// fetching and linear-scanning the whole thing on every keystroke was crashing the tab on
+// phones (large download + repeated full-array scans on a constrained mobile browser).
+function shardKey(prefix) {
+  return prefix.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "_");
+}
+
+function getAddressShard(prefix) {
+  return getStatic(`addr/${shardKey(prefix)}.json`).catch(() => []);
+}
+
 export async function suggestAddresses(q) {
   const needle = streetOnly(q);
   if (needle.length < 3) return [];
   if (IS_STATIC) {
-    const index = await getAddressIndex();
-    const starts = index.filter((a) => a.address.startsWith(needle));
-    const contains =
-      starts.length >= 8 ? [] : index.filter((a) => !a.address.startsWith(needle) && a.address.includes(needle));
-    return [...starts, ...contains].slice(0, 8);
+    const shard = await getAddressShard(needle);
+    return shard.filter((a) => a.address.startsWith(needle)).slice(0, 8);
   }
   const r = await get(`/api/property/suggest?q=${encodeURIComponent(q)}`);
   return r.suggestions;
@@ -104,8 +107,8 @@ export async function getPropertyLookup(address) {
     try {
       return await getStatic(`property/${slugify(needle)}.json`);
     } catch {
-      const index = await getAddressIndex();
-      const match = index.find((a) => a.address.startsWith(needle)) || index.find((a) => a.address.includes(needle));
+      const shard = await getAddressShard(needle);
+      const match = shard.find((a) => a.address.startsWith(needle)) || shard.find((a) => a.address.includes(needle));
       if (match) return getStatic(`property/${match.slug}.json`);
       throw new Error(
         `No assessor record matches "${needle}". Pick an address from the suggestions as you type, or double-check the spelling and street type (Rd/St/Ave/Dr).`
