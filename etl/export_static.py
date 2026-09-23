@@ -7,12 +7,16 @@ Writes to frontend/public/data/:
     scorecard.json               one row per geography: latest metrics, YoY, sparklines
     compare.json                 every geography's monthly series (compare charts)
     trend_<level>_<id>.json      one geography's monthly series
-    addresses.json + property/   one JSON per parcel (empty until the assessor leg has run)
+    addr/<key>.json + property/  one JSON per parcel (empty until the assessor leg has run) —
+                                  addr/ is sharded by the first 3 chars of the address (see
+                                  shard_key below) so the client fetches a few KB per keystroke
+                                  instead of the entire address list
 
     python -m etl.export_static
 """
 
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -95,11 +99,18 @@ def _implied_valuation(parcel: dict, zip_stats: dict) -> dict | None:
     }
 
 
+def shard_key(addr: str) -> str:
+    """Must match frontend/src/api.js's shardKey() exactly — same input, same output, or the
+    client fetches a shard file that was never written."""
+    return re.sub(r"[^A-Z0-9]", "_", addr[:3].upper())
+
+
 def export_properties(con) -> int:
     prop_dir = OUT_DIR / "property"
+    addr_dir = OUT_DIR / "addr"
     prop_dir.mkdir(parents=True, exist_ok=True)
+    addr_dir.mkdir(parents=True, exist_ok=True)
     if not queries._table_exists(con, "parcel_market"):
-        write_json(OUT_DIR / "addresses.json", [], compact=True)
         return 0
 
     print("Fetching parcels, value history and per-ZIP valuation stats (batched, not per-parcel)...")
@@ -120,7 +131,7 @@ def export_properties(con) -> int:
 
     print(f"Writing property files for {len(parcels)} parcels...")
     seen_slugs = set()
-    exported = []
+    shards: dict[str, list] = {}
     for parcel in parcels:
         addr = parcel.get("site_address_norm")
         slug = addr and queries.slugify(addr)
@@ -137,12 +148,18 @@ def export_properties(con) -> int:
             "valuation": _implied_valuation(parcel, zip_stats),
         }
         write_json(prop_dir / f"{slug}.json", data, compact=True)
-        exported.append({"address": addr, "full": parcel["full_address"], "slug": slug})
+        shards.setdefault(shard_key(addr), []).append(
+            {"address": addr, "full": parcel["full_address"], "slug": slug}
+        )
     for stale in prop_dir.glob("*.json"):
         if stale.stem not in seen_slugs:
             stale.unlink()
-    write_json(OUT_DIR / "addresses.json", exported, compact=True)
-    return len(exported)
+    for stale in addr_dir.glob("*.json"):
+        if stale.stem not in shards:
+            stale.unlink()
+    for key, entries in shards.items():
+        write_json(addr_dir / f"{key}.json", entries, compact=True)
+    return len(seen_slugs)
 
 
 def main():
