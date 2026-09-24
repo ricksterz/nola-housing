@@ -243,6 +243,7 @@ a { color: var(--blue); }
 .empty { border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 18px; color: var(--text-dim); font-size: 13px; line-height: 1.6; }
 .empty b { color: var(--text-bright); }
 .method-note { font-size: 11.5px; color: var(--text-dimmer); line-height: 1.65; max-width: 780px; }
+.link-button { appearance: none; background: none; border: none; padding: 0; font: inherit; color: var(--blue); text-decoration: underline; cursor: pointer; }
 .loading { color: var(--text-dim); font-size: 13px; }
 .error { color: var(--red); font-size: 13px; }
 .range-stats { display: flex; align-items: baseline; gap: 18px 32px; margin-bottom: 18px; flex-wrap: wrap; }

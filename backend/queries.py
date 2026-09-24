@@ -363,6 +363,7 @@ def meta(con) -> dict:
         },
         "assessor": {
             "parcels": one("SELECT COUNT(*) FROM assessor_parcels"),
+            "geocoded": one("SELECT COUNT(*) FROM assessor_parcels WHERE zip_code IS NOT NULL"),
             "fetched_at": iso(one("SELECT MAX(fetched_at) FROM assessor_parcels")),
             "by_parish": {
                 r[0]: r[1]

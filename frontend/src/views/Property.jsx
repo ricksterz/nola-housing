@@ -170,7 +170,7 @@ export default function Property({ ctx }) {
 
       {error && <div className="error">{error}</div>}
 
-      {data && <ParcelCard data={data} trend={trend} theme={theme} />}
+      {data && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} />}
     </div>
   );
 }
@@ -193,7 +193,7 @@ function highlightMatch(text, query) {
 // section renders only if at least one of its stats survived, so the card never shows a wall
 // of "—" placeholders for fields this data source simply doesn't carry (Jefferson's assessor
 // feed has no year built, living area or sale history, for instance).
-function ParcelCard({ data, trend, theme }) {
+function ParcelCard({ data, trend, theme, navigate }) {
   const p = data.parcel;
   const v = data.valuation;
   const address = p.full_address || p.site_address || p.site_address_norm;
@@ -281,6 +281,15 @@ function ParcelCard({ data, trend, theme }) {
             Legal: {p.legal_description}
           </div>
         )}
+        <div className="method-note" style={{ marginTop: 10 }}>
+          Source: {p.parish === "jefferson" ? "Jefferson" : "Orleans"} Parish Assessor, as published
+          {p.fetched_at ? ` · pulled ${p.fetched_at.slice(0, 10)}` : ""}.
+          {p.zip_code ? " City and ZIP are placed from the parcel's location." : ""} Assessed value is the tax
+          value, not a market price.{" "}
+          <button type="button" className="link-button" onClick={() => navigate({ view: "about", q: null })}>
+            How this data works
+          </button>
+        </div>
       </div>
 
       {v && (
