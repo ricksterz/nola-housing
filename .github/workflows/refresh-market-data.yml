@@ -18,6 +18,12 @@ on:
 permissions:
   contents: write
 
+# One refresh at a time across all three refresh workflows: each downloads the database, changes
+# it and publishes it back, so two running at once would overwrite each other's work.
+concurrency:
+  group: nola-db
+  cancel-in-progress: false
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -31,6 +37,11 @@ jobs:
       - name: Install dependencies
         run: pip install duckdb requests
 
+      - name: Download the current database
+        run: |
+          python -m etl.db_store pull
+          cp etl/nola_housing.duckdb "$RUNNER_TEMP/before.duckdb"
+
       - name: Refresh Redfin / Zillow / FRED / ownership costs and rebuild the join
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
@@ -42,13 +53,11 @@ jobs:
             python -m etl.refresh_market_data
           fi
 
-      - name: Commit and push if data changed
+      - name: Publish the database if it changed
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           ONLY: ${{ github.event.inputs.only }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add etl/nola_housing.duckdb
           case "$ONLY" in
             "") sources="Redfin, Zillow, FRED, ownership costs" ;;
             redfin) sources="Redfin" ;;
@@ -57,9 +66,4 @@ jobs:
             costs) sources="ownership costs" ;;
             *) sources="$ONLY" ;;
           esac
-          if git diff --cached --quiet; then
-            echo "No data changes."
-          else
-            git commit -m "Market data refresh ($sources): $(date -u +%Y-%m-%d)"
-            git push
-          fi
+          python -m etl.db_store publish --before "$RUNNER_TEMP/before.duckdb" --notes "Market data refresh ($sources)"

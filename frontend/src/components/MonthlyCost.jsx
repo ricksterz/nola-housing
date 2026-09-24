@@ -1,7 +1,7 @@
 import { COST_PARTS, HOMEOWNERS_RANGE } from "../lib/costs";
 import { fmt, seriesColor } from "../lib/theme";
 
-/** Rate / down / homeowners / flood toggle, bound to useCostAssumptions(). */
+/** Rate / down / homeowners / flood and homestead toggles, bound to useCostAssumptions(). */
 export function CostInputs({ a, children }) {
   return (
     <div className="chart-actions cost-inputs">
@@ -17,6 +17,9 @@ export function CostInputs({ a, children }) {
       </label>
       <label className="field">
         <input type="checkbox" checked={a.includeFlood} onChange={(e) => a.set({ includeFlood: e.target.checked })} /> Flood insurance
+      </label>
+      <label className="field" title="Your primary residence gets the homestead exemption; a rental or second home doesn't, so it pays tax on the full price.">
+        <input type="checkbox" checked={a.homestead} onChange={(e) => a.set({ homestead: e.target.checked })} /> I'll live here
       </label>
     </div>
   );

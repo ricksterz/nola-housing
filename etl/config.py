@@ -18,6 +18,14 @@ ETL_DIR = ROOT / "etl"
 RAW_DIR = Path(os.environ.get("NOLA_RAW_DIR", ETL_DIR / "raw"))
 DB_PATH = Path(os.environ.get("NOLA_DB_PATH", ETL_DIR / "nola_housing.duckdb"))
 
+# The database isn't in git; it's an asset on this repo's `data` release (etl/db_store.py).
+DB_REPO = os.environ.get("GITHUB_REPOSITORY", "ricksterz/nola-housing")
+DB_RELEASE_TAG = "data"
+DB_ASSET = "nola_housing.duckdb"
+DB_PREVIOUS_ASSET = "nola_housing.previous.duckdb"
+GITHUB_API = "https://api.github.com"
+GITHUB_UPLOADS = "https://uploads.github.com"
+
 # ---------------------------------------------------------------------------
 # Geography
 # ---------------------------------------------------------------------------
@@ -129,6 +137,9 @@ ACS_TABLE_URL = os.environ.get(
 )
 NFIP_POLICIES_URL = os.environ.get("NFIP_POLICIES_URL", "https://www.fema.gov/api/open/v2/FimaNfipPolicies")
 NFIP_LOOKBACK_DAYS = 365
+# Louisiana homestead exemption: the first $7,500 of assessed value, i.e. $75,000 of market value
+# at the 10% residential assessment ratio (La. Const. art. VII, sec. 20).
+HOMESTEAD_EXEMPT_VALUE = 75_000
 NFIP_MIN_POLICIES = 20  # don't publish a ZIP/zone median from fewer policies than this
 
 # ---------------------------------------------------------------------------

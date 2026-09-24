@@ -2,8 +2,11 @@
 
 zip_tax_rate — Census ACS 5-year, owner-occupied homes: aggregate real estate taxes paid
     (B25090) ÷ aggregate home value (B25082) = the effective tax rate owners actually pay, which
-    already reflects the homestead exemption most owner-occupants get. Median taxes paid (B25103)
-    is kept for context. Downloaded only when a newer vintage than the stored one is published.
+    already reflects the homestead exemption most owner-occupants get. full_rate backs that
+    exemption out — taxes ÷ (value − HOMESTEAD_EXEMPT_VALUE × owner-occupied units, B25003) — so a
+    home can be taxed as a residence (price minus the exemption) or as a rental or second home
+    (the full price). Median taxes paid (B25103) is kept for context. Downloaded only when a newer
+    vintage than the stored one is published.
 
 zip_flood_cost — FEMA OpenFEMA NFIP policies in force: for single-family, one-year policies that
     took effect in the last NFIP_LOOKBACK_DAYS, the 25th/50th/75th percentile of policyCost (what
@@ -35,9 +38,14 @@ log = logging.getLogger(__name__)
 TAX_SQL = """
     CREATE TABLE IF NOT EXISTS zip_tax_rate (
         zip VARCHAR, acs_year INTEGER, aggregate_taxes DOUBLE, aggregate_value DOUBLE,
-        effective_rate DOUBLE, median_tax_paid DOUBLE, pulled_at TIMESTAMP
+        effective_rate DOUBLE, median_tax_paid DOUBLE, pulled_at TIMESTAMP,
+        owner_units DOUBLE, full_rate DOUBLE
     )
 """
+TAX_COLUMNS = (
+    "zip, acs_year, aggregate_taxes, aggregate_value, effective_rate, median_tax_paid, pulled_at, "
+    "owner_units, full_rate"
+)
 FLOOD_SQL = """
     CREATE TABLE IF NOT EXISTS zip_flood_cost (
         zip VARCHAR, zone_group VARCHAR, policies INTEGER, p25 DOUBLE, median DOUBLE, p75 DOUBLE,
@@ -51,6 +59,9 @@ SINGLE_FAMILY = {1, 11}
 
 def ensure_tables(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(TAX_SQL)
+    # Tables created before full_rate existed.
+    con.execute("ALTER TABLE zip_tax_rate ADD COLUMN IF NOT EXISTS owner_units DOUBLE")
+    con.execute("ALTER TABLE zip_tax_rate ADD COLUMN IF NOT EXISTS full_rate DOUBLE")
     con.execute(FLOOD_SQL)
 
 
@@ -80,18 +91,40 @@ def _acs_table(session: PoliteSession, year: int, table: str, column: str) -> di
     return out
 
 
+def _full_rate(taxes: float, value: float, owner_units: float | None) -> float | None:
+    """Tax rate on value with no homestead exemption, from the owner-occupied aggregates."""
+    if not owner_units:
+        return None
+    taxable = value - config.HOMESTEAD_EXEMPT_VALUE * owner_units
+    return taxes / taxable if taxable > 0 else None
+
+
 def load_tax(con: duckdb.DuckDBPyConnection, session: PoliteSession, today: date | None = None) -> int | None:
     """Refresh zip_tax_rate if a newer ACS 5-year vintage exists. Returns the vintage loaded, or None."""
     today = today or date.today()
-    have = con.execute("SELECT MAX(acs_year) FROM zip_tax_rate").fetchone()[0] or 0
+    # Rows without full_rate predate it and count as missing, so they're reloaded once.
+    have = (
+        con.execute("SELECT MAX(acs_year) FROM zip_tax_rate WHERE full_rate IS NOT NULL").fetchone()[0] or 0
+    )
     for year in range(today.year - 1, max(have, today.year - 4), -1):
         taxes = _acs_table(session, year, "b25090", "B25090_E001")
         if taxes is None:
             continue
         values = _acs_table(session, year, "b25082", "B25082_E001") or {}
         medians = _acs_table(session, year, "b25103", "B25103_E001") or {}
+        owners = _acs_table(session, year, "b25003", "B25003_E002") or {}
         rows = [
-            (z, year, taxes[z], values[z], taxes[z] / values[z], medians.get(z), _now())
+            (
+                z,
+                year,
+                taxes[z],
+                values[z],
+                taxes[z] / values[z],
+                medians.get(z),
+                _now(),
+                owners.get(z),
+                _full_rate(taxes[z], values[z], owners.get(z)),
+            )
             for z in config.ZIPS
             if z in taxes and values.get(z)
         ]
@@ -99,7 +132,7 @@ def load_tax(con: duckdb.DuckDBPyConnection, session: PoliteSession, today: date
             raise RuntimeError(f"ACS {year} had no usable rows for our ZIPs")
         con.execute("BEGIN")
         con.execute("DELETE FROM zip_tax_rate")
-        con.executemany("INSERT INTO zip_tax_rate VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
+        con.executemany(f"INSERT INTO zip_tax_rate ({TAX_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
         con.execute("COMMIT")
         print(f"  zip_tax_rate: ACS {year}, {len(rows)} ZIPs")
         return year

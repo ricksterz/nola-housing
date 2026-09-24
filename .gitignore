@@ -14,6 +14,10 @@ __pycache__/
 etl/raw/
 *.duckdb.wal
 
+# The database lives on the `data` release, not in git: python -m etl.db_store pull
+etl/*.duckdb
+etl/*.duckdb.*
+
 # OS / editor
 .DS_Store
 
