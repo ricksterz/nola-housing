@@ -30,6 +30,7 @@ etl/
   load_assessor.py       assessor leg (bulk probe first, search UI fallback)
   geocode.py             zip/city from parcel lat/lng (Census ZCTA point-in-polygon)
   load_flood.py          FEMA NFHL flood zone per parcel                 -> parcel_flood
+  load_costs.py          ACS property tax rate + NFIP flood cost by ZIP  -> zip_tax_rate, zip_flood_cost
   db_compact.py          reclaim DuckDB file space after a refresh (VACUUM doesn't)
   assessor/
     http.py              polite session: UA, robots.txt, rate limit, backoff, budget, raw landing
@@ -40,7 +41,7 @@ etl/
     orleans.py           nolaassessor.com adapter (tax bill number keyed)
   build_join.py          geo_dim, market_monthly, macro_index, parcel_market + Houston-compatible views
   build_db.py            full build (all legs + join)
-  refresh_market_data.py monthly: Redfin + Zillow + FRED, rebuild join
+  refresh_market_data.py monthly: Redfin + Zillow + FRED + ownership costs, rebuild join
   refresh_assessor.py    assessor leg on the parish calendars, rebuild join
   refresh_flood.py       monthly: FEMA flood zones, rebuild join
   probe_assessor_bulk.py report which official bulk options answer

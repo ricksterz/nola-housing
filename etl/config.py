@@ -119,6 +119,18 @@ NFHL_DFIRM_PREFIX = {parish: meta["fips"] for parish, meta in PARISHES.items()}
 NFHL_SIMPLIFY_DEGREES = 0.00001
 NFHL_PAGE_SIZE = 1000
 
+# Ownership-cost inputs (etl/load_costs.py, monthly with the market refresh).
+# ACS 5-year table-based summary files are keyless (the Census API now requires a key); they're
+# national files of ~15–40 MB, so they're only downloaded when a newer vintage is published.
+ACS_TABLE_URL = os.environ.get(
+    "ACS_TABLE_URL",
+    "https://www2.census.gov/programs-surveys/acs/summary_file/{year}/table-based-SF/data/5YRData/"
+    "acsdt5y{year}-{table}.dat",
+)
+NFIP_POLICIES_URL = os.environ.get("NFIP_POLICIES_URL", "https://www.fema.gov/api/open/v2/FimaNfipPolicies")
+NFIP_LOOKBACK_DAYS = 365
+NFIP_MIN_POLICIES = 20  # don't publish a ZIP/zone median from fewer policies than this
+
 # ---------------------------------------------------------------------------
 # Redfin Data Center (public S3 bucket, not a scrape). Same feeds the Houston
 # job uses; the *.tsv000.gz objects are the current names of the TSV trackers.

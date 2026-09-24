@@ -25,6 +25,11 @@ def market_scorecard():
     return queries.scorecard(get_connection())
 
 
+@router.get("/costs")
+def market_costs():
+    return queries.ownership_costs(get_connection())
+
+
 @router.get("/macro_index")
 def market_macro_index():
     return {"series": queries.macro_index(get_connection())}
