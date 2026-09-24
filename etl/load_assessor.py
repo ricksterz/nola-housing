@@ -47,12 +47,18 @@ _TYPES = {
     "lng": "DOUBLE",
     "fetched_at": "TIMESTAMP",
     "payload": "JSON",
+    "last_sale_qualified": "BOOLEAN",
 }
 
 
 def ensure_tables(con: duckdb.DuckDBPyConnection) -> None:
     cols = ", ".join(f"{c} {_TYPES.get(c, 'VARCHAR')}" for c in RAW_COLUMNS)
     con.execute(f"CREATE TABLE IF NOT EXISTS assessor_parcels_raw ({cols})")
+    # The committed database predates newer fields; add whatever columns it's missing.
+    for c in RAW_COLUMNS:
+        con.execute(
+            f"ALTER TABLE assessor_parcels_raw ADD COLUMN IF NOT EXISTS {c} {_TYPES.get(c, 'VARCHAR')}"
+        )
     con.execute(
         """
         CREATE TABLE IF NOT EXISTS assessor_bulk_probes (
@@ -67,7 +73,9 @@ def _insert(con, rec: ParcelRecord, source_kind: str, source_url: str, fetched_a
     payload = json.dumps(rec.extra, default=str)
     row = rec.as_row() + (source_kind, source_url, fetched_at, payload)
     placeholders = ", ".join("?" for _ in RAW_COLUMNS)
-    con.execute(f"INSERT INTO assessor_parcels_raw VALUES ({placeholders})", list(row))
+    con.execute(
+        f"INSERT INTO assessor_parcels_raw ({', '.join(RAW_COLUMNS)}) VALUES ({placeholders})", list(row)
+    )
 
 
 def _existing_ids(con, parish: str) -> list[str]:

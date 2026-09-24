@@ -28,6 +28,9 @@ etl/
   fred_client.py         FRED API client (same auth/cache pattern as Houston)
   load_fred.py           full series history + latest snapshot           -> fred_series, macro_snapshot
   load_assessor.py       assessor leg (bulk probe first, search UI fallback)
+  geocode.py             zip/city from parcel lat/lng (Census ZCTA point-in-polygon)
+  load_flood.py          FEMA NFHL flood zone per parcel                 -> parcel_flood
+  db_compact.py          reclaim DuckDB file space after a refresh (VACUUM doesn't)
   assessor/
     http.py              polite session: UA, robots.txt, rate limit, backoff, budget, raw landing
     bulk.py              ArcGIS REST + Socrata probes/fetchers
@@ -39,9 +42,11 @@ etl/
   build_db.py            full build (all legs + join)
   refresh_market_data.py monthly: Redfin + Zillow + FRED, rebuild join
   refresh_assessor.py    assessor leg on the parish calendars, rebuild join
+  refresh_flood.py       monthly: FEMA flood zones, rebuild join
   probe_assessor_bulk.py report which official bulk options answer
 tests/                   fixture-backed tests for every loader, the assessor fallbacks and the join
-.github/workflows/       ci.yml, refresh-market-data.yml, refresh-assessor.yml
+.github/workflows/       ci.yml, security.yml, refresh-market-data.yml, refresh-assessor.yml,
+                         refresh-flood.yml, deploy-pages.yml
 ```
 
 ## Setup

@@ -1,0 +1,50 @@
+name: Monthly Flood Zone Refresh (FEMA NFHL)
+
+# FEMA flood maps change slowly (new studies, monthly map revisions), so flood zones are refreshed
+# on their own monthly schedule rather than inside the daily assessor refresh — hazards.fema.gov is
+# also flaky, and a failed pull here should never block parcel data. Runs mid-month at 09:00 UTC,
+# well after the 06:00 assessor and market jobs finish, since all three commit the same database.
+# A failed fetch raises before anything is written, so the previous flood zones stay in place.
+
+on:
+  schedule:
+    - cron: "0 9 12 * *"  # 09:00 UTC on the 12th of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flood-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install duckdb requests
+
+      - name: Refresh FEMA flood zones and rebuild the join
+        env:
+          ASSESSOR_CONTACT: ${{ secrets.ASSESSOR_CONTACT }}
+        run: python -m etl.refresh_flood
+
+      - name: Commit and push if data changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add etl/nola_housing.duckdb
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Flood zone refresh: $(date -u +%Y-%m-%d)"
+            git push
+          fi

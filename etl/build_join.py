@@ -54,10 +54,21 @@ def _ensure_empty_sources(con) -> None:
             """CREATE TABLE fred_series (series_key VARCHAR, series_id VARCHAR, geo_level VARCHAR,
                geo_id VARCHAR, frequency VARCHAR, date DATE, value DOUBLE, fetched_at TIMESTAMP)"""
         )
-    if not _table_exists(con, "assessor_parcels"):
-        from .load_assessor import build_derived
+    from .assessor.base import PARCEL_FIELDS
+    from .load_assessor import build_derived
 
+    have = {
+        r[0]
+        for r in con.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'assessor_parcels'"
+        ).fetchall()
+    }
+    # Missing entirely, or built before a newer field existed (derived, so rebuilding is cheap).
+    if not have or not set(PARCEL_FIELDS) <= have:
         build_derived(con)
+    from .load_flood import ensure_table as ensure_flood_table
+
+    ensure_flood_table(con)
 
 
 def build_geo_dim(con) -> None:
@@ -190,6 +201,8 @@ def build_parcel_market(con) -> None:
                p.land_area, p.building_area, p.year_built,
                p.tax_year, p.land_val, p.bld_val, p.tot_mkt_val, p.assessed_val,
                p.homestead_exempt_val, p.taxable_val, p.last_sale_date, p.last_sale_price,
+               p.last_sale_qualified, p.zoning,
+               f.flood_zone, f.flood_zone_subtype, f.flood_sfha, f.nfhl_pulled_at,
                h.assessed_value_history,
                z.month AS market_as_of,
                z.redfin_median_sale_price, z.redfin_homes_sold, z.redfin_median_dom,
@@ -206,6 +219,7 @@ def build_parcel_market(con) -> None:
         LEFT JOIN latest_zip z ON z.geo_id = p.zip_code
         LEFT JOIN county_hpi c ON c.parish_fips = p.parish_fips
         LEFT JOIN history h ON h.parish = p.parish AND h.parcel_id = p.parcel_id
+        LEFT JOIN parcel_flood f ON f.parish = p.parish AND f.parcel_id = p.parcel_id
         CROSS JOIN metro m
         ORDER BY p.parish, p.zip_code, p.site_address_norm
         """

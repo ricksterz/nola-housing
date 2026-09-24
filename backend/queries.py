@@ -361,6 +361,10 @@ def meta(con) -> dict:
             "latest_date": iso(one("SELECT MAX(date) FROM fred_series")),
             "fetched_at": iso(one("SELECT MAX(fetched_at) FROM fred_series")),
         },
+        "flood": {
+            "parcels": one("SELECT COUNT(*) FROM parcel_flood"),
+            "pulled_at": iso(one("SELECT MAX(nfhl_pulled_at) FROM parcel_flood")),
+        },
         "assessor": {
             "parcels": one("SELECT COUNT(*) FROM assessor_parcels"),
             "geocoded": one("SELECT COUNT(*) FROM assessor_parcels WHERE zip_code IS NOT NULL"),
