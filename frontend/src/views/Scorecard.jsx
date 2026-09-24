@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getOwnershipCosts } from "../api";
+import { CostInputs, CostLegend, StackedCostBar } from "../components/MonthlyCost";
 import Sparkline from "../components/Sparkline";
-import { diverging, fmt, fmtCompactCurrency, monthlyPayment, seriesColor, sequential } from "../lib/theme";
+import { COST_PARTS, HOMEOWNERS_RANGE, monthlyCost, useCostAssumptions } from "../lib/costs";
+import { diverging, fmt, fmtCompactCurrency, seriesColor, sequential } from "../lib/theme";
 
 const COLS = [
   { key: "geo", label: "ZIP · area", sort: "geo_id", align: "left" },
@@ -181,29 +184,63 @@ function YieldPanel({ rows, theme }) {
 
 function AffordabilityPanel({ rows, theme, macro }) {
   const fredRate = macro?.mortgage_rate_30yr?.value;
-  const [rate, setRate] = useState(fredRate ?? 6.5);
-  const [down, setDown] = useState(20);
-  const items = rows.filter((r) => r.median_sale_price != null).map((r) => ({ id: r.geo_id, label: r.name, value: monthlyPayment(r.median_sale_price * (1 - down / 100), rate) })).sort((a, b) => b.value - a.value);
+  const a = useCostAssumptions(fredRate);
+  const [costs, setCosts] = useState(null);
+  useEffect(() => {
+    getOwnershipCosts().then(setCosts);
+  }, []);
+  const items = rows
+    .filter((r) => r.median_sale_price != null)
+    .map((r) => {
+      const z = costs?.zips?.[r.geo_id] || {};
+      const cost = monthlyCost({
+        price: r.median_sale_price,
+        downPct: a.down,
+        ratePct: a.rate,
+        taxRate: z.tax?.effective_rate,
+        homeownersAnnual: a.homeowners,
+        floodAnnual: a.includeFlood ? z.flood?.all?.median : 0,
+      });
+      return { id: r.geo_id, label: r.name, cost };
+    })
+    .sort((x, y) => y.cost.total - x.cost.total);
+  const max = Math.max(...items.map((i) => i.cost.total), 1);
+  const missingTax = costs && items.some((i) => !costs.zips?.[i.id]?.tax);
   return (
     <div className="panel">
       <div className="panel-head">
         <div>
-          <h3 className="panel-title">Affordability · monthly payment on the median sale</h3>
-          <div className="panel-subtitle">Principal & interest only, 30-year fixed. Taxes, insurance and flood premiums are extra and vary a lot here.</div>
-        </div>
-        <div className="chart-actions">
-          <label className="field">
-            Rate <input className="num-input" type="number" step="0.125" min="0" max="20" value={rate} onChange={(e) => setRate(Number(e.target.value))} />%
-          </label>
-          <label className="field">
-            Down <input className="num-input" type="number" step="5" min="0" max="100" value={down} onChange={(e) => setDown(Number(e.target.value))} />%
-          </label>
+          <h3 className="panel-title">Affordability · true monthly cost of the median sale</h3>
+          <div className="panel-subtitle">
+            Each ZIP's median sale price with a 30-year fixed loan, plus property tax at the ZIP's effective rate,
+            your homeowners estimate and the ZIP's median flood policy. HOA dues and mortgage insurance aren't included.
+          </div>
         </div>
       </div>
-      <div className="stat-note" style={{ marginBottom: 10 }}>
-        {fredRate != null ? `Default rate is the latest Freddie Mac average from FRED (${fredRate}%).` : "Enter today's rate; the FRED feed fills this in automatically once the refresh has run with an API key."}
+      <CostInputs a={a} />
+      <div className="stat-note" style={{ margin: "8px 0 10px" }}>
+        {fredRate != null ? `Rate starts at the latest Freddie Mac average from FRED (${fredRate}%). ` : ""}
+        Homeowners insurance is your estimate for every ZIP (published 2026 Louisiana averages run {HOMEOWNERS_RANGE}).
+        {missingTax ? " Some ZIPs have no published tax rate and show $0 tax." : ""}
       </div>
-      <BarList items={items} color={seriesColor(1, theme)} format={(v) => `${fmt.currency(v)}/mo`} />
+      <CostLegend theme={theme} />
+      <div className="bar-list">
+        {items.map((it) => (
+          <div
+            className="bar-row"
+            key={it.id}
+            title={`${it.label}: ${COST_PARTS.map((p) => `${p.label} ${fmt.currency(it.cost[p.key])}`).join(" · ")} — ${fmt.currency(it.cost.total)}/mo`}
+          >
+            <div className="bar-label">
+              <span>{it.id}</span>
+              <small>{it.label}</small>
+            </div>
+            <StackedCostBar cost={it.cost} max={max} theme={theme} />
+            <div className="bar-value">{fmt.currency(it.cost.total)}</div>
+          </div>
+        ))}
+      </div>
+      <div className="stat-note" style={{ marginTop: 8 }}>Monthly totals. Hover a bar for the breakdown.</div>
     </div>
   );
 }

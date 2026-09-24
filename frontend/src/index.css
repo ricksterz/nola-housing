@@ -260,6 +260,16 @@ a { color: var(--blue); }
 .legend-inline { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text); margin-bottom: 6px; }
 .legend-inline span { display: inline-flex; align-items: center; gap: 6px; }
 .legend-inline i { width: 14px; height: 2px; display: inline-block; border-radius: 1px; }
+.legend-inline i.legend-swatch { width: 10px; height: 10px; border-radius: 2px; }
+.cost-inputs { flex-wrap: wrap; gap: 8px 14px; }
+.bar-track--stacked { display: flex; height: 18px; border-radius: 0 4px 4px 0; overflow: hidden; }
+.bar-seg { height: 18px; min-width: 1px; }
+.cost-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+.cost-table td { padding: 7px 0; border-bottom: 1px solid var(--border-alt); vertical-align: top; }
+.cost-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-bright); font-weight: 600; white-space: nowrap; padding-left: 12px; }
+.cost-table .cost-note { display: block; font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
+.cost-table tr.cost-total td { border-bottom: none; font-weight: 700; color: var(--text-bright); font-size: 14px; }
+.cost-table i.legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; }
 
 /* ---------- Footer ---------- */
 .footer { margin-top: 56px; border-top: 1px solid var(--border); background: var(--panel); }

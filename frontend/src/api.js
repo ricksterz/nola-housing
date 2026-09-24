@@ -66,6 +66,11 @@ export function getMacroSnapshot() {
   return get("/api/macro/snapshot").catch(() => ({}));
 }
 
+export function getOwnershipCosts() {
+  if (IS_STATIC) return getStatic("costs.json").catch(() => ({ zips: {} }));
+  return get("/api/market/costs").catch(() => ({ zips: {} }));
+}
+
 export function getMacroIndex() {
   if (IS_STATIC) return getStatic("macro_index.json").catch(() => ({ series: [] }));
   return get("/api/market/macro_index").catch(() => ({ series: [] }));

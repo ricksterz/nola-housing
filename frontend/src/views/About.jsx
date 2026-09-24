@@ -11,6 +11,7 @@ export default function About({ ctx }) {
   const addresses = meta?.property_count ?? null;
   const pulled = a.fetched_at ? a.fetched_at.slice(0, 10) : null;
   const shared = parcels && addresses != null ? parcels - addresses : null;
+  const costs = meta?.sources?.costs || {};
   const flood = meta?.sources?.flood || {};
   const flooded = flood.parcels || 0;
   const floodPulled = flood.pulled_at ? flood.pulled_at.slice(0, 10) : null;
@@ -35,10 +36,10 @@ export default function About({ ctx }) {
         <h3 className="panel-title">What each view shows</h3>
         <ul className="text-list">
           <li><strong>Market Overview</strong> — one area at a time: home value (Zillow ZHVI) vs. median sale price (Redfin), rent (ZORI), days on market, listings pipeline, inventory, months of supply, $/sqft and negotiation metrics. Every chart has a table view.</li>
-          <li><strong>ZIP Scorecard</strong> — all 24 ZIPs side by side with the latest reading, year-over-year change and a 24-month price sparkline. Cell shading is a single blue ramp for magnitude and blue/red for change. Below it: gross rent yield (rent vs. buy) and the monthly payment on the median sale at a rate you set.</li>
+          <li><strong>ZIP Scorecard</strong> — all 24 ZIPs side by side with the latest reading, year-over-year change and a 24-month price sparkline. Cell shading is a single blue ramp for magnitude and blue/red for change. Below it: gross rent yield (rent vs. buy) and the true monthly cost of the median sale: loan, property tax, homeowners and flood insurance.</li>
           <li><strong>Compare</strong> — overlay up to six areas on one metric, optionally indexed to 100 so growth can be compared across very different price levels, with small multiples underneath.</li>
           <li><strong>Macro</strong> — metro vs. parish indexes, the 30-year mortgage rate, FHFA house price indexes and realtor.com listing series for the MSA.</li>
-          <li><strong>Property Lookup</strong> — parcel records from the parish assessor (owner, assessed value, exemptions, value history, legal description) and the ZIP's market context. Currently Jefferson Parish only — see Methodology.</li>
+          <li><strong>Property Lookup</strong> — parcel records from the parish assessor (owner, assessed value, exemptions, value history, legal description), the FEMA flood zone, the ZIP's market context and a monthly cost to own at a price you set. Currently Jefferson Parish only — see Methodology.</li>
         </ul>
       </div>
 
@@ -50,7 +51,8 @@ export default function About({ ctx }) {
           <li><strong>FRED</strong> — Freddie Mac 30-year rate, FHFA all-transactions HPI for the New Orleans–Metairie MSA (quarterly) and for Jefferson and Orleans Parish (annual), realtor.com listing series. Monthly.</li>
           <li><strong>Jefferson Parish Assessor</strong> — the Assessor's Office public GIS parcel-ownership layer, pulled daily through the Aug 15 – Sep 30 inspection and certification period{rw?.jefferson ? ` (window ${rw.jefferson.start} – ${rw.jefferson.end})` : ""}.{parcels ? ` ${n(parcels)} parcels${pulled ? `, last pulled ${pulled}` : ""}.` : ""}</li>
           <li><strong>Orleans Parish Assessor</strong> — not loaded yet. Scheduled for the Jul 15 – Aug 15 open-rolls window{rw?.orleans ? ` (window ${rw.orleans.start} – ${rw.orleans.end})` : ""}; see Methodology for why.</li>
-          <li><strong>U.S. Census Bureau</strong> — ZIP Code Tabulation Area boundaries, used to place parcels in a ZIP.</li>
+          <li><strong>U.S. Census Bureau</strong> — ZIP Code Tabulation Area boundaries, used to place parcels in a ZIP, and American Community Survey 5-year estimates of property taxes paid and home values, used for each ZIP's effective tax rate. Checked monthly, updated when a new 5-year release comes out.</li>
+          <li><strong>OpenFEMA NFIP policies</strong> — flood insurance policies in force by ZIP, used for typical flood insurance cost. Monthly.</li>
           <li><strong>FEMA National Flood Hazard Layer</strong> — effective flood zones, placed on each parcel. Monthly.{flooded ? ` ${n(flooded)} parcels${floodPulled ? `, last pulled ${floodPulled}` : ""}.` : ""}</li>
         </ul>
       </div>
@@ -113,8 +115,16 @@ export default function About({ ctx }) {
           </ul>
         </div>
         <div className="faq-item">
-          <div className="faq-q">Affordability</div>
-          <p className="text-block">The monthly payment is principal and interest only on the ZIP's median sale price, as a 30-year fixed loan at the rate and down payment you set. It leaves out property tax, homeowners and flood insurance, HOA dues and mortgage insurance, and in this region insurance can be a large share of the real monthly cost.</p>
+          <div className="faq-q">Monthly cost to own</div>
+          <ul className="text-list">
+            <li>Principal and interest: a 30-year fixed loan at the rate and down payment you set. The rate starts at the latest Freddie Mac weekly average.</li>
+            <li>Property tax: the ZIP's effective rate: total real estate taxes owner-occupants report paying ÷ the total value of their homes, from the Census American Community Survey 5-year estimates{costs.tax_acs_year ? ` (${costs.tax_acs_year - 4}–${costs.tax_acs_year})` : ""}. Because most owner-occupants have the homestead exemption, it reflects that; a landlord or second-home owner pays more. It's applied to the price you enter, which assumes the home is eventually assessed near that price.</li>
+            <li>Flood insurance: the median yearly cost (premium plus fees and surcharges) of single-family, one-year NFIP policies in the ZIP that took effect{costs.flood_period_start ? ` between ${costs.flood_period_start.slice(0, 10)} and ${costs.flood_period_end.slice(0, 10)}` : " in the last 12 months"}, from FEMA's OpenFEMA policy data. On a property, it uses the policies for that parcel's zone class (high-risk A/V or not); the Scorecard uses all policies in the ZIP. A ZIP or zone class with fewer than 20 policies isn't published.</li>
+            <li>Existing NFIP policies are still stepping up to full-risk rates (for most primary homes, increases are capped at 18% a year), so a brand-new policy can cost more than the median. NFIP policies can usually be assumed by a buyer. NFIP building coverage tops out at $250,000; private or excess flood coverage costs extra.</li>
+            <li>Homeowners (wind and fire) insurance: your estimate. There's no public ZIP-level source. The starting value sits inside the range 2026 insurance-comparison sites publish for Louisiana (about $2,900–$7,300 a year, depending on the source and coverage) and isn't a quote.</li>
+            <li>Not included: HOA or condo dues, mortgage insurance on loans with less than 20% down, and maintenance.</li>
+            <li>On a property, the price starts at the ZIP's latest median sale price, since the Assessor publishes no market value. The panel appears only for parcels placed in one of the covered ZIPs, because the tax and flood figures are by ZIP.</li>
+          </ul>
         </div>
         <div className="faq-item">
           <div className="faq-q">Searching</div>

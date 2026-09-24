@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: "Limit to one source (redfin | zillow | fred); blank = all"
+        description: "Limit to one source (redfin | zillow | fred | costs); blank = all"
         required: false
         default: ""
 
@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: pip install duckdb requests
 
-      - name: Refresh Redfin / Zillow / FRED and rebuild the join
+      - name: Refresh Redfin / Zillow / FRED / ownership costs and rebuild the join
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: |
