@@ -153,7 +153,7 @@ Raw source tables keep every column the join needs plus provenance:
 
 | Leg | Schedule | Workflow |
 |---|---|---|
-| Redfin, Zillow, FRED | monthly, 06:00 UTC on the 5th | `refresh-market-data.yml` |
+| Redfin, Zillow, FRED, ownership costs | monthly, 06:00 UTC on the 5th | `refresh-market-data.yml` |
 | Orleans assessor | daily Jul 15 – Aug 20 (open-rolls window Jul 15 – Aug 15, plus final values) | `refresh-assessor.yml --auto` |
 | Jefferson assessor | daily Aug 15 – Sep 30 (inspection Aug 15 – Sep 15, then certification) | `refresh-assessor.yml --auto` |
 
