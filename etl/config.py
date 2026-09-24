@@ -109,6 +109,16 @@ ZIP_CITY = {
 # them (e.g. Jefferson's PAO layer never populates ZIP). See etl/geocode.py.
 ZIP_BOUNDARIES_PATH = ETL_DIR / "data" / "zip_boundaries.geojson"
 
+# FEMA National Flood Hazard Layer: effective flood hazard zones (etl/load_flood.py, monthly).
+# Polygons are fetched per parish by DFIRM ID prefix (state + county FIPS) and simplified
+# server-side — at full detail Jefferson alone is ~580 MB; at ~1.1 m tolerance it's ~47 MB.
+NFHL_ZONES_URL = os.environ.get(
+    "NFHL_ZONES_URL", "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28"
+)
+NFHL_DFIRM_PREFIX = {parish: meta["fips"] for parish, meta in PARISHES.items()}
+NFHL_SIMPLIFY_DEGREES = 0.00001
+NFHL_PAGE_SIZE = 1000
+
 # ---------------------------------------------------------------------------
 # Redfin Data Center (public S3 bucket, not a scrape). Same feeds the Houston
 # job uses; the *.tsv000.gz objects are the current names of the TSV trackers.

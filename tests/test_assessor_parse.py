@@ -1,5 +1,13 @@
 from etl.assessor import JeffersonAdapter, OrleansAdapter
-from etl.assessor.base import ParcelRecord, map_aliases, normalize_address, to_date, to_number, to_zip
+from etl.assessor.base import (
+    PARCEL_FIELDS,
+    ParcelRecord,
+    map_aliases,
+    normalize_address,
+    to_date,
+    to_number,
+    to_zip,
+)
 from etl.assessor.parse import find_labeled_table, parse_label_pairs, parse_table_rows
 
 
@@ -33,7 +41,7 @@ def test_parcel_record_normalizes():
     assert r.assessed_val == 57500.0
     assert r.year_built == 1948
     assert r.last_sale_date == "2019-06-15"
-    assert len(r.as_row()) == 27
+    assert len(r.as_row()) == len(PARCEL_FIELDS)
 
 
 def test_parse_label_pairs_ignores_scripts_and_handles_4col_rows(fx):

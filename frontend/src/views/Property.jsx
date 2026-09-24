@@ -189,6 +189,71 @@ function highlightMatch(text, query) {
   );
 }
 
+// The Jefferson Assessor publishes a sale price and whether it was a qualified (arm's-length)
+// sale, but not the sale date. $0 means none recorded; family transfers and successions carry
+// nominal prices, which is exactly why the qualified flag has to travel with the number.
+function lastSale(p) {
+  if (p.last_sale_date) {
+    return { label: "Last sale", value: `${fmt.date(p.last_sale_date)} · ${fmt.currency(p.last_sale_price)}` };
+  }
+  if (!(p.last_sale_price > 0)) return { label: "Last sale", value: null };
+  const note =
+    p.last_sale_qualified === true
+      ? "Qualified sale · date not published"
+      : p.last_sale_qualified === false
+        ? "Not a qualified (arm's-length) sale · date not published"
+        : "Date not published";
+  return { label: "Last sale price", value: fmt.currency(p.last_sale_price), note };
+}
+
+// FEMA zone → plain language. SFHA ("special flood hazard area") zones are A* and V*; lenders
+// must require flood insurance there on federally backed mortgages.
+function floodInfo(p) {
+  const zone = (p.flood_zone || "").toUpperCase();
+  if (!zone) return null;
+  const sub = (p.flood_zone_subtype || "").toUpperCase();
+  const required = "Lenders require flood insurance here on federally backed mortgages.";
+  if (zone.startsWith("V")) {
+    return { tone: "high", title: "High-risk coastal flood area", detail: `1% or greater chance of flooding each year, with storm-wave hazard. ${required}` };
+  }
+  if (zone.startsWith("A")) {
+    return { tone: "high", title: "High-risk flood area", detail: `1% or greater chance of flooding each year (the "100-year" floodplain). ${required}` };
+  }
+  const outside = "Flood insurance isn't federally required here, but FEMA reports more than 20% of flood insurance claims come from outside high-risk areas.";
+  if (zone === "X" && sub.includes("LEVEE")) {
+    return { tone: "moderate", title: "Reduced risk because of levees", detail: `FEMA credits a levee system with lowering the risk here. Levees can be overtopped or fail. ${outside}` };
+  }
+  if (zone === "X" && sub.includes("0.2")) {
+    return { tone: "moderate", title: "Moderate flood risk", detail: `Between a 1% and 0.2% chance of flooding each year. ${outside}` };
+  }
+  if (zone === "X") {
+    return { tone: "low", title: "Minimal flood hazard on FEMA's map", detail: outside };
+  }
+  if (zone === "D") {
+    return { tone: "low", title: "Flood risk undetermined", detail: "FEMA hasn't analyzed flood hazards for this area." };
+  }
+  return { tone: "low", title: `FEMA zone ${zone}`, detail: "" };
+}
+
+function FloodZone({ p }) {
+  const f = floodInfo(p);
+  if (!f) return null;
+  return (
+    <div className={`flood-card flood-card--${f.tone}`}>
+      <div className="flood-zone">
+        Flood zone {p.flood_zone}
+        {p.flood_sfha ? " · special flood hazard area" : ""}
+      </div>
+      <div className="flood-title">{f.title}</div>
+      {f.detail && <div className="flood-detail">{f.detail}</div>}
+      <div className="method-note" style={{ marginTop: 6 }}>
+        FEMA National Flood Hazard Layer, effective maps{p.nfhl_pulled_at ? ` · pulled ${p.nfhl_pulled_at.slice(0, 10)}` : ""}.
+        Placed by the lot's center point. A map zone, not an elevation certificate or an insurance quote.
+      </div>
+    </div>
+  );
+}
+
 // Every stat is { label, value } with value already null when there's nothing to show — a
 // section renders only if at least one of its stats survived, so the card never shows a wall
 // of "—" placeholders for fields this data source simply doesn't carry (Jefferson's assessor
@@ -218,13 +283,14 @@ function ParcelCard({ data, trend, theme, navigate }) {
         { label: "Lot", value: p.land_area ? `${fmt.int(p.land_area)} sq ft` : null },
         { label: "Property class", value: p.property_class || null },
         { label: "Subdivision", value: p.subdivision || null },
+        { label: "Zoning", value: p.zoning || null, note: "Parish zoning code" },
       ],
     ],
     [
       "Ownership",
       [
         { label: "Owner", value: p.owner_name ? fmt.raw(p.owner_name) : null },
-        { label: "Last sale", value: p.last_sale_date ? `${fmt.date(p.last_sale_date)} · ${fmt.currency(p.last_sale_price)}` : null },
+        lastSale(p),
         { label: "Tax bill #", value: p.tax_bill_number || null },
       ],
     ],
@@ -263,6 +329,7 @@ function ParcelCard({ data, trend, theme, navigate }) {
             </a>
           )}
         </div>
+        <FloodZone p={p} />
         {sections.map(([title, items]) => (
           <div key={title} className="stat-section">
             <div className="stat-section-title">{title}</div>
@@ -271,6 +338,7 @@ function ParcelCard({ data, trend, theme, navigate }) {
                 <div key={s.label} className="stat">
                   <div className="stat-label">{s.label}</div>
                   <div className="stat-value">{s.value}</div>
+                  {s.note && <div className="stat-sub">{s.note}</div>}
                 </div>
               ))}
             </div>
