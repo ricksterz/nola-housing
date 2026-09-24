@@ -333,6 +333,28 @@ def suggest(con, q: str, limit: int = 8) -> list[dict]:
     return [{"address": r["site_address_norm"], "full": full_address(r)} for r in starts + contains]
 
 
+def ownership_costs(con) -> dict:
+    """Per-ZIP inputs for the monthly cost of owning: effective property tax rate (ACS) and
+    flood insurance cost quartiles by zone group (NFIP). See etl/load_costs.py."""
+    zips: dict = {}
+    if _table_exists(con, "zip_tax_rate"):
+        for r in _rows(con, "SELECT zip, acs_year, effective_rate, median_tax_paid FROM zip_tax_rate"):
+            zips.setdefault(r["zip"], {})["tax"] = {
+                "acs_year": r["acs_year"],
+                "effective_rate": round(r["effective_rate"], 6),
+                "median_tax_paid": r.get("median_tax_paid"),
+            }
+    if _table_exists(con, "zip_flood_cost"):
+        for r in _rows(con, "SELECT zip, zone_group, policies, p25, median, p75 FROM zip_flood_cost"):
+            zips.setdefault(r["zip"], {}).setdefault("flood", {})[r["zone_group"]] = {
+                "policies": r["policies"],
+                "p25": round(r["p25"]),
+                "median": round(r["median"]),
+                "p75": round(r["p75"]),
+            }
+    return {"zips": zips}
+
+
 def meta(con) -> dict:
     """Freshness per source plus the geography list; drives the snapshot badge and status panel."""
 
@@ -364,6 +386,12 @@ def meta(con) -> dict:
         "flood": {
             "parcels": one("SELECT COUNT(*) FROM parcel_flood"),
             "pulled_at": iso(one("SELECT MAX(nfhl_pulled_at) FROM parcel_flood")),
+        },
+        "costs": {
+            "tax_acs_year": one("SELECT MAX(acs_year) FROM zip_tax_rate"),
+            "flood_period_start": iso(one("SELECT MIN(period_start) FROM zip_flood_cost")),
+            "flood_period_end": iso(one("SELECT MAX(period_end) FROM zip_flood_cost")),
+            "flood_pulled_at": iso(one("SELECT MAX(pulled_at) FROM zip_flood_cost")),
         },
         "assessor": {
             "parcels": one("SELECT COUNT(*) FROM assessor_parcels"),

@@ -4,6 +4,7 @@ Writes to frontend/public/data/:
     meta.json                    freshness per source, geography list, refresh windows
     macro.json                   latest FRED values (macro strip)
     macro_index.json             FRED history (Macro view)
+    costs.json                   per-ZIP property tax rate + flood insurance cost (monthly cost)
     scorecard.json               one row per geography: latest metrics, YoY, sparklines
     compare.json                 every geography's monthly series (compare charts)
     trend_<level>_<id>.json      one geography's monthly series
@@ -51,6 +52,7 @@ def export_market(con):
     write_json(OUT_DIR / "scorecard.json", queries.scorecard(con))
     write_json(OUT_DIR / "macro.json", queries.macro_snapshot(con))
     write_json(OUT_DIR / "macro_index.json", {"series": queries.macro_index(con)}, compact=True)
+    write_json(OUT_DIR / "costs.json", queries.ownership_costs(con), compact=True)
 
 
 _ZIP_VALUATION_SQL = """

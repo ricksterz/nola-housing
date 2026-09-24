@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
-import { getPropertyLookup, getTrend, suggestAddresses } from "../api";
+import { getOwnershipCosts, getPropertyLookup, getTrend, suggestAddresses } from "../api";
 import ChartPanel from "../components/ChartPanel";
+import { CostInputs } from "../components/MonthlyCost";
 import Table from "../components/Table";
 import { Frame, currencyAxis, lineProps } from "../components/charts";
+import { COST_PARTS, HOMEOWNERS_RANGE, floodGroup, monthlyCost, useCostAssumptions } from "../lib/costs";
 import { monthLabel } from "../lib/rangeUtils";
 import { fmt, fmtCompactCurrency, seriesColor } from "../lib/theme";
 
 const SUGGEST_DEBOUNCE_MS = 150;
 
 export default function Property({ ctx }) {
-  const { meta, theme, navigate, url } = ctx;
+  const { meta, theme, navigate, url, macro, scorecard } = ctx;
   const [address, setAddress] = useState(url.q || "");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -170,7 +172,7 @@ export default function Property({ ctx }) {
 
       {error && <div className="error">{error}</div>}
 
-      {data && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} />}
+      {data && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} />}
     </div>
   );
 }
@@ -254,11 +256,111 @@ function FloodZone({ p }) {
   );
 }
 
+const FLOOD_GROUP_LABEL = {
+  sfha: "high-risk (A/V) zone policies",
+  other: "policies outside high-risk zones",
+  all: "all single-family policies",
+};
+
+// Tax rate and flood cost are published by ZIP, so this only appears for parcels placed in one
+// of the covered ZIPs. The price starts at the ZIP's latest median sale (the same figure the
+// Scorecard uses), else Zillow's typical value — the Assessor publishes no market value to
+// start from — and is the reader's to change.
+function startingPrice(p, scorecard) {
+  const row = scorecard?.rows?.find((r) => r.geo_level === "zip" && r.geo_id === p.zip_code);
+  if (row?.median_sale_price) return { price: row.median_sale_price, basis: "median sale price" };
+  if (p.zhvi) return { price: p.zhvi, basis: "typical home value (Zillow)" };
+  return { price: null, basis: null };
+}
+
+function MonthlyCostPanel({ p, theme, macro, scorecard }) {
+  const a = useCostAssumptions(macro?.mortgage_rate_30yr?.value);
+  const [costs, setCosts] = useState(null);
+  const start = startingPrice(p, scorecard);
+  const startPrice = start.price ? Math.round(start.price / 1000) * 1000 : null;
+  // undefined = not edited, so the starting price can still fill in if the Scorecard loads late.
+  const [userPrice, setUserPrice] = useState(undefined);
+  const price = userPrice === undefined ? startPrice : userPrice;
+  useEffect(() => {
+    getOwnershipCosts().then(setCosts);
+  }, []);
+  const z = p.zip_code && costs?.zips?.[p.zip_code];
+  if (!z) return null;
+
+  const wanted = floodGroup(p);
+  const group = z.flood?.[wanted] ? wanted : "all";
+  const flood = z.flood?.[group];
+  const sfha = p.flood_sfha === true;
+  const cost = monthlyCost({
+    price,
+    downPct: a.down,
+    ratePct: a.rate,
+    taxRate: z.tax?.effective_rate,
+    homeownersAnnual: a.homeowners,
+    floodAnnual: a.includeFlood ? flood?.median : 0,
+  });
+  const notes = {
+    pi: `${a.down}% down, ${a.rate}% 30-year fixed.`,
+    tax: z.tax
+      ? `${(z.tax.effective_rate * 100).toFixed(2)}% of price a year: what owner-occupants in ${p.zip_code} actually pay (Census ACS ${z.tax.acs_year - 4}–${z.tax.acs_year}). Reflects the homestead exemption; an owner who doesn't live here pays more.`
+      : `No published rate for ${p.zip_code}.`,
+    home: `Your estimate, ${fmt.currency(a.homeowners)}/yr. Published 2026 Louisiana averages run ${HOMEOWNERS_RANGE}; get a quote.`,
+    flood: !a.includeFlood
+      ? sfha
+        ? "Not included — but required here with a federally backed mortgage."
+        : "Not included."
+      : flood
+        ? `Median ${FLOOD_GROUP_LABEL[group]} in ${p.zip_code}: ${fmt.currency(flood.median)}/yr (middle half ${fmt.currency(flood.p25)}–${fmt.currency(flood.p75)}, ${fmt.int(flood.policies)} NFIP policies).${sfha ? " Required with a federally backed mortgage." : ""}${group !== wanted ? " Too few policies in this zone class to publish its own figure." : ""}`
+        : `Not enough NFIP policies in ${p.zip_code} to publish a figure.`,
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <div>
+          <h3 className="panel-title">Monthly cost to own</h3>
+          <div className="panel-subtitle">Loan, property tax and insurance at a purchase price you set. HOA dues and mortgage insurance aren't included.</div>
+        </div>
+      </div>
+      <CostInputs a={a}>
+        <label className="field" title="Starts at the ZIP's median sale price">
+          Price $<input className="num-input num-input--wide" type="number" step="5000" min="0" value={price ?? ""} onChange={(e) => setUserPrice(e.target.value ? Number(e.target.value) : null)} />
+        </label>
+      </CostInputs>
+      {startPrice && userPrice === undefined && (
+        <div className="stat-note" style={{ marginTop: 6 }}>Price starts at {p.zip_code}'s {start.basis}; change it to the price you're considering.</div>
+      )}
+      {cost ? (
+        <table className="cost-table">
+          <tbody>
+            {COST_PARTS.map((part) => (
+              <tr key={part.key}>
+                <td>
+                  <i className="legend-swatch" style={{ background: seriesColor(part.slot, theme) }} />
+                  {part.label}
+                  <span className="cost-note">{notes[part.key]}</span>
+                </td>
+                <td>{fmt.currency(cost[part.key])}/mo</td>
+              </tr>
+            ))}
+            <tr className="cost-total">
+              <td>Total</td>
+              <td>{fmt.currency(cost.total)}/mo</td>
+            </tr>
+          </tbody>
+        </table>
+      ) : (
+        <div className="empty" style={{ marginTop: 10 }}>Enter a price to see the monthly cost.</div>
+      )}
+    </div>
+  );
+}
+
 // Every stat is { label, value } with value already null when there's nothing to show — a
 // section renders only if at least one of its stats survived, so the card never shows a wall
 // of "—" placeholders for fields this data source simply doesn't carry (Jefferson's assessor
 // feed has no year built, living area or sale history, for instance).
-function ParcelCard({ data, trend, theme, navigate }) {
+function ParcelCard({ data, trend, theme, navigate, macro, scorecard }) {
   const p = data.parcel;
   const v = data.valuation;
   const address = p.full_address || p.site_address || p.site_address_norm;
@@ -359,6 +461,8 @@ function ParcelCard({ data, trend, theme, navigate }) {
           </button>
         </div>
       </div>
+
+      <MonthlyCostPanel key={p.parcel_id} p={p} theme={theme} macro={macro} scorecard={scorecard} />
 
       {v && (
         <div className="panel panel--gold">
