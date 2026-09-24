@@ -105,6 +105,8 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "taxable_val": ("TAXABLE_VALUE", "TAXABLE", "NET_ASSESSED", "TAXABLE_ASSESSED"),
     "tax_year": ("TAX_YEAR", "TAXYEAR", "ROLL_YEAR", "ASSESSMENT_YEAR", "YEAR"),
     "last_sale_date": ("SALE_DATE", "LAST_SALE_DATE", "SALEDATE", "DEED_DATE", "TRANSFER_DATE"),
+    "zoning": ("ZONING", "ZONING_CODE", "PRIMARY_ZONING", "PRIMARY_ZO"),
+    "last_sale_qualified": ("SALE_QUALIFIED", "QUALIFIED_SALE", "QUALIFIED"),
     "last_sale_price": (
         "SALE_PRICE",
         "LAST_SALE_PRICE",

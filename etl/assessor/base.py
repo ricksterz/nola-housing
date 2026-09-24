@@ -33,6 +33,9 @@ PARCEL_FIELDS = (
     "last_sale_price",
     "lat",
     "lng",
+    # Appended (not inserted mid-tuple) so existing databases can add them with ALTER TABLE.
+    "zoning",
+    "last_sale_qualified",
 )
 
 _NUMERIC = {
@@ -79,6 +82,18 @@ def to_number(value: Any) -> float | None:
 def to_int(value: Any) -> int | None:
     n = to_number(value)
     return int(n) if n is not None else None
+
+
+def to_bool(value: Any) -> bool | None:
+    """'True'/'Y'/1 -> True, 'False'/'N'/0 -> False, blank/unknown -> None (the PAO layer uses ' ')."""
+    if value is None or isinstance(value, bool):
+        return value
+    s = str(value).strip().lower()
+    if s in ("true", "t", "yes", "y", "1"):
+        return True
+    if s in ("false", "f", "no", "n", "0"):
+        return False
+    return None
 
 
 def to_zip(value: Any) -> str | None:
@@ -138,10 +153,15 @@ class ParcelRecord:
     last_sale_price: float | None = None
     lat: float | None = None
     lng: float | None = None
+    zoning: str | None = None
+    last_sale_qualified: bool | None = None
     extra: dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.parcel_id = str(self.parcel_id).strip()
+        if self.zoning is not None:
+            self.zoning = str(self.zoning).strip() or None
+        self.last_sale_qualified = to_bool(self.last_sale_qualified)
         if self.site_address_norm is None:
             self.site_address_norm = normalize_address(self.site_address)
         if self.zip_code:

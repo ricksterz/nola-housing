@@ -11,6 +11,9 @@ export default function About({ ctx }) {
   const addresses = meta?.property_count ?? null;
   const pulled = a.fetched_at ? a.fetched_at.slice(0, 10) : null;
   const shared = parcels && addresses != null ? parcels - addresses : null;
+  const flood = meta?.sources?.flood || {};
+  const flooded = flood.parcels || 0;
+  const floodPulled = flood.pulled_at ? flood.pulled_at.slice(0, 10) : null;
 
   return (
     <div>
@@ -48,6 +51,7 @@ export default function About({ ctx }) {
           <li><strong>Jefferson Parish Assessor</strong> — the Assessor's Office public GIS parcel-ownership layer, pulled daily through the Aug 15 – Sep 30 inspection and certification period{rw?.jefferson ? ` (window ${rw.jefferson.start} – ${rw.jefferson.end})` : ""}.{parcels ? ` ${n(parcels)} parcels${pulled ? `, last pulled ${pulled}` : ""}.` : ""}</li>
           <li><strong>Orleans Parish Assessor</strong> — not loaded yet. Scheduled for the Jul 15 – Aug 15 open-rolls window{rw?.orleans ? ` (window ${rw.orleans.start} – ${rw.orleans.end})` : ""}; see Methodology for why.</li>
           <li><strong>U.S. Census Bureau</strong> — ZIP Code Tabulation Area boundaries, used to place parcels in a ZIP.</li>
+          <li><strong>FEMA National Flood Hazard Layer</strong> — effective flood zones, placed on each parcel. Monthly.{flooded ? ` ${n(flooded)} parcels${floodPulled ? `, last pulled ${floodPulled}` : ""}.` : ""}</li>
         </ul>
       </div>
 
@@ -76,6 +80,24 @@ export default function About({ ctx }) {
             <li>Assessed value is set by the Assessor for tax purposes. Louisiana assesses land and homes at 10% of fair market value and commercial buildings at 15%, so market value isn't simply assessed × 10, and we don't compute it. "Assessor market value" appears only when the source publishes it.</li>
             <li>Exemptions are shown as published. The standard homestead exemption is $7,500 of assessed value ($75,000 of market value). For tax-exempt owners such as churches and nonprofits, the figure can equal the full assessed value.</li>
             <li>Fields the source doesn't carry, such as year built, living area and sale date, are left off the record rather than shown blank.</li>
+          </ul>
+        </div>
+        <div className="faq-item">
+          <div className="faq-q">Sale price and zoning</div>
+          <ul className="text-list">
+            <li>The Assessor publishes the last recorded sale price and whether it was a qualified (arm's-length) sale, but not the sale date. We show the price with that flag. Family transfers, donations and successions often record nominal prices and are usually not qualified.</li>
+            <li>A $0 price means no sale price is on record, so nothing is shown.</li>
+            <li>Zoning is the parish zoning code as published by the Assessor. Check with the parish planning department before relying on it for a permit or a use.</li>
+          </ul>
+        </div>
+        <div className="faq-item">
+          <div className="faq-q">Flood zones</div>
+          <ul className="text-list">
+            <li>Each parcel's lot center is matched against FEMA's effective flood hazard zones. The Assessor's own flood field is filled in for only about 12% of parcels and never has a base flood elevation, so we don't use it.</li>
+            <li>Zones A and V (including AE and VE) are special flood hazard areas: a 1% or greater chance of flooding each year. Lenders require flood insurance there on federally backed mortgages.</li>
+            <li>Zone X covers moderate-risk areas (0.2% annual chance) and areas FEMA credits with reduced risk because of levees. Levee-protected isn't flood-proof, and FEMA reports more than 20% of flood insurance claims come from outside high-risk areas.</li>
+            <li>These are effective maps only; preliminary or pending map changes aren't included. Polygons are simplified to about 1 meter, and a lot is placed by its center, so a parcel on a zone line or a large lot spanning two zones can differ from its official determination.</li>
+            <li>A map zone isn't a flood-risk score, an elevation certificate or an insurance quote. Premiums under FEMA's current rating depend on the building, not just the zone.</li>
           </ul>
         </div>
         <div className="faq-item">
