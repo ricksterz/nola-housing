@@ -73,7 +73,7 @@ export default function Property({ ctx }) {
         setAddress(full);
         navigate({ q: full }, { replace: !push });
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => setError({ message: e.message, nearby: e.nearby || [] }))
       .finally(() => setLoading(false));
   }
 
@@ -181,7 +181,20 @@ export default function Property({ ctx }) {
         </button>
       </div>
 
-      {error && <div className="error">{error}</div>}
+      {error && (
+        <div className="error">
+          {error.message}
+          {error.nearby.length > 0 && (
+            <div className="btn-row" style={{ marginTop: 10, marginBottom: 0 }}>
+              {error.nearby.map((a) => (
+                <button key={a.address} type="button" className="btn" onClick={() => pick(a)}>
+                  {a.full.split(",")[0]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {data && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} onPick={pickNearby} />}
     </div>

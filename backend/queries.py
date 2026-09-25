@@ -245,6 +245,52 @@ def full_address(parcel: dict) -> str:
     return addr
 
 
+_HOUSE_NUMBER = re.compile(r"^(\d+)[A-Z]?(?:-\d+[A-Z]?)?\s+(.+)$")
+
+
+def split_house_number(address: str) -> tuple[int, str] | None:
+    """ "418 BONNABEL BLVD" -> (418, "BONNABEL BLVD"); None when there's no leading number."""
+    m = _HOUSE_NUMBER.match((address or "").strip().upper())
+    return (int(m.group(1)), m.group(2)) if m else None
+
+
+def closest_on_street(entries: list, number: int, limit: int = 4) -> list:
+    """Nearest house numbers first, the same side of the street (parity) winning ties.
+    ``entries`` are [number, address, full] rows for one street. Keep in step with
+    frontend/src/api.js closestOnStreet."""
+    ranked = sorted(entries, key=lambda e: (abs(e[0] - number), (e[0] - number) % 2, e[0]))
+    return [{"address": e[1], "full": e[2]} for e in ranked[:limit]]
+
+
+def lookup_miss_message(street: str, has_nearby: bool) -> str:
+    """Shared wording with frontend/src/api.js for an address with no record."""
+    if has_nearby:
+        return (
+            f'No Assessor record for "{street}". The Assessor files some homes under a neighboring '
+            "number or with no street address. Closest on this street:"
+        )
+    return (
+        f'No Assessor record matches "{street}". Pick an address from the suggestions as you type, '
+        "or check the spelling and street type (Rd, St, Ave, Dr)."
+    )
+
+
+def street_entries(con, street: str) -> list:
+    """[number, address, full] for every parcel on one street (the API's street lookup)."""
+    rows = _rows(
+        con,
+        """SELECT site_address, site_address_norm, city, zip_code FROM parcel_market
+           WHERE site_address_norm LIKE ?""",
+        [f"% {street}"],
+    )
+    out = []
+    for r in rows:
+        parts = split_house_number(r["site_address_norm"])
+        if parts and parts[1] == street:
+            out.append([parts[0], r["site_address_norm"], full_address(r)])
+    return out
+
+
 def nearby_entry(parcel: dict) -> list:
     """One nearby home, compact for the map: [street as displayed, lookup key, lat, lng,
     assessed value, qualified sale price, flood zone]. Shared by the API and the static export."""

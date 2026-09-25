@@ -21,7 +21,11 @@ async function get(path) {
   }
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
-    if (detail.detail) throw new Error(detail.detail);
+    if (detail.detail) {
+      // A detail is a message, or { message, nearby } for an address with no record.
+      const d = detail.detail;
+      throw Object.assign(new Error(typeof d === "string" ? d : d.message), d.nearby ? { nearby: d.nearby } : {});
+    }
     throw new Error(
       res.status === 404
         ? "Not found."
@@ -118,6 +122,32 @@ export async function getNearbyRows(lat, lng) {
   return r.homes;
 }
 
+// "418 BONNABEL BLVD" -> [418, "BONNABEL BLVD"]; same rule as backend/queries.py split_house_number.
+function splitHouseNumber(address) {
+  const m = /^(\d+)[A-Z]?(?:-\d+[A-Z]?)?\s+(.+)$/.exec(address);
+  return m ? [Number(m[1]), m[2]] : null;
+}
+
+// Nearest house numbers first, same side of the street winning ties (queries.closest_on_street).
+function closestOnStreet(entries, number, limit = 4) {
+  const rank = ([n]) => [Math.abs(n - number), (((n - number) % 2) + 2) % 2, n];
+  return [...entries]
+    .sort((a, b) => {
+      const [x, y] = [rank(a), rank(b)];
+      return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+    })
+    .slice(0, limit)
+    .map(([, address, full]) => ({ address, full }));
+}
+
+// Same wording as backend/queries.py lookup_miss_message.
+function lookupMiss(street, nearby) {
+  const message = nearby.length
+    ? `No Assessor record for "${street}". The Assessor files some homes under a neighboring number or with no street address. Closest on this street:`
+    : `No Assessor record matches "${street}". Pick an address from the suggestions as you type, or check the spelling and street type (Rd, St, Ave, Dr).`;
+  return Object.assign(new Error(message), { nearby });
+}
+
 export async function getPropertyLookup(address) {
   const needle = streetOnly(address);
   if (IS_STATIC) {
@@ -127,9 +157,9 @@ export async function getPropertyLookup(address) {
       const shard = await getAddressShard(needle);
       const match = shard.find((a) => a.address.startsWith(needle)) || shard.find((a) => a.address.includes(needle));
       if (match) return getStatic(`property/${match.slug}.json`);
-      throw new Error(
-        `No assessor record matches "${needle}". Pick an address from the suggestions as you type, or double-check the spelling and street type (Rd/St/Ave/Dr).`
-      );
+      const parts = splitHouseNumber(needle);
+      const street = parts ? await getStatic(`street/${slugify(parts[1])}.json`).catch(() => []) : [];
+      throw lookupMiss(address.split(",")[0].trim(), parts ? closestOnStreet(street, parts[0]) : []);
     }
   }
   return get(`/api/property/lookup?address=${encodeURIComponent(needle)}`);
