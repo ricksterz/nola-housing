@@ -196,3 +196,84 @@ def test_fetch_arcgis_joins_co_owner_and_drops_the_mailing_address(fake_http):
     assert r.owner_name == "DETIEGE,WILLIE JR & LEONORIA S DETIEGE"
     assert "OWNER_ADDR" not in r.extra["raw"] and "co_owner_line" not in r.extra
     assert "AMES" not in json.dumps(r.extra)
+
+
+@pytest.mark.parametrize(
+    "address, expected",
+    [
+        ("624 S ALEXANDER ST, LA, 70119", ("624 S ALEXANDER ST", "70119")),
+        ("1 CANAL ST, NEW ORLEANS, LA 70130-1234", ("1 CANAL ST", "70130")),
+        ("321 BONNABEL BLVD", ("321 BONNABEL BLVD", None)),  # Jefferson: no comma, untouched
+        (None, (None, None)),
+    ],
+)
+def test_split_site_address(address, expected):
+    assert bulk.split_site_address(address) == expected
+
+
+def _orleans_page(features, error=None):
+    return json.dumps({"error": error} if error else {"features": features})
+
+
+ORLEANS_MAP = {
+    "parcel_id": "PARCELID",
+    "tax_bill_number": "TAXBILLID",
+    "site_address": "SITEADDRESS",
+    "owner_name": "OWNERNME1",
+    "owner_name_2": "OWNERNME2",
+}
+
+
+def _orleans_feature(pid, owner2=None):
+    return {
+        "attributes": {
+            "PARCELID": pid,
+            "TAXBILLID": "10" + pid,
+            "SITEADDRESS": "624 S ALEXANDER ST, LA, 70119",
+            "OWNERNME1": "GRUNEWALD GEORGE II",
+            "OWNERNME2": owner2,
+        },
+        "geometry": {"rings": [[[-90.1, 29.97], [-90.1, 29.98], [-90.09, 29.98], [-90.1, 29.97]]]},
+    }
+
+
+def test_fetch_arcgis_orleans_fields(fake_http):
+    from tests.conftest import FakeResponse
+
+    body = _orleans_page([_orleans_feature("41033176", "SMITH JANE"), _orleans_feature("41033177")])
+    fake = fake_http(
+        {"https://gis.test/O/0": lambda url, params: FakeResponse(url, 200, body, "application/json")}
+    )
+    stats = {}
+    a, b = bulk.fetch_arcgis(
+        "https://gis.test/O/0", _session(fake), "orleans", "22071", ORLEANS_MAP, stats=stats
+    )
+    assert (a.site_address, a.zip_code, a.tax_bill_number) == ("624 S ALEXANDER ST", "70119", "1041033176")
+    assert a.owner_name == "GRUNEWALD GEORGE II & SMITH JANE"
+    assert b.owner_name == "GRUNEWALD GEORGE II"  # no second owner
+    assert stats["features"] == 2
+
+
+def test_fetch_arcgis_retries_a_failed_page_and_never_truncates(fake_http):
+    from tests.conftest import FakeResponse
+
+    calls = {"n": 0}
+
+    def flaky(url, params):
+        calls["n"] += 1
+        if calls["n"] <= 2:  # ArcGIS reports a failed query as HTTP 200 with an "error" body
+            return FakeResponse(
+                url, 200, _orleans_page([], {"code": 400, "message": "Failed to execute query."})
+            )
+        return FakeResponse(url, 200, _orleans_page([_orleans_feature("41033176")]), "application/json")
+
+    sleeps = []
+    session = _session(fake_http({"https://gis.test/O/0": flaky}), sleep=sleeps.append)
+    recs = bulk.fetch_arcgis("https://gis.test/O/0", session, "orleans", "22071", ORLEANS_MAP)
+    assert len(recs) == 1 and sleeps == [30.0, 60.0]
+
+    always = fake_http(
+        {"https://gis.test/O/0": lambda url, params: FakeResponse(url, 200, _orleans_page([], {"code": 400}))}
+    )
+    with pytest.raises(bulk.ArcgisQueryFailed):
+        bulk.fetch_arcgis("https://gis.test/O/0", _session(always), "orleans", "22071", ORLEANS_MAP)

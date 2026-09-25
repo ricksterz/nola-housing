@@ -87,6 +87,20 @@ def _existing_ids(con, parish: str) -> list[str]:
     ]
 
 
+# A bulk pull must read at least this share of the features the layer says it has before it
+# replaces a parish's rows; anything less is a failed pull, not a smaller parish.
+BULK_MIN_COMPLETE = 0.98
+
+
+def _check_complete(parish: str, features: int, expected: int | None, max_records: int | None) -> None:
+    if max_records or not expected:
+        return
+    if features < expected * BULK_MIN_COMPLETE:
+        raise RuntimeError(
+            f"[{parish}] bulk pull read {features:,} of {expected:,} features; keeping the previous load"
+        )
+
+
 def load_parish(
     con: duckdb.DuckDBPyConnection,
     parish: str,
@@ -102,6 +116,7 @@ def load_parish(
     session = session or PoliteSession(raw_dir=config.RAW_DIR)
     if session.raw_dir is None:
         session.raw_dir = config.RAW_DIR
+    session.timeout = max(session.timeout, src.get("timeout_seconds", 0))
     fetched_at = datetime.now(timezone.utc).replace(tzinfo=None)
     tax_year = tax_year or date.today().year
     summary = {"parish": parish, "source": None, "records": 0}
@@ -127,9 +142,11 @@ def load_parish(
                 continue
             cand = next(c for c in src["bulk_candidates"] if c["kind"] == probe.kind)
             if probe.kind == "arcgis":
+                pulled: dict = {}
                 records = bulk.fetch_arcgis(
-                    cand["url"], session, parish, fips, probe.field_map, max_records=max_records
+                    cand["url"], session, parish, fips, probe.field_map, max_records=max_records, stats=pulled
                 )
+                _check_complete(parish, pulled.get("features", len(records)), probe.record_count, max_records)
             else:
                 records = bulk.fetch_socrata(
                     cand["domain"],
@@ -153,7 +170,12 @@ def load_parish(
             print(f"  [{parish}] loaded {len(records)} parcels from {probe.kind}")
             return summary
 
-    # 2) Fallback: rate-limited batch pull of the public search UI.
+    # 2) Fallback: rate-limited batch pull of the public search UI, where the parish allows it.
+    disabled = src.get("search_ui", {}).get("disabled")
+    if disabled:
+        print(f"  [{parish}] no bulk source answered, and the search UI fallback is off: {disabled}")
+        summary.update(source=None, records=0, note="no bulk source; search UI disabled")
+        return summary
     adapter = ADAPTERS[parish]()
     ids = load_seed_ids(parish, seed_file, existing=_existing_ids(con, parish))
     if max_records:

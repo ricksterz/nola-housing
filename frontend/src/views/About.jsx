@@ -6,7 +6,8 @@ export default function About({ ctx }) {
   const meta = ctx.meta;
   const rw = meta?.refresh_windows;
   const a = meta?.sources?.assessor || {};
-  const parcels = a.parcels || 0;
+  const parcels = a.by_parish?.jefferson ?? a.parcels ?? 0;
+  const orleansParcels = a.by_parish?.orleans || 0;
   const geocoded = a.geocoded ?? null;
   const addresses = meta?.property_count ?? null;
   const pulled = a.fetched_at ? a.fetched_at.slice(0, 10) : null;
@@ -39,7 +40,7 @@ export default function About({ ctx }) {
           <li><strong>ZIP Scorecard</strong> — all 24 ZIPs side by side with the latest reading, year-over-year change and a 24-month price sparkline. Cell shading is a single blue ramp for magnitude and blue/red for change. Below it: gross rent yield (rent vs. buy) and the true monthly cost of the median sale: loan, property tax, homeowners and flood insurance.</li>
           <li><strong>Compare</strong> — overlay up to six areas on one metric, optionally indexed to 100 so growth can be compared across very different price levels, with small multiples underneath.</li>
           <li><strong>Macro</strong> — metro vs. parish indexes, the 30-year mortgage rate, FHFA house price indexes and realtor.com listing series for the MSA.</li>
-          <li><strong>Property Lookup</strong> — parcel records from the parish assessor (owner, assessed value, exemptions, value history, legal description), the FEMA flood zone, a map of the homes around it, the ZIP's market context and a monthly cost to own at a price you set. Copy link shares the page for that address. Currently Jefferson Parish only — see Methodology.</li>
+          <li><strong>Property Lookup</strong> — parcel records from the parish assessor (owner, assessed value, exemptions, value history, legal description), the FEMA flood zone, a map of the homes around it, the ZIP's market context and a monthly cost to own at a price you set. Copy link shares the page for that address.{orleansParcels ? " Orleans parcels have no assessed values yet — see Methodology." : " Currently Jefferson Parish only — see Methodology."}</li>
         </ul>
       </div>
 
@@ -50,7 +51,10 @@ export default function About({ ctx }) {
           <li><strong>Zillow Research</strong> — ZHVI (typical home value) and ZORI (typical asking rent) at metro, parish and ZIP level. Monthly.</li>
           <li><strong>FRED</strong> — Freddie Mac 30-year rate, FHFA all-transactions HPI for the New Orleans–Metairie MSA (quarterly) and for Jefferson and Orleans Parish (annual), realtor.com listing series. Monthly.</li>
           <li><strong>Jefferson Parish Assessor</strong> — the Assessor's Office public GIS parcel-ownership layer, pulled daily through the Aug 15 – Sep 30 inspection and certification period{rw?.jefferson ? ` (window ${rw.jefferson.start} – ${rw.jefferson.end})` : ""}.{parcels ? ` ${n(parcels)} parcels${pulled ? `, last pulled ${pulled}` : ""}.` : ""}</li>
-          <li><strong>Orleans Parish Assessor</strong> — not loaded yet. Scheduled for the Jul 15 – Aug 15 open-rolls window{rw?.orleans ? ` (window ${rw.orleans.start} – ${rw.orleans.end})` : ""}; see Methodology for why.</li>
+          <li>
+            <strong>City of New Orleans parcel layer</strong> — for Orleans Parish: parcel ID, the Assessor's tax bill number, site address, owners and lot outline from the City's public ParcelSearch GIS layer.
+            {orleansParcels ? ` ${n(orleansParcels)} parcels.` : " Not loaded yet."} Assessed values aren't published there or anywhere else as open data; see Methodology.
+          </li>
           <li><strong>U.S. Census Bureau</strong> — ZIP Code Tabulation Area boundaries, used to place parcels in a ZIP, and American Community Survey 5-year estimates of property taxes paid and home values, used for each ZIP's effective tax rate. Checked monthly, updated when a new 5-year release comes out.</li>
           <li><strong>OpenFEMA NFIP policies</strong> — flood insurance policies in force by ZIP, used for typical flood insurance cost. Monthly.</li>
           <li><strong>OpenStreetMap</strong> — the base map on a property page (© OpenStreetMap contributors). The dots on it are Assessor parcels, placed by each lot's center point.</li>
@@ -67,7 +71,7 @@ export default function About({ ctx }) {
             <li>"How this assessment compares" ranks a parcel's assessed value among similar parcels: the same zoning code (or both unpublished) and both with or both without a building value on the roll, so a house is never compared with a store or an empty lot. (Some exempt properties, such as churches, carry no building value and are grouped with lots.) Two groups: its 50 nearest similar parcels, no farther than about a quarter mile (400 m), and similar parcels in the same subdivision; a group with fewer than 8 isn't shown. It shows where the parcel falls, the median and middle half, and the land and building values side by side. The Assessor doesn't publish living area or condition for Jefferson, so this compares values, not value per square foot. The implied market value is assessed value ÷ 10%, Louisiana's residential assessment ratio.</li>
             <li>Nearby homes are other parcels within about a quarter mile (400 m) of the lot's center point, nearest first, with their assessed value (a tax value, not a price), last qualified sale price when the Assessor publishes one, and flood zone.</li>
             <li>Records are labeled with the year they were pulled. The values are whatever roll the Assessor has published to that layer, which may lag a newly certified roll.</li>
-            <li>Orleans Parish has no parcel records here yet. The City's public GIS layers carry parcel IDs and addresses but no assessed values, so Orleans data will come from the Assessor's own site in a later release.</li>
+            <li>Orleans Parish records come from the City's parcel layer, which carries the Assessor's owner, address and tax bill but no values. The Assessor's own site sits behind a bot challenge, so it isn't pulled automatically; Orleans values will be added from a bulk file from the Assessor's office. Until then, Orleans cards show no assessed values, and the assessment comparison appears only for Jefferson.</li>
           </ul>
         </div>
         <div className="faq-item">
@@ -136,7 +140,7 @@ export default function About({ ctx }) {
           <ul className="text-list">
             <li>An address, starting with the house number ("420 Bonnabel"), suggests matching addresses.</li>
             <li>A street name ("Bonnabel", "n causeway") suggests streets. Pick one to see every parcel on it, grouped by block.</li>
-            <li>A parcel number (7 or more digits, as on the tax bill) finds that parcel. This is the only way to reach the 10,806 Jefferson parcels the Assessor lists with no street address, and units that share an address with another parcel.</li>
+            <li>A parcel or tax bill number (7 or more digits) finds that parcel. This is the only way to reach the 10,806 Jefferson parcels the Assessor lists with no street address, and units that share an address with another parcel.</li>
             <li>If an address has no record, the closest house numbers on that street are offered instead.</li>
           </ul>
         </div>
@@ -161,7 +165,7 @@ export default function About({ ctx }) {
         </div>
         <div className="faq-item">
           <div className="faq-q">My address isn't found. Why?</div>
-          <p className="text-block">It may be in Orleans Parish (not loaded yet), outside the ZIPs this site covers, or sharing a street address with another parcel. Try starting with the house number and just the first part of the street name.</p>
+          <p className="text-block">{`It may be ${orleansParcels ? "" : "in Orleans Parish (not loaded yet), "}outside the ZIPs this site covers, listed with no street address, or sharing a street address with another parcel. Try starting with the house number and just the first part of the street name, or search the street name alone or the parcel or tax bill number.`}</p>
         </div>
       </Collapsible>
     </div>
