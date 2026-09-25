@@ -64,7 +64,8 @@ export default function AssessmentComparison({ p, comparison }) {
   const c = comparison;
   if (!c || !(c.nearby || c.subdivision) || !p.assessed_val) return null;
   const peers = `${c.zoning ? `other ${c.zoning}-zoned parcels` : "other parcels with no published zoning"} ${
-    c.improved ? "that also have a building" : "that are also vacant land"
+    // Describe the roll, not the ground: exempt properties can carry no building value.
+    c.improved ? "that also have a building value on the roll" : "that also have no building value on the roll"
   }`;
   const groups = [
     c.nearby && {
