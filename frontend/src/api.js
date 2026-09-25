@@ -1,6 +1,8 @@
 // In static mode (GitHub Pages / previews) the app reads pre-exported JSON from
 // ./data instead of calling the FastAPI backend. Regenerate with:
 //   python -m etl.export_static
+import { cellsAround } from "./lib/nearby";
+
 export const IS_STATIC = import.meta.env.VITE_STATIC_DATA === "true";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -104,6 +106,16 @@ export async function suggestAddresses(q) {
   }
   const r = await get(`/api/property/suggest?q=${encodeURIComponent(q)}`);
   return r.suggestions;
+}
+
+/** Raw nearby rows around a point: the grid cells in static mode, a bounding box from the API. */
+export async function getNearbyRows(lat, lng) {
+  if (IS_STATIC) {
+    const cells = await Promise.all(cellsAround(lat, lng).map((k) => getStatic(`near/${k}.json`).catch(() => [])));
+    return cells.flat();
+  }
+  const r = await get(`/api/property/nearby?lat=${lat}&lng=${lng}`);
+  return r.homes;
 }
 
 export async function getPropertyLookup(address) {
