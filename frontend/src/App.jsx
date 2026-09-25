@@ -64,6 +64,15 @@ export default function App() {
     setUrl(next);
   }
 
+  // The title is the way home: clear every view, area and search, and start at the top.
+  function goHome(e) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let the browser open a new tab
+    e.preventDefault();
+    history.pushState(null, "", window.location.pathname);
+    setUrl({});
+    window.scrollTo({ top: 0 });
+  }
+
   const geos = meta?.geos || null;
   const ctx = useMemo(
     () => ({ theme, meta, geos, macro, scorecard, navigate, url }),
@@ -84,7 +93,9 @@ export default function App() {
               <ThemeToggle theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />
             </div>
             <h1 className="app-title">
-              NOLA Housing Pulse<span className="accent">.</span>
+              <a className="app-title-link" href={window.location.pathname} onClick={goHome} title="Home">
+                NOLA Housing Pulse<span className="accent">.</span>
+              </a>
             </h1>
             <p className="app-subtitle">
               Home values, rents, market velocity and parcel records for <b>Metairie</b>, <b>Old Metairie</b> and{" "}
