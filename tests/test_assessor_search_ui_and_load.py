@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from etl import config, load_assessor
 from etl.assessor import JeffersonAdapter
 from etl.assessor.http import PoliteSession
@@ -151,8 +153,43 @@ def test_load_parish_falls_back_to_search_ui(con, fx, fake_http, raw_dir, monkey
 def test_load_parish_without_seeds_is_a_noop(con, fake_http, raw_dir, monkeypatch):
     monkeypatch.setattr(config, "ASSESSOR_SEED_FILE", None)
     s = PoliteSession(session=fake_http(), min_interval=0, sleep=lambda _: None)
-    summary = load_assessor.load_parish(con, "orleans", session=s, force_search_ui=True)
+    summary = load_assessor.load_parish(con, "jefferson", session=s, force_search_ui=True)
     assert summary["records"] == 0 and summary.get("note") == "no seeds"
+
+
+def test_orleans_never_falls_back_to_scraping(con, fake_http, raw_dir, monkeypatch):
+    # nolaassessor.com is behind a bot challenge: with no bulk source, Orleans pulls nothing and
+    # makes no request to the Assessor's site at all.
+    fake = fake_http()
+    s = PoliteSession(session=fake, min_interval=0, sleep=lambda _: None)
+    summary = load_assessor.load_parish(con, "orleans", session=s, force_search_ui=True, seed_file=None)
+    assert summary["records"] == 0 and "search UI disabled" in summary["note"]
+    assert not [u for u, _ in fake.calls if "nolaassessor" in u]
+
+
+def test_short_bulk_pull_keeps_the_previous_load(con, fx, fake_http, raw_dir, monkeypatch):
+    monkeypatch.setitem(
+        config.ASSESSOR_SOURCES["jefferson"],
+        "bulk_candidates",
+        [{"kind": "arcgis", "url": "https://gis.test/Parcels/MapServer/0"}],
+    )
+    s = PoliteSession(session=fake_http(_arcgis_routes(fx)), min_interval=0, sleep=lambda _: None)
+    load_assessor.load_parish(con, "jefferson", session=s, tax_year=2026)
+    before = con.execute("SELECT COUNT(*) FROM assessor_parcels_raw").fetchone()[0]
+    # Same layer, but now it claims 100 records while serving the same 2: a failed pull.
+    routes = _arcgis_routes(fx)
+    count_route = "https://gis.test/Parcels/MapServer/0"
+    base = routes[count_route]
+
+    def claims_more(url, params):
+        if params and params.get("returnCountOnly"):
+            return FakeResponse(url, 200, '{"count": 100}', "application/json")
+        return base(url, params)
+
+    s2 = PoliteSession(session=fake_http({count_route: claims_more}), min_interval=0, sleep=lambda _: None)
+    with pytest.raises(RuntimeError, match="read 2 of 100 features"):
+        load_assessor.load_parish(con, "jefferson", session=s2, tax_year=2026)
+    assert con.execute("SELECT COUNT(*) FROM assessor_parcels_raw").fetchone()[0] == before
 
 
 def test_build_derived_latest_and_history(con):

@@ -56,17 +56,20 @@ def test_street_index_names_counts_and_cities():
 
 def test_suggest_by_parcel_number(con):
     con.execute(
-        "CREATE TABLE parcel_market (parcel_id VARCHAR, site_address VARCHAR, site_address_norm VARCHAR,"
-        " city VARCHAR, zip_code VARCHAR)"
+        "CREATE TABLE parcel_market (parcel_id VARCHAR, tax_bill_number VARCHAR, site_address VARCHAR,"
+        " site_address_norm VARCHAR, city VARCHAR, zip_code VARCHAR)"
     )
     con.execute(
         "INSERT INTO parcel_market VALUES"
-        " ('0820015268', '321 BONNABEL BLVD', '321 BONNABEL BLVD', 'Metairie', '70005'),"
-        " ('0820015269', NULL, NULL, 'Metairie', NULL),"
-        " ('9820041015', NULL, NULL, NULL, NULL)"
+        " ('0820015268', NULL, '321 BONNABEL BLVD', '321 BONNABEL BLVD', 'Metairie', '70005'),"
+        " ('0820015269', NULL, NULL, NULL, 'Metairie', NULL),"
+        " ('41033176', '105306710', '624 S ALEXANDER ST', '624 S ALEXANDER ST', 'New Orleans', '70119')"
     )
-    got = queries.suggest(con, "0820015")
-    assert got == [
+    assert queries.suggest(con, "0820015") == [
         {"address": "0820015268", "full": "Parcel 0820015268 · 321 Bonnabel Blvd, Metairie, LA 70005"},
         {"address": "0820015269", "full": "Parcel 0820015269 · No street address · Metairie"},
+    ]
+    # An Orleans tax bill number finds its parcel too, and says it matched the bill.
+    assert queries.suggest(con, "1053067") == [
+        {"address": "105306710", "full": "Tax bill 105306710 · 624 S Alexander St, New Orleans, LA 70119"}
     ]

@@ -244,6 +244,8 @@ ASSESSOR_SOURCES = {
         },
     },
     "orleans": {
+        # The City's GIS server is slow: a record count alone has taken ~55 s.
+        "timeout_seconds": 180,
         "bulk_candidates": [
             # City of New Orleans open data (Socrata). Parcel layer carries the
             # assessor's tax bill number / owner / values in some vintages.
@@ -253,15 +255,9 @@ ASSESSOR_SOURCES = {
                 "dataset_id": os.environ.get("ORLEANS_SOCRATA_DATASET_ID", ""),
             },
             {
-                # The old "apps/Parcels" path errors "service not found".
-                # ParcelSearch/MapServer/0 is live and has parcel_id + full
-                # site address, but — unlike Jefferson's PAO layer — no
-                # owner/value fields; gis.nola.gov has no ArcGIS layer or
-                # Socrata dataset with real assessed/market values as of this
-                # check. This candidate will map (parcel_id + site_address
-                # clears REQUIRED_ANY) but records will carry no valuation
-                # data until a real source is found — see the ASSESSOR_SEED_FILE
-                # fallback for value data via nolaassessor.com instead.
+                # City of New Orleans ParcelSearch: parcel ID, tax bill ID, site address (with ZIP),
+                # first and second owner and the lot polygon for all ~162k Orleans parcels. It has
+                # no assessed or market values; those aren't published as open data anywhere.
                 "kind": "arcgis",
                 "url": os.environ.get(
                     "ORLEANS_ARCGIS_PARCELS_URL",
@@ -270,6 +266,9 @@ ASSESSOR_SOURCES = {
             },
         ],
         "search_ui": {
+            # nolaassessor.com sits behind a Cloudflare bot challenge (even robots.txt), so there is
+            # no polite automated pull of it; values need a bulk file from the Assessor's office.
+            "disabled": "nolaassessor.com is behind a bot challenge; request a bulk roll instead",
             "base_url": os.environ.get("ORLEANS_SEARCH_BASE_URL", "https://nolaassessor.com/"),
             "detail_url": os.environ.get(
                 "ORLEANS_DETAIL_URL", "https://nolaassessor.com/search/?tax_bill={parcel_id}"

@@ -466,7 +466,9 @@ def full_address_or_none(parcel: dict) -> str | None:
 def property_lookup(con, address: str) -> dict | None:
     pid = parcel_query(address)
     if pid:
-        rows = _rows(con, "SELECT * FROM parcel_market WHERE parcel_id = ? LIMIT 1", [pid])
+        rows = _rows(
+            con, "SELECT * FROM parcel_market WHERE parcel_id = ? OR tax_bill_number = ? LIMIT 1", [pid, pid]
+        )
         return _property_payload(con, rows[0]) if rows else None
     needle = normalize_address(address)
     rows = _rows(con, "SELECT * FROM parcel_market WHERE site_address_norm = ? LIMIT 1", [needle])
@@ -555,13 +557,23 @@ def suggest(con, q: str, limit: int = 8) -> list[dict]:
     if pid:
         rows = _rows(
             con,
-            """SELECT parcel_id, site_address, site_address_norm, city, zip_code FROM parcel_market
-               WHERE parcel_id LIKE ? ORDER BY parcel_id LIMIT ?""",
-            [f"{pid}%", limit],
+            """SELECT parcel_id, tax_bill_number, site_address, site_address_norm, city, zip_code
+               FROM parcel_market WHERE parcel_id LIKE ? OR tax_bill_number LIKE ?
+               ORDER BY parcel_id LIMIT ?""",
+            [f"{pid}%", f"{pid}%", limit],
         )
-        return [
-            {"address": r["parcel_id"], "full": f"Parcel {r['parcel_id']} · {parcel_label(r)}"} for r in rows
-        ]
+        out = []
+        for r in rows:
+            # Tax bill numbers find a parcel too (Orleans bills are numbered apart from parcels).
+            by_bill = not r["parcel_id"].startswith(pid)
+            number = r["tax_bill_number"] if by_bill else r["parcel_id"]
+            out.append(
+                {
+                    "address": number,
+                    "full": f"{'Tax bill' if by_bill else 'Parcel'} {number} · {parcel_label(r)}",
+                }
+            )
+        return out
     needle = normalize_address(q)
     if len(needle) < 3:
         return []

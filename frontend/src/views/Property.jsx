@@ -529,6 +529,16 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
 // section renders only if at least one of its stats survived, so the card never shows a wall
 // of "—" placeholders for fields this data source simply doesn't carry (Jefferson's assessor
 // feed has no year built, living area or sale history, for instance).
+// Where a card's record comes from. Orleans comes from the City's parcel layer, which carries the
+// Assessor's owner, address and tax bill but no values.
+function sourceNote(p) {
+  const pulled = p.fetched_at ? ` · pulled ${p.fetched_at.slice(0, 10)}` : "";
+  if (p.parish === "orleans")
+    return `Source: City of New Orleans parcel layer: owner, address and tax bill from the Assessor's roll${pulled}. The City doesn't publish assessed values, so none are shown for Orleans yet.`;
+  const placed = p.zip_code ? " City and ZIP are placed from the parcel's location." : "";
+  return `Source: Jefferson Parish Assessor, as published${pulled}.${placed} Assessed value is the tax value, not a market price.`;
+}
+
 function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) {
   const p = data.parcel;
   const v = data.valuation;
@@ -615,10 +625,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) 
           </div>
         )}
         <div className="method-note" style={{ marginTop: 10 }}>
-          Source: {p.parish === "jefferson" ? "Jefferson" : "Orleans"} Parish Assessor, as published
-          {p.fetched_at ? ` · pulled ${p.fetched_at.slice(0, 10)}` : ""}.
-          {p.zip_code ? " City and ZIP are placed from the parcel's location." : ""} Assessed value is the tax
-          value, not a market price.{" "}
+          <span>{sourceNote(p)}</span>{" "}
           <button type="button" className="link-button" onClick={() => navigate({ view: "about", q: null })}>
             How this data works
           </button>

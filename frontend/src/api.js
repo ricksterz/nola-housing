@@ -163,13 +163,13 @@ export async function suggestAddresses(q) {
   if (pid) {
     if (!IS_STATIC) {
       const r = await get(`/api/property/suggest?q=${encodeURIComponent(pid)}`);
-      return r.suggestions.map((a) => ({ kind: "parcel", address: a.address, full: `Parcel ${a.address}`, sub: a.full.split(" · ").slice(1).join(" · ") }));
+      return r.suggestions.map((a) => ({ kind: "parcel", address: a.address, full: a.full.split(" · ")[0], sub: a.full.split(" · ").slice(1).join(" · ") }));
     }
     const shard = await getPidShard(pid);
     return shard
       .filter(([id]) => id.startsWith(pid))
       .slice(0, 8)
-      .map(([id, , label]) => ({ kind: "parcel", address: id, full: `Parcel ${id}`, sub: label }));
+      .map(([id, , label, kind]) => ({ kind: "parcel", address: id, full: `${kind === "bill" ? "Tax bill" : "Parcel"} ${id}`, sub: label }));
   }
   const needle = streetOnly(q);
   if (needle.length < 3) return [];
@@ -224,7 +224,7 @@ export async function getPropertyLookup(address) {
     if (!IS_STATIC) return get(`/api/property/lookup?address=${encodeURIComponent(pid)}`);
     const hit = (await getPidShard(pid)).find(([id]) => id === pid);
     if (hit) return getStatic(`property/${hit[1]}.json`);
-    throw new Error(`No parcel numbered ${pid} in the Assessor's records. Jefferson parcel numbers are 10 digits, as printed on the tax bill.`);
+    throw new Error(`No parcel or tax bill numbered ${pid}. Jefferson parcel numbers are 10 digits; Orleans tax bills are 9.`);
   }
   const needle = streetOnly(address);
   if (IS_STATIC) {

@@ -178,9 +178,12 @@ def export_properties(con) -> int:
             "comparison": comparisons.get(parcel["parcel_id"]),
         }
         write_json(prop_dir / f"{slug}.json", data, compact=True)
-        pids.setdefault(pid_key(parcel["parcel_id"]), []).append(
-            [parcel["parcel_id"], slug, queries.parcel_label(parcel)]
-        )
+        label = queries.parcel_label(parcel)
+        pids.setdefault(pid_key(parcel["parcel_id"]), []).append([parcel["parcel_id"], slug, label])
+        # Tax bill numbers find the parcel too (Orleans bills are numbered separately from parcels).
+        bill = (parcel.get("tax_bill_number") or "").strip()
+        if bill and bill != parcel["parcel_id"]:
+            pids.setdefault(pid_key(bill), []).append([bill, slug, label, "bill"])
         if not owns_address:
             continue
         shards.setdefault(shard_key(addr), []).append(

@@ -57,6 +57,8 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     # JR &") and the co-owner begins the next line, run into the mailing street ("LEONORIA S
     # DETIEGE 1506 AMES BLVD"). Only the name is kept (join_co_owner); the address is never stored.
     "co_owner_line": ("OWNER_ADDR",),
+    # Orleans (City ParcelSearch) carries a second owner in its own field; it's joined on with "&".
+    "owner_name_2": ("OWNERNME2", "OWNER2", "OWNER_NAME_2"),
     "mailing_address": ("MAIL_ADDR", "MAILING_ADDRESS", "OWNER_ADDRESS", "MAILADDRESS"),
     "legal_description": ("LEGAL", "LEGAL_DESC", "LEGAL_DESCRIPTION", "LGL_DESC"),
     "subdivision": ("SUBDIVISION", "SUBDIV", "SUBDIVISION_NAME", "PARCELSUBD"),
@@ -126,6 +128,16 @@ REQUIRED_ANY = ("owner_name", "assessed_val", "tot_mkt_val", "site_address")
 
 # Where the mailing address starts in the co-owner line: a house number or a PO box.
 _ADDRESS_START = re.compile(r"\s(?:\d|P\.?\s*O\.?\s*BOX\b)", re.IGNORECASE)
+
+
+def split_site_address(address: str | None) -> tuple[str | None, str | None]:
+    """ "624 S ALEXANDER ST, LA, 70119" -> ("624 S ALEXANDER ST", "70119"). Orleans' ParcelSearch
+    runs state and ZIP into the site address; an address with no comma is returned as is."""
+    if not isinstance(address, str) or "," not in address:
+        return address, None
+    street = address.split(",")[0].strip()
+    m = re.search(r"\b(\d{5})(?:-\d{4})?\s*$", address)
+    return street or None, m.group(1) if m else None
 
 
 def join_co_owner(owner: str | None, line: str | None) -> str | None:
@@ -200,6 +212,36 @@ def _centroid(geom: dict | None) -> tuple[float | None, float | None]:
     return None, None
 
 
+class ArcgisQueryFailed(RuntimeError):
+    """A query page still failed after its retries."""
+
+
+ARCGIS_PAGE_RETRIES = 5
+ARCGIS_RETRY_SECONDS = 30.0
+
+
+def _arcgis_page(session: PoliteSession, url: str, params: dict, cache_key: str) -> dict:
+    """One query page. ArcGIS reports a failed query as HTTP 200 with an "error" body, so those are
+    retried with a growing wait and then raised: a bad page must never read as the end of the
+    layer, or a refresh would replace a whole parish with the pages before it."""
+    delay = ARCGIS_RETRY_SECONDS
+    for attempt in range(ARCGIS_PAGE_RETRIES + 1):
+        page = session.get_json(url, params=params, cache_key=cache_key)
+        if not isinstance(page, dict) or "error" not in page:
+            return page
+        if attempt == ARCGIS_PAGE_RETRIES:
+            raise ArcgisQueryFailed(f"{url} at offset {params.get('resultOffset')}: {page['error']}")
+        log.warning(
+            "ArcGIS query failed at offset %s (%s); retrying in %.0fs",
+            params.get("resultOffset"),
+            page["error"],
+            delay,
+        )
+        session._sleep(delay)
+        delay *= 2
+    raise RuntimeError("unreachable")
+
+
 def fetch_arcgis(
     url: str,
     session: PoliteSession,
@@ -209,15 +251,21 @@ def fetch_arcgis(
     page_size: int = 1000,
     where: str = "1=1",
     max_records: int | None = None,
+    stats: dict | None = None,
 ) -> list[ParcelRecord]:
-    """Page through an ArcGIS layer; returns ParcelRecords with WGS84 centroid lat/lng."""
+    """Page through an ArcGIS layer; returns ParcelRecords with WGS84 centroid lat/lng.
+
+    ``stats["features"]`` is set to the number of features read, including ones skipped for
+    having no parcel ID, so callers can check the pull against the layer's record count."""
     out: list[ParcelRecord] = []
     offset = 0
+    seen = 0
     out_fields = ",".join(sorted(set(field_map.values())))
     while True:
-        page = session.get_json(
+        page = _arcgis_page(
+            session,
             url.rstrip("/") + "/query",
-            params={
+            {
                 "where": where,
                 "outFields": out_fields,
                 "returnGeometry": "true",
@@ -229,12 +277,23 @@ def fetch_arcgis(
             cache_key=f"{parish}/arcgis_page_{offset}",
         )
         features = page.get("features", [])
+        seen += len(features)
+        if stats is not None:
+            stats["features"] = seen
         for feat in features:
             attrs = feat.get("attributes", {})
             mapped = {target: attrs.get(src) for target, src in field_map.items()}
             if "co_owner_line" in field_map:
                 mapped["owner_name"] = join_co_owner(mapped.get("owner_name"), mapped.pop("co_owner_line"))
                 attrs = {k: v for k, v in attrs.items() if k != field_map["co_owner_line"]}
+            second = mapped.pop("owner_name_2", None)
+            if isinstance(second, str) and second.strip():
+                first = (mapped.get("owner_name") or "").strip()
+                mapped["owner_name"] = f"{first} & {second.strip()}" if first else second.strip()
+            street, zip_code = split_site_address(mapped.get("site_address"))
+            mapped["site_address"] = street
+            if zip_code and not str(mapped.get("zip_code") or "").strip():
+                mapped["zip_code"] = zip_code
             lat, lng = _centroid(feat.get("geometry"))
             mapped.setdefault("lat", lat)
             mapped.setdefault("lng", lng)
