@@ -132,7 +132,12 @@ export default function About({ ctx }) {
         </div>
         <div className="faq-item">
           <div className="faq-q">Searching</div>
-          <p className="text-block">Search matches from the start of the address, so start with the house number ("420 Bonnabel"). A street name alone won't return results.</p>
+          <ul className="text-list">
+            <li>An address, starting with the house number ("420 Bonnabel"), suggests matching addresses.</li>
+            <li>A street name ("Bonnabel", "n causeway") suggests streets. Pick one to see every parcel on it, grouped by block.</li>
+            <li>A parcel number (7 or more digits, as on the tax bill) finds that parcel. This is the only way to reach the 10,806 Jefferson parcels the Assessor lists with no street address, and units that share an address with another parcel.</li>
+            <li>If an address has no record, the closest house numbers on that street are offered instead.</li>
+          </ul>
         </div>
       </Collapsible>
 

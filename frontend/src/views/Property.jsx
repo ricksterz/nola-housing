@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
-import { getOwnershipCosts, getPropertyLookup, getTrend, suggestAddresses } from "../api";
+import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, parcelQuery, suggestAddresses, suggestStreets } from "../api";
 import ChartPanel from "../components/ChartPanel";
 import { CostInputs } from "../components/MonthlyCost";
 import NearbyMap from "../components/NearbyMap";
@@ -12,6 +12,12 @@ import { fmt, fmtCompactCurrency, seriesColor } from "../lib/theme";
 
 const SUGGEST_DEBOUNCE_MS = 150;
 
+// What goes in the search box and the URL for a parcel: its address, or its parcel number when
+// the Assessor lists no street address.
+function parcelQueryText(parcel) {
+  return parcel.full_address || `Parcel ${parcel.parcel_id}`;
+}
+
 export default function Property({ ctx }) {
   const { meta, theme, navigate, url, macro, scorecard } = ctx;
   const [address, setAddress] = useState(url.q || "");
@@ -22,6 +28,7 @@ export default function Property({ ctx }) {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [trend, setTrend] = useState(null);
+  const [street, setStreet] = useState(null); // { name, count, cities, entries } for a street list
   const count = meta?.property_count ?? null;
   const boxRef = useRef(null);
   const debounceRef = useRef(null);
@@ -30,8 +37,27 @@ export default function Property({ ctx }) {
   // Load the address in the URL: on arrival, and again when Back/Forward changes it. A search
   // rewrites q to the full address it found, which then matches and doesn't search twice.
   useEffect(() => {
-    if (url.q && url.q !== data?.parcel?.full_address) search(url.q);
+    if (url.q && (!data || url.q !== parcelQueryText(data.parcel))) search(url.q);
   }, [url.q]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A street list in the URL (?street=bonnabel-blvd), shown when no single address is. What's on
+  // screen follows the URL (showStreet / showParcel below), so Back and Forward just work.
+  useEffect(() => {
+    if (!url.street || url.q) return;
+    let cancelled = false;
+    getStreet(url.street)
+      .then((st) => {
+        if (cancelled) return;
+        setStreet(st);
+        setAddress(st.name);
+      })
+      .catch((e) => !cancelled && setError({ message: e.message, nearby: [] }));
+    return () => {
+      cancelled = true;
+    };
+  }, [url.street, url.q]);
+  const showStreet = Boolean(url.street && !url.q && street?.slug === url.street);
+  const showParcel = Boolean(data && url.q);
 
   useEffect(() => {
     const zip = data?.parcel?.zip_code;
@@ -57,9 +83,23 @@ export default function Property({ ctx }) {
     boxRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function search(addr = address, { push = false } = {}) {
+  function openStreet(slug) {
+    setSuggestOpen(false);
+    setError(null);
+    navigate({ street: slug, q: null });
+  }
+
+  async function search(addr = address, { push = false } = {}) {
     if (!addr.trim()) return;
     setSuggestOpen(false);
+    // A street name with no house number opens that street's list.
+    if (!parcelQuery(addr) && !/^\d/.test(addr.trim())) {
+      const [best] = await suggestStreets(addr, 1);
+      if (best) {
+        openStreet(best.slug);
+        return;
+      }
+    }
     setLoading(true);
     setError(null);
     setData(null);
@@ -69,9 +109,9 @@ export default function Property({ ctx }) {
         setData(d);
         // Show the full "street, city, LA zip" once we know it — the search key stays the
         // plain street address (getPropertyLookup strips anything after the first comma).
-        const full = d.parcel.full_address || addr;
+        const full = parcelQueryText(d.parcel);
         setAddress(full);
-        navigate({ q: full }, { replace: !push });
+        navigate({ q: full, street: null }, { replace: !push });
       })
       .catch((e) => setError({ message: e.message, nearby: e.nearby || [] }))
       .finally(() => setLoading(false));
@@ -96,9 +136,13 @@ export default function Property({ ctx }) {
   }
 
   function pick(a) {
-    setAddress(a.full);
     setSuggestOpen(false);
-    search(a.address);
+    if (a.kind === "street") {
+      openStreet(a.slug);
+      return;
+    }
+    setAddress(a.full);
+    search(a.address, { push: Boolean(url.street) });
   }
 
   function onKeyDown(e) {
@@ -151,8 +195,8 @@ export default function Property({ ctx }) {
           onChange={(e) => onInput(e.target.value)}
           onFocus={() => suggestions.length > 0 && setSuggestOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Street address, e.g. 123 METAIRIE RD"
-          aria-label="Street address"
+          placeholder="Address, street name or parcel number"
+          aria-label="Address, street name or parcel number"
           role="combobox"
           aria-expanded={suggestOpen}
           aria-controls="address-suggestions"
@@ -172,6 +216,7 @@ export default function Property({ ctx }) {
                 onMouseDown={(e) => { e.preventDefault(); pick(a); }}
               >
                 {highlightMatch(a.full, address)}
+                {a.sub && <span className="suggestion-sub">{a.sub}</span>}
               </div>
             ))}
           </div>
@@ -196,7 +241,40 @@ export default function Property({ ctx }) {
         </div>
       )}
 
-      {data && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} onPick={pickNearby} />}
+      {showStreet && <StreetList street={street} onPick={pickNearby} />}
+      {showParcel && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} onPick={pickNearby} />}
+    </div>
+  );
+}
+
+// Every parcel on one street, grouped by hundred-block, so a street name is enough to find a home.
+function StreetList({ street, onPick }) {
+  const blocks = [];
+  for (const [number, address, full] of street.entries) {
+    const block = Math.floor(number / 100) * 100;
+    if (!blocks.length || blocks[blocks.length - 1][0] !== block) blocks.push([block, []]);
+    blocks[blocks.length - 1][1].push({ label: address.split(" ")[0], address, full });
+  }
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <div>
+          <h3 className="panel-title">{street.name}</h3>
+          <div className="panel-subtitle">{`${street.count.toLocaleString()} parcels${street.cities ? ` · ${street.cities}` : ""}. Pick a house number.`}</div>
+        </div>
+      </div>
+      {blocks.map(([block, homes]) => (
+        <div key={block} className="street-block">
+          <div className="street-block-label">{block === 0 ? "1–99" : `${block.toLocaleString()} block`}</div>
+          <div className="street-numbers">
+            {homes.map((h) => (
+              <button key={h.address} type="button" className="btn street-number" title={h.full || h.address} onClick={() => onPick(h.address)}>
+                {h.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -453,7 +531,8 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
 function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) {
   const p = data.parcel;
   const v = data.valuation;
-  const address = p.full_address || p.site_address || p.site_address_norm;
+  const address = parcelQueryText(p);
+  const hasAddress = Boolean(p.full_address);
 
   const sections = [
     [
@@ -506,7 +585,9 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) 
         <div className="parcel-header">
           <div>
             <div className="parcel-address">{address}</div>
-            <div className="parcel-sub">{`${p.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · Parcel ${p.parcel_id}`}</div>
+            <div className="parcel-sub">
+              {`${p.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · ${hasAddress ? `Parcel ${p.parcel_id}` : `No street address listed${p.city ? ` · ${p.city}` : ""}`}`}
+            </div>
           </div>
           <div className="parcel-actions">
             <CopyLinkButton address={address} />

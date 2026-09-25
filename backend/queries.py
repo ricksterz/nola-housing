@@ -275,6 +275,28 @@ def lookup_miss_message(street: str, has_nearby: bool) -> str:
     )
 
 
+def street_index(by_street: dict[str, list]) -> list[list]:
+    """{street: [[number, address, full], ...]} -> [[slug, display name, parcels, cities, street]]
+    for street-name search, busiest street first. Shared by the API and the static export."""
+    out = []
+    for street, entries in by_street.items():
+        fulls = [e[2] for e in entries if e[2]]
+        display = re.sub(r"^\S+\s+", "", fulls[0].split(",")[0]) if fulls else street.title()
+        cities = sorted({f.split(",")[1].strip() for f in fulls if f.count(",") >= 2})
+        out.append([slugify(street), display, len(entries), ", ".join(cities), street])
+    return sorted(out, key=lambda r: (-r[2], r[0]))
+
+
+def streets(con) -> list[list]:
+    """The street index for the API (the static export writes the same list to streets.json)."""
+    by_street: dict[str, list] = {}
+    for r in _rows(con, "SELECT site_address, site_address_norm, city, zip_code FROM parcel_market"):
+        parts = split_house_number(r["site_address_norm"] or "")
+        if parts:
+            by_street.setdefault(parts[1], []).append([parts[0], r["site_address_norm"], full_address(r)])
+    return street_index(by_street)
+
+
 def street_entries(con, street: str) -> list:
     """[number, address, full] for every parcel on one street (the API's street lookup)."""
     rows = _rows(
@@ -322,7 +344,27 @@ def nearby(con, lat: float, lng: float, radius_m: float = 400) -> list[list]:
     return [nearby_entry(r) for r in rows]
 
 
+_PARCEL_QUERY = re.compile(r"^(?:PARCEL#?)?(\d{7,})$")
+
+
+def parcel_query(q: str) -> str | None:
+    """A parcel number typed as a search ("0820015268", "Parcel 0820015268"), else None.
+    House numbers top out at 5 digits, so 7+ digits is always a parcel. Same rule as
+    frontend/src/api.js parcelQuery."""
+    m = _PARCEL_QUERY.match(re.sub(r"[\s-]", "", normalize_address(q or "")))
+    return m.group(1) if m else None
+
+
+def full_address_or_none(parcel: dict) -> str | None:
+    """full_address, or None for a parcel the Assessor lists with no street address."""
+    return full_address(parcel) if (parcel.get("site_address_norm") or "").strip() else None
+
+
 def property_lookup(con, address: str) -> dict | None:
+    pid = parcel_query(address)
+    if pid:
+        rows = _rows(con, "SELECT * FROM parcel_market WHERE parcel_id = ? LIMIT 1", [pid])
+        return _property_payload(con, rows[0]) if rows else None
     needle = normalize_address(address)
     rows = _rows(con, "SELECT * FROM parcel_market WHERE site_address_norm = ? LIMIT 1", [needle])
     if not rows:
@@ -339,8 +381,11 @@ def property_lookup(con, address: str) -> dict | None:
         )
     if not rows:
         return None
-    parcel = rows[0]
-    parcel["full_address"] = full_address(parcel)
+    return _property_payload(con, rows[0])
+
+
+def _property_payload(con, parcel: dict) -> dict:
+    parcel["full_address"] = full_address_or_none(parcel)
     history = _rows(
         con,
         """SELECT tax_year, land_val, bld_val, tot_mkt_val, assessed_val, homestead_exempt_val, taxable_val
@@ -387,8 +432,27 @@ def implied_valuation(con, parcel: dict) -> dict | None:
     }
 
 
+def parcel_label(parcel: dict) -> str:
+    """How a parcel reads in a parcel-number suggestion."""
+    return full_address_or_none(parcel) or " · ".join(
+        ["No street address", *filter(None, [parcel.get("city")])]
+    )
+
+
 def suggest(con, q: str, limit: int = 8) -> list[dict]:
-    """Address suggestions, each carrying the search key (address) and a display string (full)."""
+    """Address suggestions, each carrying the search key (address) and a display string (full).
+    A parcel number (7+ digits) suggests parcels by number instead."""
+    pid = parcel_query(q)
+    if pid:
+        rows = _rows(
+            con,
+            """SELECT parcel_id, site_address, site_address_norm, city, zip_code FROM parcel_market
+               WHERE parcel_id LIKE ? ORDER BY parcel_id LIMIT ?""",
+            [f"{pid}%", limit],
+        )
+        return [
+            {"address": r["parcel_id"], "full": f"Parcel {r['parcel_id']} · {parcel_label(r)}"} for r in rows
+        ]
     needle = normalize_address(q)
     if len(needle) < 3:
         return []

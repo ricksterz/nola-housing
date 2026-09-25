@@ -101,9 +101,79 @@ function getAddressShard(prefix) {
   return getStatic(`addr/${shardKey(prefix)}.json`).catch(() => []);
 }
 
+// A parcel number typed as a search: 7+ digits (house numbers stop at 5), optionally written
+// "Parcel 0820015268" or with dashes. Same rule as backend/queries.py parcel_query.
+export function parcelQuery(q) {
+  const m = /^(?:PARCEL#?)?(\d{7,})$/.exec(streetOnly(q || "").replace(/[\s-]/g, ""));
+  return m ? m[1] : null;
+}
+
+// Parcel-number index files are keyed by the first 7 characters (etl/export_static.py pid_key).
+function getPidShard(pid) {
+  return getStatic(`pid/${slugify(pid.slice(0, 7)) || "_"}.json`).catch(() => []);
+}
+
+// [[slug, name, parcels, cities, street], ...], busiest street first; loaded once, only when a
+// search starts with a letter.
+let streetIndex = null;
+function getStreetIndex() {
+  if (!streetIndex) {
+    streetIndex = (IS_STATIC ? getStatic("streets.json") : get("/api/property/streets").then((r) => r.streets)).catch((e) => {
+      streetIndex = null;
+      throw e;
+    });
+  }
+  return streetIndex;
+}
+
+/** Streets whose words start with every word typed: "bonn" -> Bonnabel Blvd, "n caus" -> N Causeway Blvd. */
+export async function suggestStreets(q, limit = 6) {
+  const words = streetOnly(q).split(" ").filter(Boolean);
+  if (!words.length) return [];
+  const index = await getStreetIndex().catch(() => []);
+  const out = [];
+  for (const [slug, name, count, cities, street] of index) {
+    const parts = street.split(" ");
+    if (words.every((w) => parts.some((p) => p.startsWith(w)))) {
+      out.push({ kind: "street", slug, address: street, full: name, sub: `${count.toLocaleString()} parcels${cities ? ` · ${cities}` : ""}` });
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+/** Every parcel on one street, for the street list: { slug, name, count, cities, entries: [[number, address, full]] }. */
+export async function getStreet(slug) {
+  const index = await getStreetIndex();
+  const row = index.find((r) => r[0] === slug);
+  if (!row) throw new Error("That street isn't in the Assessor's records. Try searching for it again.");
+  const entries = IS_STATIC
+    ? await getStatic(`street/${slug}.json`)
+    : (await get(`/api/property/street?name=${encodeURIComponent(row[4])}`)).entries;
+  return { slug, name: row[1], count: row[2], cities: row[3], entries };
+}
+
+/**
+ * Suggestions while typing: a parcel number suggests parcels, a leading house number suggests
+ * addresses, and anything else suggests streets. Each has ``address`` (what to look up) and
+ * ``full`` (what to show), plus ``kind`` and an optional ``sub`` line.
+ */
 export async function suggestAddresses(q) {
+  const pid = parcelQuery(q);
+  if (pid) {
+    if (!IS_STATIC) {
+      const r = await get(`/api/property/suggest?q=${encodeURIComponent(pid)}`);
+      return r.suggestions.map((a) => ({ kind: "parcel", address: a.address, full: `Parcel ${a.address}`, sub: a.full.split(" · ").slice(1).join(" · ") }));
+    }
+    const shard = await getPidShard(pid);
+    return shard
+      .filter(([id]) => id.startsWith(pid))
+      .slice(0, 8)
+      .map(([id, , label]) => ({ kind: "parcel", address: id, full: `Parcel ${id}`, sub: label }));
+  }
   const needle = streetOnly(q);
   if (needle.length < 3) return [];
+  if (!/^\d/.test(needle)) return suggestStreets(needle);
   if (IS_STATIC) {
     const shard = await getAddressShard(needle);
     return shard.filter((a) => a.address.startsWith(needle)).slice(0, 8);
@@ -149,6 +219,13 @@ function lookupMiss(street, nearby) {
 }
 
 export async function getPropertyLookup(address) {
+  const pid = parcelQuery(address);
+  if (pid) {
+    if (!IS_STATIC) return get(`/api/property/lookup?address=${encodeURIComponent(pid)}`);
+    const hit = (await getPidShard(pid)).find(([id]) => id === pid);
+    if (hit) return getStatic(`property/${hit[1]}.json`);
+    throw new Error(`No parcel numbered ${pid} in the Assessor's records. Jefferson parcel numbers are 10 digits, as printed on the tax bill.`);
+  }
   const needle = streetOnly(address);
   if (IS_STATIC) {
     try {

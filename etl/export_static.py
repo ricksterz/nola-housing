@@ -113,6 +113,12 @@ def shard_key(addr: str) -> str:
 NEAR_CELL_DEG = 0.005
 
 
+def pid_key(parcel_id: str) -> str:
+    """Parcel-number index file: the first 7 characters (Jefferson IDs are 10 digits and heavily
+    shared at shorter prefixes). Must match frontend/src/api.js pidKey()."""
+    return queries.slugify(parcel_id[:7]) or "_"
+
+
 def near_key(lat: float, lng: float) -> str:
     return f"{math.floor(lat / NEAR_CELL_DEG)}_{math.floor(lng / NEAR_CELL_DEG)}"
 
@@ -121,9 +127,7 @@ def export_properties(con) -> int:
     prop_dir = OUT_DIR / "property"
     addr_dir = OUT_DIR / "addr"
     near_dir = OUT_DIR / "near"
-    near_dir.mkdir(parents=True, exist_ok=True)
     street_dir = OUT_DIR / "street"
-    street_dir.mkdir(parents=True, exist_ok=True)
     prop_dir.mkdir(parents=True, exist_ok=True)
     addr_dir.mkdir(parents=True, exist_ok=True)
     if not queries._table_exists(con, "parcel_market"):
@@ -146,19 +150,24 @@ def export_properties(con) -> int:
     zip_stats = {r["geo_id"]: r for r in queries._rows(con, _ZIP_VALUATION_SQL)}
 
     print(f"Writing property files for {len(parcels)} parcels...")
-    seen_slugs = set()
+    written: set[str] = set()
     shards: dict[str, list] = {}
     near: dict[str, list] = {}
     streets: dict[str, list] = {}
+    pids: dict[str, list] = {}
     for parcel in parcels:
-        addr = parcel.get("site_address_norm")
-        slug = addr and queries.slugify(addr)
-        if not slug or slug in seen_slugs:
-            continue
-        seen_slugs.add(slug)
+        addr = (parcel.get("site_address_norm") or "").strip()
+        slug = queries.slugify(addr) if addr else ""
+        # The first parcel at an address owns its address page and the address, street and map
+        # indexes. The rest (condo units, lots sharing a number) and parcels with no street
+        # address get a page by parcel number, reachable through parcel-number search.
+        owns_address = bool(slug) and slug not in written
+        if not owns_address:
+            slug = f"parcel-{queries.slugify(parcel['parcel_id'])}"
+        written.add(slug)
         if REDACT_OWNER_NAMES:
             parcel.pop("owner_name", None)
-        parcel["full_address"] = queries.full_address(parcel)
+        parcel["full_address"] = queries.full_address_or_none(parcel)
         parcel.pop("assessed_value_history", None)
         data = {
             "parcel": parcel,
@@ -166,34 +175,40 @@ def export_properties(con) -> int:
             "valuation": _implied_valuation(parcel, zip_stats),
         }
         write_json(prop_dir / f"{slug}.json", data, compact=True)
+        pids.setdefault(pid_key(parcel["parcel_id"]), []).append(
+            [parcel["parcel_id"], slug, queries.parcel_label(parcel)]
+        )
+        if not owns_address:
+            continue
         shards.setdefault(shard_key(addr), []).append(
             {"address": addr, "full": parcel["full_address"], "slug": slug}
         )
         parts = queries.split_house_number(addr)
         if parts:
-            streets.setdefault(queries.slugify(parts[1]), []).append([parts[0], addr, parcel["full_address"]])
+            streets.setdefault(parts[1], []).append([parts[0], addr, parcel["full_address"]])
         if parcel.get("lat") is not None and parcel.get("lng") is not None:
             near.setdefault(near_key(parcel["lat"], parcel["lng"]), []).append(queries.nearby_entry(parcel))
-    for stale in prop_dir.glob("*.json"):
-        if stale.stem not in seen_slugs:
+
+    _write_dir(prop_dir, {}, keep=written)
+    _write_dir(addr_dir, shards)
+    _write_dir(near_dir, near)
+    _write_dir(OUT_DIR / "pid", {k: sorted(v) for k, v in pids.items()})
+    # Per-street house numbers (closest-number offers on a miss, and the street list), plus the
+    # street-name index that street search matches against.
+    _write_dir(street_dir, {queries.slugify(k): sorted(v) for k, v in streets.items()})
+    write_json(OUT_DIR / "streets.json", queries.street_index(streets), compact=True)
+    return len(written)
+
+
+def _write_dir(directory: Path, files: dict[str, list], keep: set[str] | None = None) -> None:
+    """Write {stem: rows} as stem.json and delete any file left over from an earlier export."""
+    directory.mkdir(parents=True, exist_ok=True)
+    keep = set(files) if keep is None else keep
+    for stale in directory.glob("*.json"):
+        if stale.stem not in keep:
             stale.unlink()
-    for stale in addr_dir.glob("*.json"):
-        if stale.stem not in shards:
-            stale.unlink()
-    for key, entries in shards.items():
-        write_json(addr_dir / f"{key}.json", entries, compact=True)
-    for stale in near_dir.glob("*.json"):
-        if stale.stem not in near:
-            stale.unlink()
-    for key, entries in near.items():
-        write_json(near_dir / f"{key}.json", entries, compact=True)
-    # Per-street house numbers, so a miss can offer the closest numbers on that street.
-    for stale in street_dir.glob("*.json"):
-        if stale.stem not in streets:
-            stale.unlink()
-    for key, entries in streets.items():
-        write_json(street_dir / f"{key}.json", sorted(entries), compact=True)
-    return len(seen_slugs)
+    for stem, rows in files.items():
+        write_json(directory / f"{stem}.json", rows, compact=True)
 
 
 def main():
