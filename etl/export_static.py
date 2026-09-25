@@ -122,6 +122,8 @@ def export_properties(con) -> int:
     addr_dir = OUT_DIR / "addr"
     near_dir = OUT_DIR / "near"
     near_dir.mkdir(parents=True, exist_ok=True)
+    street_dir = OUT_DIR / "street"
+    street_dir.mkdir(parents=True, exist_ok=True)
     prop_dir.mkdir(parents=True, exist_ok=True)
     addr_dir.mkdir(parents=True, exist_ok=True)
     if not queries._table_exists(con, "parcel_market"):
@@ -147,6 +149,7 @@ def export_properties(con) -> int:
     seen_slugs = set()
     shards: dict[str, list] = {}
     near: dict[str, list] = {}
+    streets: dict[str, list] = {}
     for parcel in parcels:
         addr = parcel.get("site_address_norm")
         slug = addr and queries.slugify(addr)
@@ -166,6 +169,9 @@ def export_properties(con) -> int:
         shards.setdefault(shard_key(addr), []).append(
             {"address": addr, "full": parcel["full_address"], "slug": slug}
         )
+        parts = queries.split_house_number(addr)
+        if parts:
+            streets.setdefault(queries.slugify(parts[1]), []).append([parts[0], addr, parcel["full_address"]])
         if parcel.get("lat") is not None and parcel.get("lng") is not None:
             near.setdefault(near_key(parcel["lat"], parcel["lng"]), []).append(queries.nearby_entry(parcel))
     for stale in prop_dir.glob("*.json"):
@@ -181,6 +187,12 @@ def export_properties(con) -> int:
             stale.unlink()
     for key, entries in near.items():
         write_json(near_dir / f"{key}.json", entries, compact=True)
+    # Per-street house numbers, so a miss can offer the closest numbers on that street.
+    for stale in street_dir.glob("*.json"):
+        if stale.stem not in streets:
+            stale.unlink()
+    for key, entries in streets.items():
+        write_json(street_dir / f"{key}.json", sorted(entries), compact=True)
     return len(seen_slugs)
 
 

@@ -8,15 +8,15 @@ router = APIRouter(prefix="/api/property", tags=["property"])
 
 @router.get("/lookup")
 def property_lookup(address: str):
-    data = queries.property_lookup(get_connection(), address)
+    con = get_connection()
+    data = queries.property_lookup(con, address)
     if data is None:
+        street = address.split(",")[0].strip()
+        parts = queries.split_house_number(queries.normalize_address(street))
+        nearby = queries.closest_on_street(queries.street_entries(con, parts[1]), parts[0]) if parts else []
         raise HTTPException(
             status_code=404,
-            detail=(
-                f'No assessor record matches "{address.strip()}". '
-                "Pick an address from the suggestions as you type, or double-check the "
-                "spelling and street type (Rd/St/Ave/Dr)."
-            ),
+            detail={"message": queries.lookup_miss_message(street, bool(nearby)), "nearby": nearby},
         )
     return data
 
