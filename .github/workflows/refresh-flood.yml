@@ -3,7 +3,7 @@ name: Monthly Flood Zone Refresh (FEMA NFHL)
 # FEMA flood maps change slowly (new studies, monthly map revisions), so flood zones are refreshed
 # on their own monthly schedule rather than inside the daily assessor refresh — hazards.fema.gov is
 # also flaky, and a failed pull here should never block parcel data. Runs mid-month at 09:00 UTC,
-# well after the 06:00 assessor and market jobs finish, since all three commit the same database.
+# well after the 06:00 assessor and market jobs finish; all three update the same database.
 # A failed fetch raises before anything is written, so the previous flood zones stay in place.
 
 on:
@@ -14,8 +14,10 @@ on:
 permissions:
   contents: write
 
+# One refresh at a time across all three refresh workflows: each downloads the database, changes
+# it and publishes it back, so two running at once would overwrite each other's work.
 concurrency:
-  group: flood-refresh
+  group: nola-db
   cancel-in-progress: false
 
 jobs:
@@ -32,19 +34,17 @@ jobs:
       - name: Install dependencies
         run: pip install duckdb requests
 
+      - name: Download the current database
+        run: |
+          python -m etl.db_store pull
+          cp etl/nola_housing.duckdb "$RUNNER_TEMP/before.duckdb"
+
       - name: Refresh FEMA flood zones and rebuild the join
         env:
           ASSESSOR_CONTACT: ${{ secrets.ASSESSOR_CONTACT }}
         run: python -m etl.refresh_flood
 
-      - name: Commit and push if data changed
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add etl/nola_housing.duckdb
-          if git diff --cached --quiet; then
-            echo "No data changes."
-          else
-            git commit -m "Flood zone refresh: $(date -u +%Y-%m-%d)"
-            git push
-          fi
+      - name: Publish the database if it changed
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m etl.db_store publish --before "$RUNNER_TEMP/before.duckdb" --notes "Flood zone refresh (FEMA NFHL)"

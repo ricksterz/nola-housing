@@ -32,6 +32,7 @@ etl/
   load_flood.py          FEMA NFHL flood zone per parcel                 -> parcel_flood
   load_costs.py          ACS property tax rate + NFIP flood cost by ZIP  -> zip_tax_rate, zip_flood_cost
   db_compact.py          reclaim DuckDB file space after a refresh (VACUUM doesn't)
+  db_store.py            download / publish the database on the `data` release (not in git)
   assessor/
     http.py              polite session: UA, robots.txt, rate limit, backoff, budget, raw landing
     bulk.py              ArcGIS REST + Socrata probes/fetchers
@@ -56,7 +57,13 @@ tests/                   fixture-backed tests for every loader, the assessor fal
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env        # FRED_API_KEY, ASSESSOR_CONTACT
+python -m etl.db_store pull # the current database (about 70 MB), from the `data` release
 ```
+
+The database isn't in git. It's the `nola_housing.duckdb` asset on this repo's
+[`data` release](https://github.com/ricksterz/nola-housing/releases/tag/data),
+which the refresh workflows update; `pull --previous` fetches the copy it
+replaced. Build one from scratch with `python -m etl.build_db` instead.
 
 ## Run
 
@@ -157,8 +164,12 @@ Raw source tables keep every column the join needs plus provenance:
 | Orleans assessor | daily Jul 15 – Aug 20 (open-rolls window Jul 15 – Aug 15, plus final values) | `refresh-assessor.yml --auto` |
 | Jefferson assessor | daily Aug 15 – Sep 30 (inspection Aug 15 – Sep 15, then certification) | `refresh-assessor.yml --auto` |
 
-Both workflows commit `etl/nola_housing.duckdb` back to the repo when it
-changes, as the Houston job does. Secrets/vars: `FRED_API_KEY`,
+Every refresh workflow (these two and the monthly flood zone refresh on the
+12th) downloads the database from the `data` release, updates it and publishes
+it back through `etl/db_store.py`, which keeps the replaced copy as
+`nola_housing.previous.duckdb` and refuses a file missing core tables or most
+of its parcels. They share one concurrency group so only one changes the
+database at a time. The Pages deploy and CI download it read-only. Secrets/vars: `FRED_API_KEY`,
 `ASSESSOR_CONTACT` (secret), `ASSESSOR_SEED_FILE`, `ASSESSOR_MAX_REQUESTS_PER_RUN`
 (repository variables).
 

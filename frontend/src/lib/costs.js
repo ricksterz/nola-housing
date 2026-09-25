@@ -14,12 +14,27 @@ export const COST_PARTS = [
   { key: "flood", label: "Flood insurance", slot: 1 },
 ];
 
+// Louisiana homestead exemption, $75,000 of market value; the data file carries the same figure.
+export const HOMESTEAD_EXEMPT_DEFAULT = 75000;
+
+/**
+ * Annual property tax for a ZIP's rates. A home you live in is taxed on its price minus the
+ * homestead exemption; a rental or second home on the full price. ``full_rate`` is the ZIP's
+ * rate with the exemption backed out (etl/load_costs.py); data from before it existed falls
+ * back to the effective rate on the full price, which already reflects the exemption.
+ */
+export function annualTax(tax, price, { homestead = true, exempt = HOMESTEAD_EXEMPT_DEFAULT } = {}) {
+  if (!tax || !price) return 0;
+  if (tax.full_rate == null) return price * tax.effective_rate;
+  return tax.full_rate * (homestead ? Math.max(price - exempt, 0) : price);
+}
+
 /** Monthly cost of owning: loan payment + tax + insurance. Annual inputs; monthly outputs. */
-export function monthlyCost({ price, downPct, ratePct, taxRate, homeownersAnnual, floodAnnual }) {
+export function monthlyCost({ price, downPct, ratePct, taxAnnual, homeownersAnnual, floodAnnual }) {
   if (!price) return null;
   const parts = {
     pi: monthlyPayment(price * (1 - downPct / 100), ratePct) || 0,
-    tax: taxRate != null ? (price * taxRate) / 12 : 0,
+    tax: (taxAnnual || 0) / 12,
     home: (homeownersAnnual || 0) / 12,
     flood: (floodAnnual || 0) / 12,
   };
@@ -43,7 +58,7 @@ function readSaved() {
   }
 }
 
-/** Rate, down payment, homeowners premium and flood toggle, shared between views and kept
+/** Rate, down payment, homeowners premium, flood and homestead toggles, shared between views and kept
  * per-browser so the reader doesn't retype them. Rate follows FRED until the reader edits it. */
 export function useCostAssumptions(defaultRate) {
   const [a, setA] = useState(() => ({
@@ -51,6 +66,7 @@ export function useCostAssumptions(defaultRate) {
     down: 20,
     homeowners: HOMEOWNERS_DEFAULT,
     includeFlood: true,
+    homestead: true,
     ...readSaved(),
   }));
   useEffect(() => {
