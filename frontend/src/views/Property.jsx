@@ -188,16 +188,18 @@ export default function Property({ ctx }) {
   );
 }
 
+// Every piece of text is the only child of its own element. Loose sibling text nodes are what
+// React edits in place on each keystroke, and anything that rewrites them first (iOS Safari's
+// address/phone detection, Google Translate, extensions) makes that update throw NotFoundError.
 function highlightMatch(text, query) {
   const needle = query.trim();
-  if (!needle) return text;
-  const i = text.toUpperCase().indexOf(needle.toUpperCase());
-  if (i === -1) return text;
+  const i = needle ? text.toUpperCase().indexOf(needle.toUpperCase()) : -1;
+  if (i === -1) return <span>{text}</span>;
   return (
     <>
-      {text.slice(0, i)}
+      <span>{text.slice(0, i)}</span>
       <b>{text.slice(i, i + needle.length)}</b>
-      {text.slice(i + needle.length)}
+      <span>{text.slice(i + needle.length)}</span>
     </>
   );
 }
@@ -491,9 +493,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) 
         <div className="parcel-header">
           <div>
             <div className="parcel-address">{address}</div>
-            <div className="parcel-sub">
-              {p.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · Parcel {p.parcel_id}
-            </div>
+            <div className="parcel-sub">{`${p.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · Parcel ${p.parcel_id}`}</div>
           </div>
           <div className="parcel-actions">
             <CopyLinkButton address={address} />
