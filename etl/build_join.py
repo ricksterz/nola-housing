@@ -197,7 +197,7 @@ def build_parcel_market(con) -> None:
                p.parcel_id, p.tax_bill_number,
                p.site_address, p.site_address_norm, p.city, p.zip_code,
                p.lat, p.lng,
-               p.owner_name, p.legal_description, p.property_class,
+               p.owner_name, p.legal_description, p.property_class, p.subdivision,
                p.land_area, p.building_area, p.year_built,
                p.tax_year, p.land_val, p.bld_val, p.tot_mkt_val, p.assessed_val,
                p.homestead_exempt_val, p.taxable_val, p.last_sale_date, p.last_sale_price,

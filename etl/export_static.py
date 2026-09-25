@@ -17,6 +17,7 @@ Writes to frontend/public/data/:
 """
 
 import json
+import math
 import re
 import sys
 from datetime import datetime, timezone
@@ -107,9 +108,20 @@ def shard_key(addr: str) -> str:
     return re.sub(r"[^A-Z0-9]", "_", addr[:3].upper())
 
 
+# Nearby-homes grid: parcels bucketed into NEAR_CELL_DEG squares (~550 m × 480 m here) so the
+# property map loads only the few cells around one address. Must match frontend/src/lib/nearby.js.
+NEAR_CELL_DEG = 0.005
+
+
+def near_key(lat: float, lng: float) -> str:
+    return f"{math.floor(lat / NEAR_CELL_DEG)}_{math.floor(lng / NEAR_CELL_DEG)}"
+
+
 def export_properties(con) -> int:
     prop_dir = OUT_DIR / "property"
     addr_dir = OUT_DIR / "addr"
+    near_dir = OUT_DIR / "near"
+    near_dir.mkdir(parents=True, exist_ok=True)
     prop_dir.mkdir(parents=True, exist_ok=True)
     addr_dir.mkdir(parents=True, exist_ok=True)
     if not queries._table_exists(con, "parcel_market"):
@@ -134,6 +146,7 @@ def export_properties(con) -> int:
     print(f"Writing property files for {len(parcels)} parcels...")
     seen_slugs = set()
     shards: dict[str, list] = {}
+    near: dict[str, list] = {}
     for parcel in parcels:
         addr = parcel.get("site_address_norm")
         slug = addr and queries.slugify(addr)
@@ -153,6 +166,8 @@ def export_properties(con) -> int:
         shards.setdefault(shard_key(addr), []).append(
             {"address": addr, "full": parcel["full_address"], "slug": slug}
         )
+        if parcel.get("lat") is not None and parcel.get("lng") is not None:
+            near.setdefault(near_key(parcel["lat"], parcel["lng"]), []).append(queries.nearby_entry(parcel))
     for stale in prop_dir.glob("*.json"):
         if stale.stem not in seen_slugs:
             stale.unlink()
@@ -161,6 +176,11 @@ def export_properties(con) -> int:
             stale.unlink()
     for key, entries in shards.items():
         write_json(addr_dir / f"{key}.json", entries, compact=True)
+    for stale in near_dir.glob("*.json"):
+        if stale.stem not in near:
+            stale.unlink()
+    for key, entries in near.items():
+        write_json(near_dir / f"{key}.json", entries, compact=True)
     return len(seen_slugs)
 
 

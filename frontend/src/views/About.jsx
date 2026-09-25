@@ -39,7 +39,7 @@ export default function About({ ctx }) {
           <li><strong>ZIP Scorecard</strong> — all 24 ZIPs side by side with the latest reading, year-over-year change and a 24-month price sparkline. Cell shading is a single blue ramp for magnitude and blue/red for change. Below it: gross rent yield (rent vs. buy) and the true monthly cost of the median sale: loan, property tax, homeowners and flood insurance.</li>
           <li><strong>Compare</strong> — overlay up to six areas on one metric, optionally indexed to 100 so growth can be compared across very different price levels, with small multiples underneath.</li>
           <li><strong>Macro</strong> — metro vs. parish indexes, the 30-year mortgage rate, FHFA house price indexes and realtor.com listing series for the MSA.</li>
-          <li><strong>Property Lookup</strong> — parcel records from the parish assessor (owner, assessed value, exemptions, value history, legal description), the FEMA flood zone, the ZIP's market context and a monthly cost to own at a price you set. Currently Jefferson Parish only — see Methodology.</li>
+          <li><strong>Property Lookup</strong> — parcel records from the parish assessor (owner, assessed value, exemptions, value history, legal description), the FEMA flood zone, a map of the homes around it, the ZIP's market context and a monthly cost to own at a price you set. Copy link shares the page for that address. Currently Jefferson Parish only — see Methodology.</li>
         </ul>
       </div>
 
@@ -53,6 +53,7 @@ export default function About({ ctx }) {
           <li><strong>Orleans Parish Assessor</strong> — not loaded yet. Scheduled for the Jul 15 – Aug 15 open-rolls window{rw?.orleans ? ` (window ${rw.orleans.start} – ${rw.orleans.end})` : ""}; see Methodology for why.</li>
           <li><strong>U.S. Census Bureau</strong> — ZIP Code Tabulation Area boundaries, used to place parcels in a ZIP, and American Community Survey 5-year estimates of property taxes paid and home values, used for each ZIP's effective tax rate. Checked monthly, updated when a new 5-year release comes out.</li>
           <li><strong>OpenFEMA NFIP policies</strong> — flood insurance policies in force by ZIP, used for typical flood insurance cost. Monthly.</li>
+          <li><strong>OpenStreetMap</strong> — the base map on a property page (© OpenStreetMap contributors). The dots on it are Assessor parcels, placed by each lot's center point.</li>
           <li><strong>FEMA National Flood Hazard Layer</strong> — effective flood zones, placed on each parcel. Monthly.{flooded ? ` ${n(flooded)} parcels${floodPulled ? `, last pulled ${floodPulled}` : ""}.` : ""}</li>
         </ul>
       </div>
@@ -62,6 +63,8 @@ export default function About({ ctx }) {
           <div className="faq-q">Parcel records</div>
           <ul className="text-list">
             <li>Jefferson Parish records come from the Assessor's "Parcel Ownership" GIS layer: owner, site address, land, building and assessed value, exemption, subdivision and legal description, as published. We don't edit values.</li>
+            <li>For co-owned parcels the Assessor splits the owner across two fields: the first ends in "&amp;" and the co-owner's name starts the mailing-address line. The co-owner's name is joined back on; the mailing address itself isn't kept or shown. Where no co-owner name can be separated, the card says "&amp; co-owner".</li>
+            <li>Nearby homes are other parcels within about a quarter mile (400 m) of the lot's center point, nearest first, with their assessed value (a tax value, not a price), last qualified sale price when the Assessor publishes one, and flood zone.</li>
             <li>Records are labeled with the year they were pulled. The values are whatever roll the Assessor has published to that layer, which may lag a newly certified roll.</li>
             <li>Orleans Parish has no parcel records here yet. The City's public GIS layers carry parcel IDs and addresses but no assessed values, so Orleans data will come from the Assessor's own site in a later release.</li>
           </ul>
