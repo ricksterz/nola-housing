@@ -29,3 +29,13 @@ def property_suggest(q: str):
 @router.get("/nearby")
 def property_nearby(lat: float, lng: float):
     return {"homes": queries.nearby(get_connection(), lat, lng)}
+
+
+@router.get("/streets")
+def property_streets():
+    return {"streets": queries.streets(get_connection())}
+
+
+@router.get("/street")
+def property_street(name: str):
+    return {"entries": sorted(queries.street_entries(get_connection(), queries.normalize_address(name)))}

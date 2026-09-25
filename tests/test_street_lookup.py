@@ -30,3 +30,43 @@ def test_closest_on_street_prefers_nearest_then_same_side():
 def test_miss_message_mentions_neighbours_only_when_there_are_some():
     assert "Closest on this street" in queries.lookup_miss_message("418 Bonnabel Blvd", True)
     assert "check the spelling" in queries.lookup_miss_message("418 Bonnabel Blvd", False)
+
+
+def test_parcel_query_needs_seven_or_more_digits():
+    assert queries.parcel_query("0820015268") == "0820015268"
+    assert queries.parcel_query("Parcel 0820015268") == "0820015268"
+    assert queries.parcel_query("parcel #08-2001-5268") == "0820015268"
+    assert queries.parcel_query("42000") is None  # a house number
+    assert queries.parcel_query("420 Bonnabel") is None
+
+
+def test_street_index_names_counts_and_cities():
+    by_street = {
+        "BONNABEL BLVD": BONNABEL,
+        "N CAUSEWAY BLVD": [
+            [100, "100 N CAUSEWAY BLVD", "100 N Causeway Blvd, Metairie, LA 70001"],
+            [101, "101 N CAUSEWAY BLVD", "101 N Causeway Blvd, Jefferson, LA 70121"],
+            [102, "102 N CAUSEWAY BLVD", None],
+        ],
+    }
+    rows = queries.street_index(by_street)
+    assert rows[0] == ["bonnabel-blvd", "Bonnabel Blvd", 5, "Metairie", "BONNABEL BLVD"]  # busiest first
+    assert rows[1] == ["n-causeway-blvd", "N Causeway Blvd", 3, "Jefferson, Metairie", "N CAUSEWAY BLVD"]
+
+
+def test_suggest_by_parcel_number(con):
+    con.execute(
+        "CREATE TABLE parcel_market (parcel_id VARCHAR, site_address VARCHAR, site_address_norm VARCHAR,"
+        " city VARCHAR, zip_code VARCHAR)"
+    )
+    con.execute(
+        "INSERT INTO parcel_market VALUES"
+        " ('0820015268', '321 BONNABEL BLVD', '321 BONNABEL BLVD', 'Metairie', '70005'),"
+        " ('0820015269', NULL, NULL, 'Metairie', NULL),"
+        " ('9820041015', NULL, NULL, NULL, NULL)"
+    )
+    got = queries.suggest(con, "0820015")
+    assert got == [
+        {"address": "0820015268", "full": "Parcel 0820015268 · 321 Bonnabel Blvd, Metairie, LA 70005"},
+        {"address": "0820015269", "full": "Parcel 0820015269 · No street address · Metairie"},
+    ]
