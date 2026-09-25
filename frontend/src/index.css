@@ -314,3 +314,10 @@ a { color: var(--blue); }
 @media (max-width: 640px) {
   .nearby-map { height: 260px; }
 }
+
+/* Search suggestions with a second line (street parcel counts, parcel addresses) and the street list */
+.suggestion-sub { display: block; font-size: 11.5px; color: var(--text-dim); margin-top: 1px; }
+.street-block + .street-block { margin-top: 12px; }
+.street-block-label { font-size: 11px; font-weight: 600; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.street-numbers { display: flex; flex-wrap: wrap; gap: 6px; }
+.street-number { padding: 6px 12px; min-width: 56px; justify-content: center; }
