@@ -13,5 +13,7 @@ _con = None
 def get_connection() -> duckdb.DuckDBPyConnection:
     global _con
     if _con is None:
+        if not os.path.exists(DB_PATH):
+            raise RuntimeError(f"No database at {DB_PATH}. Download it with: python -m etl.db_store pull")
         _con = duckdb.connect(DB_PATH, read_only=True)
     return _con

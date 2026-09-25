@@ -5,7 +5,7 @@ import ChartPanel from "../components/ChartPanel";
 import { CostInputs } from "../components/MonthlyCost";
 import Table from "../components/Table";
 import { Frame, currencyAxis, lineProps } from "../components/charts";
-import { COST_PARTS, HOMEOWNERS_RANGE, floodGroup, monthlyCost, useCostAssumptions } from "../lib/costs";
+import { COST_PARTS, HOMEOWNERS_RANGE, HOMESTEAD_EXEMPT_DEFAULT, annualTax, floodGroup, monthlyCost, useCostAssumptions } from "../lib/costs";
 import { monthLabel } from "../lib/rangeUtils";
 import { fmt, fmtCompactCurrency, seriesColor } from "../lib/theme";
 
@@ -273,6 +273,18 @@ function startingPrice(p, scorecard) {
   return { price: null, basis: null };
 }
 
+function taxNote(tax, zip, homestead, exempt) {
+  if (!tax) return `No published rate for ${zip}.`;
+  const years = `Census ACS ${tax.acs_year - 4}–${tax.acs_year}`;
+  if (tax.full_rate == null)
+    return `${(tax.effective_rate * 100).toFixed(2)}% of price a year: what owner-occupants in ${zip} actually pay (${years}). Reflects the homestead exemption; an owner who doesn't live here pays more.`;
+  const rate = `${(tax.full_rate * 100).toFixed(2)}%`;
+  const saving = fmt.currency(tax.full_rate * exempt);
+  return homestead
+    ? `${rate} a year on the price above the ${fmt.currency(exempt)} homestead exemption, from what owner-occupants in ${zip} pay (${years}). As a rental or second home: about ${saving}/yr more.`
+    : `${rate} of the full price a year: a rental or second home gets no homestead exemption, about ${saving}/yr more than living here. Rate from what owner-occupants in ${zip} pay (${years}).`;
+}
+
 function MonthlyCostPanel({ p, theme, macro, scorecard }) {
   const a = useCostAssumptions(macro?.mortgage_rate_30yr?.value);
   const [costs, setCosts] = useState(null);
@@ -291,19 +303,18 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
   const group = z.flood?.[wanted] ? wanted : "all";
   const flood = z.flood?.[group];
   const sfha = p.flood_sfha === true;
+  const exempt = costs.homestead_exempt_value ?? HOMESTEAD_EXEMPT_DEFAULT;
   const cost = monthlyCost({
     price,
     downPct: a.down,
     ratePct: a.rate,
-    taxRate: z.tax?.effective_rate,
+    taxAnnual: annualTax(z.tax, price, { homestead: a.homestead, exempt }),
     homeownersAnnual: a.homeowners,
     floodAnnual: a.includeFlood ? flood?.median : 0,
   });
   const notes = {
     pi: `${a.down}% down, ${a.rate}% 30-year fixed.`,
-    tax: z.tax
-      ? `${(z.tax.effective_rate * 100).toFixed(2)}% of price a year: what owner-occupants in ${p.zip_code} actually pay (Census ACS ${z.tax.acs_year - 4}–${z.tax.acs_year}). Reflects the homestead exemption; an owner who doesn't live here pays more.`
-      : `No published rate for ${p.zip_code}.`,
+    tax: taxNote(z.tax, p.zip_code, a.homestead, exempt),
     home: `Your estimate, ${fmt.currency(a.homeowners)}/yr. Published 2026 Louisiana averages run ${HOMEOWNERS_RANGE}; get a quote.`,
     flood: !a.includeFlood
       ? sfha

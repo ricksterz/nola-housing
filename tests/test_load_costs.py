@@ -1,6 +1,8 @@
 import json
 from datetime import date
 
+import pytest
+
 from etl import config, load_costs
 from etl.assessor.http import PoliteSession
 from tests.conftest import FakeResponse
@@ -50,6 +52,8 @@ ACS = {
     "b25090": "GEO_ID|B25090_E001|B25090_M001\n860Z200US70005|6250000|1\n860Z200US70001|3000000|1\n",
     "b25082": "GEO_ID|B25082_E001|B25082_M001\n860Z200US70005|1000000000|1\n860Z200US70001|500000000|1\n",
     "b25103": "GEO_ID|B25103_E001|B25103_M001\n860Z200US70005|2520|1\n860Z200US70001|-666666666|1\n",
+    "b25003": "GEO_ID|B25003_E001|B25003_M001|B25003_E002|B25003_M002\n"
+    "860Z200US70005|3000|1|2000|1\n860Z200US70001|1500|1|1000|1\n",
 }
 
 
@@ -68,11 +72,29 @@ def _acs_session(fake_http, year=2024):
 def test_tax_rate_uses_newest_published_vintage(con, fake_http):
     load_costs.ensure_tables(con)
     assert load_costs.load_tax(con, _acs_session(fake_http), today=date(2026, 9, 24)) == 2024  # 2025 404s
-    rows = dict(con.execute("SELECT zip, effective_rate FROM zip_tax_rate").fetchall())
-    assert rows == {"70005": 0.00625, "70001": 0.006}
+    rows = {
+        z: (eff, full)
+        for z, eff, full in con.execute("SELECT zip, effective_rate, full_rate FROM zip_tax_rate").fetchall()
+    }
+    assert {z: r[0] for z, r in rows.items()} == {"70005": 0.00625, "70001": 0.006}
+    # Homestead backed out: 6.25M / (1B - 75k x 2,000 owner units); 3M / (500M - 75k x 1,000).
+    assert rows["70005"][1] == pytest.approx(6_250_000 / 850_000_000)
+    assert rows["70001"][1] == pytest.approx(3_000_000 / 425_000_000)
     # Nothing newer than what's stored: no download, rows kept.
     assert load_costs.load_tax(con, _acs_session(fake_http), today=date(2026, 9, 24)) is None
     assert con.execute("SELECT COUNT(*) FROM zip_tax_rate").fetchone()[0] == 2
+
+
+def test_tax_rows_from_before_full_rate_are_reloaded(con, fake_http):
+    # The table as first shipped: no owner_units / full_rate columns.
+    con.execute(
+        "CREATE TABLE zip_tax_rate (zip VARCHAR, acs_year INTEGER, aggregate_taxes DOUBLE,"
+        " aggregate_value DOUBLE, effective_rate DOUBLE, median_tax_paid DOUBLE, pulled_at TIMESTAMP)"
+    )
+    con.execute("INSERT INTO zip_tax_rate VALUES ('70005', 2024, 1, 100, 0.01, NULL, NULL)")
+    load_costs.ensure_tables(con)
+    assert load_costs.load_tax(con, _acs_session(fake_http), today=date(2026, 9, 24)) == 2024
+    assert con.execute("SELECT COUNT(*) FROM zip_tax_rate WHERE full_rate IS NULL").fetchone()[0] == 0
 
 
 def test_failed_nfip_fetch_keeps_previous_rows(con, fake_http):

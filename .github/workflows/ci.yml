@@ -54,6 +54,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install duckdb requests
+      - run: python -m etl.db_store pull
       - run: python -m etl.export_static
       - uses: actions/setup-node@v7
         with:

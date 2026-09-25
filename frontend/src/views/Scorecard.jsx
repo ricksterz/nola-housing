@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getOwnershipCosts } from "../api";
 import { CostInputs, CostLegend, StackedCostBar } from "../components/MonthlyCost";
 import Sparkline from "../components/Sparkline";
-import { COST_PARTS, HOMEOWNERS_RANGE, monthlyCost, useCostAssumptions } from "../lib/costs";
+import { COST_PARTS, HOMEOWNERS_RANGE, annualTax, monthlyCost, useCostAssumptions } from "../lib/costs";
 import { diverging, fmt, fmtCompactCurrency, seriesColor, sequential } from "../lib/theme";
 
 const COLS = [
@@ -197,7 +197,7 @@ function AffordabilityPanel({ rows, theme, macro }) {
         price: r.median_sale_price,
         downPct: a.down,
         ratePct: a.rate,
-        taxRate: z.tax?.effective_rate,
+        taxAnnual: annualTax(z.tax, r.median_sale_price, { homestead: a.homestead, exempt: costs?.homestead_exempt_value }),
         homeownersAnnual: a.homeowners,
         floodAnnual: a.includeFlood ? z.flood?.all?.median : 0,
       });
@@ -212,7 +212,8 @@ function AffordabilityPanel({ rows, theme, macro }) {
         <div>
           <h3 className="panel-title">Affordability · true monthly cost of the median sale</h3>
           <div className="panel-subtitle">
-            Each ZIP's median sale price with a 30-year fixed loan, plus property tax at the ZIP's effective rate,
+            Each ZIP's median sale price with a 30-year fixed loan, plus property tax at the ZIP's rate
+            ({a.homestead ? "with the homestead exemption for a home you live in" : "on the full price, as a rental or second home"}),
             your homeowners estimate and the ZIP's median flood policy. HOA dues and mortgage insurance aren't included.
           </div>
         </div>

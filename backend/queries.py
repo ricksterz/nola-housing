@@ -334,14 +334,21 @@ def suggest(con, q: str, limit: int = 8) -> list[dict]:
 
 
 def ownership_costs(con) -> dict:
-    """Per-ZIP inputs for the monthly cost of owning: effective property tax rate (ACS) and
-    flood insurance cost quartiles by zone group (NFIP). See etl/load_costs.py."""
+    """Per-ZIP inputs for the monthly cost of owning: property tax rates (ACS) and flood
+    insurance cost quartiles by zone group (NFIP). See etl/load_costs.py."""
     zips: dict = {}
     if _table_exists(con, "zip_tax_rate"):
-        for r in _rows(con, "SELECT zip, acs_year, effective_rate, median_tax_paid FROM zip_tax_rate"):
+        cols = {c[0] for c in con.execute("DESCRIBE zip_tax_rate").fetchall()}
+        sql = (
+            "SELECT zip, acs_year, effective_rate, full_rate, median_tax_paid FROM zip_tax_rate"
+            if "full_rate" in cols  # added after the table first shipped
+            else "SELECT zip, acs_year, effective_rate, NULL AS full_rate, median_tax_paid FROM zip_tax_rate"
+        )
+        for r in _rows(con, sql):
             zips.setdefault(r["zip"], {})["tax"] = {
                 "acs_year": r["acs_year"],
                 "effective_rate": round(r["effective_rate"], 6),
+                "full_rate": round(r["full_rate"], 6) if r.get("full_rate") is not None else None,
                 "median_tax_paid": r.get("median_tax_paid"),
             }
     if _table_exists(con, "zip_flood_cost"):
@@ -352,7 +359,7 @@ def ownership_costs(con) -> dict:
                 "median": round(r["median"]),
                 "p75": round(r["p75"]),
             }
-    return {"zips": zips}
+    return {"homestead_exempt_value": config.HOMESTEAD_EXEMPT_VALUE, "zips": zips}
 
 
 def meta(con) -> dict:
