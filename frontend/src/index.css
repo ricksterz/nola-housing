@@ -321,3 +321,29 @@ a { color: var(--blue); }
 .street-block-label { font-size: 11px; font-weight: 600; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
 .street-numbers { display: flex; flex-wrap: wrap; gap: 6px; }
 .street-number { padding: 6px 12px; min-width: 56px; justify-content: center; }
+
+/* Assessment comparison: range strips (whiskers 10–90th pct, band = middle half, median tick,
+   this parcel as a gold dot with a surface ring) and the numbers table beside them. */
+.compare-group + .compare-group { margin-top: 16px; }
+.compare-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-weight: 650; color: var(--text-bright); }
+.compare-sub { font-size: 12px; font-weight: 500; color: var(--text-dim); }
+.compare-headline { margin: 4px 0 8px; color: var(--text); }
+.compare-headline b { color: var(--text-bright); }
+.range-strip { padding: 0 6px; }
+.range-track { position: relative; height: 22px; }
+.range-whisker { position: absolute; top: 10px; height: 2px; background: var(--text-dimmer); border-radius: 1px; }
+.range-band { position: absolute; top: 6px; height: 10px; background: color-mix(in srgb, var(--text-dim) 45%, var(--panel)); border-radius: 4px; }
+.range-median { position: absolute; top: 3px; width: 2px; height: 16px; margin-left: -1px; background: var(--text-dim); border-radius: 1px; }
+.range-dot { position: absolute; top: 5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 2px var(--panel); }
+.range-median { z-index: 1; box-shadow: 0 0 0 1px var(--panel); }
+.range-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dimmer); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.compare-legend { margin: 12px 0 10px; }
+.legend-inline i.range-key-dot { background: var(--gold); border-radius: 50%; }
+.legend-inline i.range-key-band { background: color-mix(in srgb, var(--text-dim) 45%, var(--panel)); }
+.legend-inline i.range-key-median { background: var(--text-dim); width: 2px; }
+.legend-inline i.range-key-whisker { background: var(--text-dimmer); height: 2px; }
+.compare-table td .compare-median { display: block; color: var(--text-bright); }
+.compare-table td .compare-range { display: block; font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+.compare-table td, .compare-table th { white-space: normal; padding: 8px 6px; }
+.compare-table td:first-child, .compare-table th:first-child { padding-left: 0; }
+.compare-notes { margin-top: 12px; font-size: 12.5px; color: var(--text-dim); }

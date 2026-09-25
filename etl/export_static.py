@@ -148,6 +148,8 @@ def export_properties(con) -> int:
             {k: v for k, v in h.items() if k not in ("parish", "parcel_id")}
         )
     zip_stats = {r["geo_id"]: r for r in queries._rows(con, _ZIP_VALUATION_SQL)}
+    print("Comparing every assessment with similar parcels nearby and in its subdivision...")
+    comparisons = queries.assessment_comparisons(con)
 
     print(f"Writing property files for {len(parcels)} parcels...")
     written: set[str] = set()
@@ -173,6 +175,7 @@ def export_properties(con) -> int:
             "parcel": parcel,
             "value_history": history_by_parcel.get((parcel["parish"], parcel["parcel_id"]), []),
             "valuation": _implied_valuation(parcel, zip_stats),
+            "comparison": comparisons.get(parcel["parcel_id"]),
         }
         write_json(prop_dir / f"{slug}.json", data, compact=True)
         pids.setdefault(pid_key(parcel["parcel_id"]), []).append(
