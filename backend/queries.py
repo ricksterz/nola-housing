@@ -262,6 +262,109 @@ def closest_on_street(entries: list, number: int, limit: int = 4) -> list:
     return [{"address": e[1], "full": e[2]} for e in ranked[:limit]]
 
 
+# ---------------------------------------------------------------------------
+# Assessment comparison: a parcel's assessed value against similar parcels
+# ---------------------------------------------------------------------------
+# "Similar" = same zoning code (or both unpublished) and the same improved/vacant status, so a
+# house is never ranked against a vacant lot or a store. Two groups: the COMPARE_NEAREST closest
+# similar parcels (no farther than COMPARE_RADIUS_M), and similar parcels in the same
+# subdivision. The Assessor publishes no living area or condition for Jefferson, so these are
+# value comparisons, not value per square foot.
+COMPARE_RADIUS_M = 400
+COMPARE_NEAREST = 50
+COMPARE_MIN_PARCELS = 8
+_COMPARE_CELL_DEG = 0.005  # grid for the neighbor join; 3x3 cells always cover the radius
+
+_COMPARE_BASE = """
+    SELECT parcel_id, lat, lng, assessed_val AS a, land_val AS l, bld_val AS b,
+           coalesce(nullif(trim(zoning), ''), '?') AS z, coalesce(bld_val, 0) > 0 AS improved,
+           nullif(trim(subdivision), '') AS s,
+           floor(lat / {cell})::INT AS cy, floor(lng / {cell})::INT AS cx
+    FROM parcel_market
+    WHERE assessed_val > 0 AND lat IS NOT NULL AND lng IS NOT NULL
+"""
+
+# Aggregates over a "pairs" relation: one row per (parcel, comparable) with the parcel's own
+# assessed value (xa) next to the comparable's assessed, land and building values (a, l, b).
+_COMPARE_STATS = """
+    SELECT parcel_id, count(*) AS n,
+           quantile_cont(a, [0.1, 0.25, 0.5, 0.75, 0.9]) AS aq,
+           quantile_cont(l, [0.25, 0.5, 0.75]) AS lq,
+           quantile_cont(b, [0.25, 0.5, 0.75]) AS bq,
+           avg(CASE WHEN a < xa THEN 1.0 WHEN a = xa THEN 0.5 ELSE 0.0 END) AS below,
+           {extra}
+    FROM pairs GROUP BY parcel_id HAVING count(*) >= {min_n}
+"""
+_DISTANCE_M = (
+    "sqrt(power((y.lng - x.lng) * cos(radians(x.lat)) * 111320, 2) + power((y.lat - x.lat) * 111320, 2))"
+)
+
+
+def assessment_comparisons(con, parcel_id: str | None = None) -> dict[str, dict]:
+    """{parcel_id: {"nearby": {...}, "subdivision": {...}, "zoning": ..., "improved": ...}} for every
+    parcel (the static export) or one (the API). Groups under COMPARE_MIN_PARCELS are dropped."""
+    if not _table_exists(con, "parcel_market"):
+        return {}
+    base = _COMPARE_BASE.format(cell=_COMPARE_CELL_DEG)
+    only = "AND x.parcel_id = ?" if parcel_id else ""
+    params = [parcel_id] if parcel_id else []
+    similar = "y.z = x.z AND y.improved = x.improved AND y.parcel_id <> x.parcel_id"
+    nearby = con.execute(
+        f"""
+        WITH p AS ({base}),
+        offsets AS (SELECT * FROM range(-1, 2) dy(dy), range(-1, 2) dx(dx)),
+        probe AS (SELECT x.*, x.cy + o.dy AS ny, x.cx + o.dx AS nx FROM p x, offsets o),
+        pairs AS (
+            SELECT x.parcel_id, x.a AS xa, y.a, y.l, y.b, {_DISTANCE_M} AS d
+            FROM probe x JOIN p y ON y.cy = x.ny AND y.cx = x.nx AND {similar}
+            WHERE {_DISTANCE_M} <= {COMPARE_RADIUS_M} {only}
+            QUALIFY row_number() OVER (PARTITION BY x.parcel_id ORDER BY d) <= {COMPARE_NEAREST}
+        )
+        {_COMPARE_STATS.format(extra="max(d) AS reach", min_n=COMPARE_MIN_PARCELS)}
+        """,
+        params,
+    ).fetchall()
+    subdivision = con.execute(
+        f"""
+        WITH p AS ({base}),
+        pairs AS (
+            SELECT x.parcel_id, x.a AS xa, y.a, y.l, y.b, x.s
+            FROM p x JOIN p y ON y.s = x.s AND {similar}
+            WHERE x.s IS NOT NULL {only}
+        )
+        {_COMPARE_STATS.format(extra="any_value(s) AS s", min_n=COMPARE_MIN_PARCELS)}
+        """,
+        params,
+    ).fetchall()
+    where = "WHERE parcel_id = ?" if parcel_id else ""
+    basis = {
+        r[0]: {"zoning": None if r[1] == "?" else r[1], "improved": r[2]}
+        for r in con.execute(
+            f"WITH p AS ({base}) SELECT parcel_id, z, improved FROM p {where}", params
+        ).fetchall()
+    }
+
+    def group(row) -> dict:
+        _, n, aq, lq, bq, below = row[:6]
+        return {
+            "n": n,
+            "below_pct": round(below * 100),
+            "assessed": [round(v) for v in aq],  # p10, p25, median, p75, p90
+            "land": [round(v) for v in lq] if lq and None not in lq else None,
+            "building": [round(v) for v in bq] if bq and None not in bq else None,
+        }
+
+    out: dict[str, dict] = {}
+    for row in nearby:
+        out.setdefault(row[0], dict(basis.get(row[0], {})))["nearby"] = {
+            **group(row),
+            "reach_m": round(row[6]),
+        }
+    for row in subdivision:
+        out.setdefault(row[0], dict(basis.get(row[0], {})))["subdivision"] = {**group(row), "name": row[6]}
+    return out
+
+
 def lookup_miss_message(street: str, has_nearby: bool) -> str:
     """Shared wording with frontend/src/api.js for an address with no record."""
     if has_nearby:
@@ -386,6 +489,7 @@ def property_lookup(con, address: str) -> dict | None:
 
 def _property_payload(con, parcel: dict) -> dict:
     parcel["full_address"] = full_address_or_none(parcel)
+    comparison = assessment_comparisons(con, parcel["parcel_id"]).get(parcel["parcel_id"])
     history = _rows(
         con,
         """SELECT tax_year, land_val, bld_val, tot_mkt_val, assessed_val, homestead_exempt_val, taxable_val
@@ -393,7 +497,12 @@ def _property_payload(con, parcel: dict) -> dict:
         [parcel["parish"], parcel["parcel_id"]],
     )
     parcel.pop("assessed_value_history", None)
-    return {"parcel": parcel, "value_history": history, "valuation": implied_valuation(con, parcel)}
+    return {
+        "parcel": parcel,
+        "value_history": history,
+        "valuation": implied_valuation(con, parcel),
+        "comparison": comparison,
+    }
 
 
 def implied_valuation(con, parcel: dict) -> dict | None:

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
 import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, parcelQuery, suggestAddresses, suggestStreets } from "../api";
 import ChartPanel from "../components/ChartPanel";
+import AssessmentComparison from "../components/AssessmentComparison";
 import { CostInputs } from "../components/MonthlyCost";
 import NearbyMap from "../components/NearbyMap";
 import Table from "../components/Table";
@@ -624,6 +625,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) 
         </div>
       </div>
 
+      <AssessmentComparison key={`compare-${p.parcel_id}`} p={p} comparison={data.comparison} />
       {p.lat != null && p.lng != null && <NearbyMap key={`map-${p.parcel_id}`} p={p} theme={theme} onPick={onPick} />}
       <MonthlyCostPanel key={`cost-${p.parcel_id}`} p={p} theme={theme} macro={macro} scorecard={scorecard} />
 
