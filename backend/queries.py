@@ -5,6 +5,7 @@ zip -> 5-digit ZIP, county -> parish FIPS, metro -> CBSA 35380.
 """
 
 import json
+import math
 import re
 from datetime import date
 
@@ -242,6 +243,37 @@ def full_address(parcel: dict) -> str:
     if city:
         return f"{addr}, {city}, LA"
     return addr
+
+
+def nearby_entry(parcel: dict) -> list:
+    """One nearby home, compact for the map: [street as displayed, lookup key, lat, lng,
+    assessed value, qualified sale price, flood zone]. Shared by the API and the static export."""
+    sale = parcel.get("last_sale_price")
+    qualified_sale = sale if sale and sale > 0 and parcel.get("last_sale_qualified") is True else None
+    return [
+        full_address(parcel).split(",")[0],
+        parcel["site_address_norm"],
+        round(parcel["lat"], 5),
+        round(parcel["lng"], 5),
+        parcel.get("assessed_val"),
+        qualified_sale,
+        parcel.get("flood_zone"),
+    ]
+
+
+def nearby(con, lat: float, lng: float, radius_m: float = 400) -> list[list]:
+    """Parcels in the bounding box around a point; the client sorts by distance and trims."""
+    dlat = radius_m / 111_320
+    dlng = radius_m / (111_320 * math.cos(math.radians(lat)))
+    rows = _rows(
+        con,
+        """SELECT site_address, site_address_norm, city, zip_code, lat, lng, assessed_val,
+                  last_sale_price, last_sale_qualified, flood_zone
+           FROM parcel_market
+           WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ? AND site_address_norm IS NOT NULL""",
+        [lat - dlat, lat + dlat, lng - dlng, lng + dlng],
+    )
+    return [nearby_entry(r) for r in rows]
 
 
 def property_lookup(con, address: str) -> dict | None:

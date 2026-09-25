@@ -154,3 +154,45 @@ def test_probe_candidates_order(fx, fake_http):
         s,
     )
     assert [r.ok for r in res] == [False, True]
+
+
+@pytest.mark.parametrize(
+    "owner, line, expected",
+    [
+        (
+            "DETIEGE,WILLIE JR &",
+            "LEONORIA S DETIEGE 1506 AMES BLVD",
+            "DETIEGE,WILLIE JR & LEONORIA S DETIEGE",
+        ),
+        ("SMUCK,STEVEN M &", "JANE SMUCK PO BOX 55", "SMUCK,STEVEN M & JANE SMUCK"),
+        ("SMUCK,STEVEN M &", "JANE SMUCK", "SMUCK,STEVEN M & JANE SMUCK"),
+        ("SMUCK,STEVEN M &", "1506 AMES BLVD", "SMUCK,STEVEN M &"),  # no name on the line
+        ("SMUCK,STEVEN M &", "C/O ACME LLC 1 MAIN ST", "SMUCK,STEVEN M &"),  # care-of, not an owner
+        ("DOE,JANE", "1506 AMES BLVD", "DOE,JANE"),  # single owner: the line is only an address
+        ("  ", None, None),
+    ],
+)
+def test_join_co_owner(owner, line, expected):
+    assert bulk.join_co_owner(owner, line) == expected
+
+
+def test_fetch_arcgis_joins_co_owner_and_drops_the_mailing_address(fake_http):
+    from tests.conftest import FakeResponse
+
+    feature = {
+        "attributes": {
+            "TAXROLLPAR": "0820015268",
+            "OWNERNAME": "DETIEGE,WILLIE JR &",
+            "OWNER_ADDR": "LEONORIA S DETIEGE 1506 AMES BLVD",
+        },
+        "geometry": {"x": -90.1, "y": 29.9},
+    }
+    body = json.dumps({"features": [feature]})
+    fake = fake_http(
+        {"https://gis.test/L/0": lambda url, params: FakeResponse(url, 200, body, "application/json")}
+    )
+    field_map = {"parcel_id": "TAXROLLPAR", "owner_name": "OWNERNAME", "co_owner_line": "OWNER_ADDR"}
+    [r] = bulk.fetch_arcgis("https://gis.test/L/0", _session(fake), "jefferson", "22051", field_map)
+    assert r.owner_name == "DETIEGE,WILLIE JR & LEONORIA S DETIEGE"
+    assert "OWNER_ADDR" not in r.extra["raw"] and "co_owner_line" not in r.extra
+    assert "AMES" not in json.dumps(r.extra)

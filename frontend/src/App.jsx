@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getMacroSnapshot, getMeta, getScorecard, IS_STATIC } from "./api";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Footer from "./components/Footer";
 import MacroStrip from "./components/MacroStrip";
 import About from "./views/About";
@@ -109,12 +110,14 @@ export default function App() {
         </nav>
 
         {error && <div className="error">Could not load market data: {error}</div>}
-        {view === "overview" && <Overview ctx={ctx} />}
-        {view === "scorecard" && <Scorecard ctx={ctx} />}
-        {view === "compare" && <Compare ctx={ctx} />}
-        {view === "macro" && <Macro ctx={ctx} />}
-        {view === "property" && <Property ctx={ctx} />}
-        {view === "about" && <About ctx={ctx} />}
+        <ErrorBoundary resetKey={`${view}|${url.q || ""}`}>
+          {view === "overview" && <Overview ctx={ctx} />}
+          {view === "scorecard" && <Scorecard ctx={ctx} />}
+          {view === "compare" && <Compare ctx={ctx} />}
+          {view === "macro" && <Macro ctx={ctx} />}
+          {view === "property" && <Property ctx={ctx} />}
+          {view === "about" && <About ctx={ctx} />}
+        </ErrorBoundary>
       </div>
       <Footer generated={meta?.generated} />
     </div>

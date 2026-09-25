@@ -3,6 +3,7 @@ import { Line, LineChart } from "recharts";
 import { getOwnershipCosts, getPropertyLookup, getTrend, suggestAddresses } from "../api";
 import ChartPanel from "../components/ChartPanel";
 import { CostInputs } from "../components/MonthlyCost";
+import NearbyMap from "../components/NearbyMap";
 import Table from "../components/Table";
 import { Frame, currencyAxis, lineProps } from "../components/charts";
 import { COST_PARTS, HOMEOWNERS_RANGE, HOMESTEAD_EXEMPT_DEFAULT, annualTax, floodGroup, monthlyCost, useCostAssumptions } from "../lib/costs";
@@ -26,9 +27,11 @@ export default function Property({ ctx }) {
   const debounceRef = useRef(null);
   const requestSeq = useRef(0);
 
+  // Load the address in the URL: on arrival, and again when Back/Forward changes it. A search
+  // rewrites q to the full address it found, which then matches and doesn't search twice.
   useEffect(() => {
-    if (url.q) search(url.q);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (url.q && url.q !== data?.parcel?.full_address) search(url.q);
+  }, [url.q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const zip = data?.parcel?.zip_code;
@@ -46,7 +49,15 @@ export default function Property({ ctx }) {
 
   useEffect(() => () => clearTimeout(debounceRef.current), []);
 
-  function search(addr = address) {
+  // A nearby home picked from the map or list: open it and bring the search box back into view,
+  // keeping the previous home in history so Back returns to it.
+  function pickNearby(street) {
+    setAddress(street);
+    search(street, { push: true });
+    boxRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function search(addr = address, { push = false } = {}) {
     if (!addr.trim()) return;
     setSuggestOpen(false);
     setLoading(true);
@@ -60,7 +71,7 @@ export default function Property({ ctx }) {
         // plain street address (getPropertyLookup strips anything after the first comma).
         const full = d.parcel.full_address || addr;
         setAddress(full);
-        navigate({ q: full }, { replace: true });
+        navigate({ q: full }, { replace: !push });
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -172,7 +183,7 @@ export default function Property({ ctx }) {
 
       {error && <div className="error">{error}</div>}
 
-      {data && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} />}
+      {data && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} onPick={pickNearby} />}
     </div>
   );
 }
@@ -188,6 +199,59 @@ function highlightMatch(text, query) {
       <b>{text.slice(i, i + needle.length)}</b>
       {text.slice(i + needle.length)}
     </>
+  );
+}
+
+// Assessor style is "LAST,FIRST M & CO OWNER" with no space after the comma. A trailing "&" means
+// the record names a co-owner the Assessor didn't publish in the name field.
+function ownerName(raw) {
+  const s = String(raw).replace(/\s*,\s*/g, ", ").replace(/\s*&\s*/g, " & ").trim();
+  return s.endsWith("&") ? `${s.slice(0, -1).trim()} & co-owner` : s;
+}
+
+// A clean link to this property (view + address only), copied for sharing. Falls back to a
+// hidden textarea where the async Clipboard API isn't available (older iOS, non-secure hosts).
+function CopyLinkButton({ address }) {
+  const [state, setState] = useState("idle");
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  function legacyCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (!ok) throw new Error("copy failed");
+  }
+
+  async function copy() {
+    const url = `${window.location.origin}${window.location.pathname}?view=property&q=${encodeURIComponent(address)}`;
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
+      else legacyCopy(url);
+      setState("copied");
+    } catch {
+      try {
+        legacyCopy(url);
+        setState("copied");
+      } catch {
+        setState("failed");
+      }
+    }
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setState("idle"), 2000);
+  }
+
+  return (
+    <button type="button" className="btn" onClick={copy} aria-live="polite">
+      {state === "copied" ? "Link copied ✓" : state === "failed" ? "Couldn't copy" : "Copy link"}
+    </button>
   );
 }
 
@@ -371,7 +435,7 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
 // section renders only if at least one of its stats survived, so the card never shows a wall
 // of "—" placeholders for fields this data source simply doesn't carry (Jefferson's assessor
 // feed has no year built, living area or sale history, for instance).
-function ParcelCard({ data, trend, theme, navigate, macro, scorecard }) {
+function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) {
   const p = data.parcel;
   const v = data.valuation;
   const address = p.full_address || p.site_address || p.site_address_norm;
@@ -402,7 +466,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard }) {
     [
       "Ownership",
       [
-        { label: "Owner", value: p.owner_name ? fmt.raw(p.owner_name) : null },
+        { label: "Owner", value: p.owner_name ? ownerName(p.owner_name) : null, wide: true },
         lastSale(p),
         { label: "Tax bill #", value: p.tax_bill_number || null },
       ],
@@ -431,16 +495,9 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard }) {
               {p.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · Parcel {p.parcel_id}
             </div>
           </div>
-          {p.lat && p.lng && (
-            <a
-              className="btn"
-              href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=17/${p.lat}/${p.lng}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View on map ↗
-            </a>
-          )}
+          <div className="parcel-actions">
+            <CopyLinkButton address={address} />
+          </div>
         </div>
         <FloodZone p={p} />
         {sections.map(([title, items]) => (
@@ -448,7 +505,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard }) {
             <div className="stat-section-title">{title}</div>
             <div className="stat-grid">
               {items.map((s) => (
-                <div key={s.label} className="stat">
+                <div key={s.label} className={`stat${s.wide ? " stat--wide" : ""}`}>
                   <div className="stat-label">{s.label}</div>
                   <div className="stat-value">{s.value}</div>
                   {s.note && <div className="stat-sub">{s.note}</div>}
@@ -458,7 +515,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard }) {
           </div>
         ))}
         {p.legal_description && (
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border-alt)", color: "var(--text-dimmer)", fontSize: 12 }}>
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border-alt)", color: "var(--text-dimmer)", fontSize: 12, overflowWrap: "anywhere" }}>
             Legal: {p.legal_description}
           </div>
         )}
@@ -473,7 +530,8 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard }) {
         </div>
       </div>
 
-      <MonthlyCostPanel key={p.parcel_id} p={p} theme={theme} macro={macro} scorecard={scorecard} />
+      {p.lat != null && p.lng != null && <NearbyMap key={`map-${p.parcel_id}`} p={p} theme={theme} onPick={onPick} />}
+      <MonthlyCostPanel key={`cost-${p.parcel_id}`} p={p} theme={theme} macro={macro} scorecard={scorecard} />
 
       {v && (
         <div className="panel panel--gold">

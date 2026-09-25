@@ -24,3 +24,8 @@ def property_lookup(address: str):
 @router.get("/suggest")
 def property_suggest(q: str):
     return {"suggestions": queries.suggest(get_connection(), q)}
+
+
+@router.get("/nearby")
+def property_nearby(lat: float, lng: float):
+    return {"homes": queries.nearby(get_connection(), lat, lng)}

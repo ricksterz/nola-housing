@@ -8,6 +8,7 @@ available.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 
 from .base import ParcelRecord, map_aliases, record_from_mapping
@@ -52,6 +53,10 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "city": ("CITY", "SITUS_CITY", "MUNICIPALITY"),
     "zip_code": ("ZIP", "ZIPCODE", "ZIP_CODE", "SITUS_ZIP", "POSTAL"),
     "owner_name": ("OWNER", "OWNER_NAME", "OWNERNAME", "OWNER1", "TAXPAYER", "OWNERNME1"),
+    # Jefferson splits a co-owned record across two fields: OWNERNAME ends in "&" ("DETIEGE,WILLIE
+    # JR &") and the co-owner begins the next line, run into the mailing street ("LEONORIA S
+    # DETIEGE 1506 AMES BLVD"). Only the name is kept (join_co_owner); the address is never stored.
+    "co_owner_line": ("OWNER_ADDR",),
     "mailing_address": ("MAIL_ADDR", "MAILING_ADDRESS", "OWNER_ADDRESS", "MAILADDRESS"),
     "legal_description": ("LEGAL", "LEGAL_DESC", "LEGAL_DESCRIPTION", "LGL_DESC"),
     "subdivision": ("SUBDIVISION", "SUBDIV", "SUBDIVISION_NAME", "PARCELSUBD"),
@@ -118,6 +123,22 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
 }
 
 REQUIRED_ANY = ("owner_name", "assessed_val", "tot_mkt_val", "site_address")
+
+# Where the mailing address starts in the co-owner line: a house number or a PO box.
+_ADDRESS_START = re.compile(r"\s(?:\d|P\.?\s*O\.?\s*BOX\b)", re.IGNORECASE)
+
+
+def join_co_owner(owner: str | None, line: str | None) -> str | None:
+    """ "SMUCK,STEVEN M &" + "JANE D SMUCK 321 BONNABEL BLVD" -> "SMUCK,STEVEN M & JANE D SMUCK"."""
+    owner = (owner or "").strip()
+    if not owner.endswith("&") or not (line or "").strip():
+        return owner or None
+    padded = " " + line.strip()
+    m = _ADDRESS_START.search(padded)
+    co = (padded[: m.start()] if m else padded).strip()
+    if not co or co.upper().startswith("C/O"):  # no name before the address, or a care-of line
+        return owner
+    return f"{owner} {co}"
 
 
 @dataclass
@@ -211,6 +232,9 @@ def fetch_arcgis(
         for feat in features:
             attrs = feat.get("attributes", {})
             mapped = {target: attrs.get(src) for target, src in field_map.items()}
+            if "co_owner_line" in field_map:
+                mapped["owner_name"] = join_co_owner(mapped.get("owner_name"), mapped.pop("co_owner_line"))
+                attrs = {k: v for k, v in attrs.items() if k != field_map["co_owner_line"]}
             lat, lng = _centroid(feat.get("geometry"))
             mapped.setdefault("lat", lat)
             mapped.setdefault("lng", lng)
