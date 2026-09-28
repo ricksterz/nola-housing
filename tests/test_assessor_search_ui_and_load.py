@@ -270,3 +270,122 @@ def test_search_ui_resume_is_database_backed(con, fx, fake_http, raw_dir, monkey
     load_assessor.build_derived(con)
     assert con.execute("SELECT tax_year FROM assessed_value_history ORDER BY 1").fetchall() == [(2026,)]
     assert con.execute("SELECT COUNT(*) FROM assessor_parcels_raw").fetchone()[0] == 1
+
+
+# ---------------------------------------------------------------------------
+# Orleans: ParcelSearch first, data.nola.gov Parcels as a fallback-only source
+# ---------------------------------------------------------------------------
+ARC = "https://gis.test/ParcelSearch/MapServer/0"
+SODA_META = "https://data.test/api/views/abcd-1234.json"
+SODA_ROWS = "https://data.test/resource/abcd-1234.json"
+ARC_LAYER = json.dumps(
+    {"fields": [{"name": n} for n in ("PARCELID", "SITEADDRESS", "OWNERNME1", "OWNERNME2", "TAXBILLID")]}
+)
+ARC_ROWS = json.dumps(
+    {
+        "features": [
+            {
+                "attributes": {
+                    "PARCELID": "41033176",
+                    "SITEADDRESS": "624 S ALEXANDER ST, LA, 70119",
+                    "OWNERNME1": "GRUNEWALD GEORGE II",
+                    "OWNERNME2": None,
+                    "TAXBILLID": "105306710",
+                },
+                "geometry": {"x": -90.1, "y": 29.97},
+            }
+        ]
+    }
+)
+SQUARE = [[[-90.1, 29.97], [-90.1, 29.98], [-90.09, 29.98], [-90.09, 29.97], [-90.1, 29.97]]]
+SODA_COLUMNS = json.dumps(
+    {
+        "columns": [
+            {"fieldName": n, "dataTypeName": "text"}
+            for n in ("geopin", "situs_number", "situs_dir", "situs_street", "situs_type")
+        ]
+        + [{"fieldName": "the_geom", "dataTypeName": "multipolygon"}]
+    }
+)
+SODA_DATA = json.dumps(
+    [
+        {
+            "geopin": "41033176",
+            "situs_number": "624",
+            "situs_dir": "S",
+            "situs_street": "ALEXANDER",
+            "situs_type": "ST",
+            "the_geom": {"type": "MultiPolygon", "coordinates": [SQUARE]},
+        },
+        {
+            "geopin": "41033177",
+            "situs_street": "ALEXANDER",
+            "the_geom": {"type": "MultiPolygon", "coordinates": [SQUARE]},
+        },
+    ]
+)
+
+
+def _orleans_routes(arcgis_up: bool):
+    def arc(url, params):
+        if not url.endswith("/query"):
+            return FakeResponse(url, 200, ARC_LAYER, "application/json")
+        if not arcgis_up:  # the outage: metadata answers, every query fails
+            return FakeResponse(url, 200, '{"error": {"code": 400, "message": "Failed to execute query."}}')
+        if params.get("returnCountOnly"):
+            return FakeResponse(url, 200, '{"count": 1}', "application/json")
+        return FakeResponse(url, 200, ARC_ROWS, "application/json")
+
+    def soda(url, params):
+        if params and params.get("$select") == "count(*)":
+            return FakeResponse(url, 200, '[{"count": "2"}]', "application/json")
+        return FakeResponse(url, 200, SODA_DATA, "application/json")
+
+    return {
+        ARC: arc,
+        SODA_META: lambda url, params: FakeResponse(url, 200, SODA_COLUMNS, "application/json"),
+        SODA_ROWS: soda,
+    }
+
+
+def _orleans(con, fake_http, monkeypatch, arcgis_up):
+    monkeypatch.setitem(
+        config.ASSESSOR_SOURCES["orleans"],
+        "bulk_candidates",
+        [
+            {"kind": "arcgis", "url": ARC},
+            {"kind": "socrata", "domain": "data.test", "dataset_id": "abcd-1234", "fallback_only": True},
+        ],
+    )
+    fake = fake_http(_orleans_routes(arcgis_up))
+    s = PoliteSession(session=fake, min_interval=0, sleep=lambda _: None)
+    return load_assessor.load_parish(con, "orleans", session=s, tax_year=2026), fake
+
+
+def test_orleans_falls_back_to_open_data_parcels_then_upgrades(con, fake_http, raw_dir, monkeypatch):
+    summary, fake = _orleans(con, fake_http, monkeypatch, arcgis_up=False)
+    assert summary == {"parish": "orleans", "source": "bulk:socrata", "records": 2}
+    rows = con.execute(
+        "SELECT parcel_id, site_address, owner_name, lat FROM assessor_parcels_raw ORDER BY parcel_id"
+    ).fetchall()
+    assert rows[0][:3] == ("41033176", "624 S ALEXANDER ST", None) and abs(rows[0][3] - 29.975) < 1e-6
+    assert rows[1][1] is None  # no house number: no site address, reachable by parcel number
+    assert '"$order": ":id"' in json.dumps([p for u, p in fake.calls if u == SODA_ROWS])
+    payload = con.execute("SELECT payload FROM assessor_parcels_raw LIMIT 1").fetchone()[0]
+    assert "the_geom" not in payload and "coordinates" not in payload  # no polygons stored
+
+    # ParcelSearch recovers: its load replaces the fallback rows outright.
+    summary, _ = _orleans(con, fake_http, monkeypatch, arcgis_up=True)
+    assert summary["source"] == "bulk:arcgis"
+    assert con.execute(
+        "SELECT source_kind, owner_name, tax_bill_number FROM assessor_parcels_raw"
+    ).fetchall() == [("bulk:arcgis", "GRUNEWALD GEORGE II", "105306710")]
+
+
+def test_fallback_never_replaces_a_fuller_load(con, fake_http, raw_dir, monkeypatch):
+    _orleans(con, fake_http, monkeypatch, arcgis_up=True)
+    with pytest.raises(RuntimeError, match="every bulk pull failed"):
+        _orleans(con, fake_http, monkeypatch, arcgis_up=False)
+    assert con.execute("SELECT source_kind, owner_name FROM assessor_parcels_raw").fetchall() == [
+        ("bulk:arcgis", "GRUNEWALD GEORGE II")
+    ]

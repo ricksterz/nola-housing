@@ -247,13 +247,6 @@ ASSESSOR_SOURCES = {
         # The City's GIS server is slow: a record count alone has taken ~55 s.
         "timeout_seconds": 180,
         "bulk_candidates": [
-            # City of New Orleans open data (Socrata). Parcel layer carries the
-            # assessor's tax bill number / owner / values in some vintages.
-            {
-                "kind": "socrata",
-                "domain": os.environ.get("ORLEANS_SOCRATA_DOMAIN", "data.nola.gov"),
-                "dataset_id": os.environ.get("ORLEANS_SOCRATA_DATASET_ID", ""),
-            },
             {
                 # City of New Orleans ParcelSearch: parcel ID, tax bill ID, site address (with ZIP),
                 # first and second owner and the lot polygon for all ~162k Orleans parcels. It has
@@ -263,6 +256,16 @@ ASSESSOR_SOURCES = {
                     "ORLEANS_ARCGIS_PARCELS_URL",
                     "https://gis.nola.gov/arcgis/rest/services/ParcelSearch/MapServer/0",
                 ),
+            },
+            {
+                # Fallback while ParcelSearch is down: data.nola.gov "Parcels" (~151k rows) has
+                # the same parcel IDs (GEOPIN), site address parts and lot polygons, but no owners
+                # or tax bills. Used only while Orleans has no ParcelSearch load; the next good
+                # ParcelSearch pull replaces it.
+                "kind": "socrata",
+                "domain": os.environ.get("ORLEANS_SOCRATA_DOMAIN", "data.nola.gov"),
+                "dataset_id": os.environ.get("ORLEANS_SOCRATA_DATASET_ID", "v9q5-fz7t"),
+                "fallback_only": True,
             },
         ],
         "search_ui": {
