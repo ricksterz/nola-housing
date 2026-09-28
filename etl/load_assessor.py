@@ -19,6 +19,7 @@ import logging
 from datetime import date, datetime, timezone
 
 import duckdb
+import requests
 
 from . import config, geocode
 from .assessor import ADAPTERS, bulk
@@ -101,6 +102,41 @@ def _check_complete(parish: str, features: int, expected: int | None, max_record
         )
 
 
+def _fetch_bulk(cand: dict, probe, session, parish: str, fips: str, max_records: int | None) -> list:
+    pulled: dict = {}
+    if probe.kind == "arcgis":
+        records = bulk.fetch_arcgis(
+            cand["url"], session, parish, fips, probe.field_map, max_records=max_records, stats=pulled
+        )
+    else:
+        records = bulk.fetch_socrata(
+            cand["domain"],
+            cand["dataset_id"],
+            session,
+            parish,
+            fips,
+            probe.field_map,
+            max_records=max_records,
+            stats=pulled,
+        )
+    _check_complete(parish, pulled.get("features", len(records)), probe.record_count, max_records)
+    return records
+
+
+def _has_primary_bulk(con, parish: str, candidates: list[dict]) -> bool:
+    """Whether the parish already has rows from a bulk source that isn't fallback-only."""
+    primary = sorted({f"bulk:{c['kind']}" for c in candidates if not c.get("fallback_only")})
+    if not primary:
+        return False
+    marks = ", ".join("?" for _ in primary)
+    return bool(
+        con.execute(
+            f"SELECT COUNT(*) FROM assessor_parcels_raw WHERE parish = ? AND source_kind IN ({marks})",
+            [parish, *primary],
+        ).fetchone()[0]
+    )
+
+
 def load_parish(
     con: duckdb.DuckDBPyConnection,
     parish: str,
@@ -121,9 +157,13 @@ def load_parish(
     tax_year = tax_year or date.today().year
     summary = {"parish": parish, "source": None, "records": 0}
 
-    # 1) Official bulk options first.
+    # 1) Official bulk options first, in order. A source whose pull fails (a query error that
+    # outlasts its retries, a short read) is skipped for the next one; a "fallback_only" source
+    # (thinner data, e.g. no owners) is used only while the parish has nothing better loaded.
     if not force_search_ui:
-        for probe in bulk.probe_candidates(src["bulk_candidates"], session):
+        candidates = src["bulk_candidates"]
+        failures = []
+        for cand, probe in zip(candidates, bulk.probe_candidates(candidates, session), strict=True):
             con.execute(
                 "INSERT INTO assessor_bulk_probes VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 [
@@ -140,35 +180,32 @@ def load_parish(
             print(f"  [{parish}] bulk probe {probe.kind} {probe.url}: {'OK' if probe.ok else probe.reason}")
             if not probe.ok:
                 continue
-            cand = next(c for c in src["bulk_candidates"] if c["kind"] == probe.kind)
-            if probe.kind == "arcgis":
-                pulled: dict = {}
-                records = bulk.fetch_arcgis(
-                    cand["url"], session, parish, fips, probe.field_map, max_records=max_records, stats=pulled
-                )
-                _check_complete(parish, pulled.get("features", len(records)), probe.record_count, max_records)
-            else:
-                records = bulk.fetch_socrata(
-                    cand["domain"],
-                    cand["dataset_id"],
-                    session,
-                    parish,
-                    fips,
-                    probe.field_map,
-                    max_records=max_records,
-                )
+            if cand.get("fallback_only") and _has_primary_bulk(con, parish, candidates):
+                print(f"  [{parish}] skipping fallback {probe.kind}: a fuller source is already loaded")
+                continue
+            try:
+                records = _fetch_bulk(cand, probe, session, parish, fips, max_records)
+            except (bulk.ArcgisQueryFailed, requests.RequestException, RuntimeError) as e:
+                print(f"  [{parish}] bulk {probe.kind} pull failed ({e}); trying the next source")
+                failures.append(f"{probe.kind}: {e}")
+                continue
+            kind = f"bulk:{probe.kind}"
             con.execute("BEGIN")
+            # One bulk snapshot per parish: a successful pull replaces every earlier bulk load.
             con.execute(
-                "DELETE FROM assessor_parcels_raw WHERE parish = ? AND source_kind = ?",
-                [parish, f"bulk:{probe.kind}"],
+                "DELETE FROM assessor_parcels_raw WHERE parish = ? AND source_kind LIKE 'bulk:%'", [parish]
             )
             for rec in records:
                 rec.tax_year = rec.tax_year or tax_year
-                _insert(con, rec, f"bulk:{probe.kind}", probe.url, fetched_at)
+                _insert(con, rec, kind, probe.url, fetched_at)
             con.execute("COMMIT")
-            summary.update(source=f"bulk:{probe.kind}", records=len(records))
+            summary.update(source=kind, records=len(records))
             print(f"  [{parish}] loaded {len(records)} parcels from {probe.kind}")
             return summary
+        if failures:
+            raise RuntimeError(
+                f"[{parish}] every bulk pull failed; keeping the previous load: {'; '.join(failures)}"
+            )
 
     # 2) Fallback: rate-limited batch pull of the public search UI, where the parish allows it.
     disabled = src.get("search_ui", {}).get("disabled")

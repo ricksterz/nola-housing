@@ -277,3 +277,22 @@ def test_fetch_arcgis_retries_a_failed_page_and_never_truncates(fake_http):
     )
     with pytest.raises(bulk.ArcgisQueryFailed):
         bulk.fetch_arcgis("https://gis.test/O/0", _session(always), "orleans", "22071", ORLEANS_MAP)
+
+
+def test_ca_bundle_adds_missing_intermediates_to_certifi():
+    import certifi
+
+    from etl.assessor.http import ca_bundle
+
+    text = open(ca_bundle()).read()
+    assert open(certifi.where()).read() in text  # every normal root is still trusted
+    assert "Sectigo Public Server Authentication CA OV R36" in text  # gis.nola.gov's missing link
+
+
+def test_lot_area_from_acres():
+    m = {"land_acres": "0.2098186829551055"}
+    bulk.lot_area_from_acres(m)
+    assert m == {"land_area": 9140}  # 0.21 acre x 43,560 sq ft
+    kept = {"land_area": 5000, "land_acres": "1"}
+    bulk.lot_area_from_acres(kept)
+    assert kept == {"land_area": 5000}  # a real square-footage field wins

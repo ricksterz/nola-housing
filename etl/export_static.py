@@ -160,9 +160,9 @@ def export_properties(con) -> int:
     for parcel in parcels:
         addr = (parcel.get("site_address_norm") or "").strip()
         slug = queries.slugify(addr) if addr else ""
-        # The first parcel at an address owns its address page and the address, street and map
-        # indexes. The rest (condo units, lots sharing a number) and parcels with no street
-        # address get a page by parcel number, reachable through parcel-number search.
+        # The first parcel at an address owns its address page and its spot on the map. The rest
+        # (the same address in the other parish, condo units) and parcels with no street address
+        # get a page by parcel number.
         owns_address = bool(slug) and slug not in written
         if not owns_address:
             slug = f"parcel-{queries.slugify(parcel['parcel_id'])}"
@@ -177,6 +177,9 @@ def export_properties(con) -> int:
             "valuation": _implied_valuation(parcel, zip_stats),
             "comparison": comparisons.get(parcel["parcel_id"]),
         }
+        if addr and not owns_address:
+            # Its address opens another parcel's page, so links and reloads go by parcel number.
+            data["lookup"] = f"Parcel {parcel['parcel_id']}"
         write_json(prop_dir / f"{slug}.json", data, compact=True)
         label = queries.parcel_label(parcel)
         pids.setdefault(pid_key(parcel["parcel_id"]), []).append([parcel["parcel_id"], slug, label])
@@ -184,15 +187,20 @@ def export_properties(con) -> int:
         bill = (parcel.get("tax_bill_number") or "").strip()
         if bill and bill != parcel["parcel_id"]:
             pids.setdefault(pid_key(bill), []).append([bill, slug, label, "bill"])
-        if not owns_address:
+        if not addr:
             continue
-        shards.setdefault(shard_key(addr), []).append(
-            {"address": addr, "full": parcel["full_address"], "slug": slug}
-        )
+        # Every parcel with an address is in the address and street indexes. A second parcel at an
+        # address (the same number in the other parish, a condo unit) carries its parcel ID, so
+        # picking it opens that parcel rather than the address's first one.
+        entry = {"address": addr, "full": parcel["full_address"], "slug": slug}
+        if not owns_address:
+            entry["parcel"] = parcel["parcel_id"]
+        shards.setdefault(shard_key(addr), []).append(entry)
         parts = queries.split_house_number(addr)
         if parts:
-            streets.setdefault(parts[1], []).append([parts[0], addr, parcel["full_address"]])
-        if parcel.get("lat") is not None and parcel.get("lng") is not None:
+            row = [parts[0], addr, parcel["full_address"]]
+            streets.setdefault(parts[1], []).append(row if owns_address else [*row, parcel["parcel_id"]])
+        if owns_address and parcel.get("lat") is not None and parcel.get("lng") is not None:
             near.setdefault(near_key(parcel["lat"], parcel["lng"]), []).append(queries.nearby_entry(parcel))
 
     _write_dir(prop_dir, {}, keep=written)

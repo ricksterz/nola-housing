@@ -8,10 +8,9 @@ export default function About({ ctx }) {
   const a = meta?.sources?.assessor || {};
   const parcels = a.by_parish?.jefferson ?? a.parcels ?? 0;
   const orleansParcels = a.by_parish?.orleans || 0;
+  const orleansFallback = a.source_by_parish?.orleans === "bulk:socrata";
   const geocoded = a.geocoded ?? null;
-  const addresses = meta?.property_count ?? null;
-  const pulled = a.fetched_at ? a.fetched_at.slice(0, 10) : null;
-  const shared = parcels && addresses != null ? parcels - addresses : null;
+  const pulled = (a.fetched_by_parish?.jefferson || a.fetched_at || "").slice(0, 10) || null;
   const costs = meta?.sources?.costs || {};
   const flood = meta?.sources?.flood || {};
   const flooded = flood.parcels || 0;
@@ -52,8 +51,11 @@ export default function About({ ctx }) {
           <li><strong>FRED</strong> — Freddie Mac 30-year rate, FHFA all-transactions HPI for the New Orleans–Metairie MSA (quarterly) and for Jefferson and Orleans Parish (annual), realtor.com listing series. Monthly.</li>
           <li><strong>Jefferson Parish Assessor</strong> — the Assessor's Office public GIS parcel-ownership layer, pulled daily through the Aug 15 – Sep 30 inspection and certification period{rw?.jefferson ? ` (window ${rw.jefferson.start} – ${rw.jefferson.end})` : ""}.{parcels ? ` ${n(parcels)} parcels${pulled ? `, last pulled ${pulled}` : ""}.` : ""}</li>
           <li>
-            <strong>City of New Orleans parcel layer</strong> — for Orleans Parish: parcel ID, the Assessor's tax bill number, site address, owners and lot outline from the City's public ParcelSearch GIS layer.
-            {orleansParcels ? ` ${n(orleansParcels)} parcels.` : " Not loaded yet."} Assessed values aren't published there or anywhere else as open data; see Methodology.
+            <strong>City of New Orleans parcels</strong> — for Orleans Parish.{" "}
+            {orleansFallback
+              ? `Currently from the City's open-data parcels on data.nola.gov (${n(orleansParcels)} parcels: parcel ID, site address and lot size), because the City's ParcelSearch GIS layer, which adds owners and the Assessor's tax bill numbers, isn't answering queries; the next successful pull from it replaces these records.`
+              : `Parcel ID, the Assessor's tax bill number, site address, owners and lot outline from the City's public ParcelSearch GIS layer.${orleansParcels ? ` ${n(orleansParcels)} parcels.` : " Not loaded yet."}`}{" "}
+            Assessed values aren't published as open data anywhere; see Methodology.
           </li>
           <li><strong>U.S. Census Bureau</strong> — ZIP Code Tabulation Area boundaries, used to place parcels in a ZIP, and American Community Survey 5-year estimates of property taxes paid and home values, used for each ZIP's effective tax rate. Checked monthly, updated when a new 5-year release comes out.</li>
           <li><strong>OpenFEMA NFIP policies</strong> — flood insurance policies in force by ZIP, used for typical flood insurance cost. Monthly.</li>
@@ -81,7 +83,7 @@ export default function About({ ctx }) {
             <li>Parcels outside those ZIPs (the West Bank, Kenner and other parts of the parish this site doesn't cover) show the street address only. We don't guess a ZIP.</li>
             <li>Tabulation areas approximate USPS delivery areas. A parcel right on a boundary can be assigned to the neighboring ZIP.</li>
             <li>The city is the USPS city for that ZIP (70005 → Metairie, 70123 → Harahan), not a neighborhood name.</li>
-            <li>When several parcels share one street address (condos, multi-unit lots), Property Lookup shows only one of them{shared ? ` (about ${n(shared)} parcels are affected)` : ""}.</li>
+            <li>When several parcels share one street address (condo units, or the same address in both parishes), each still has its own page: the address suggestions list them all, marked with the city or parcel number, and a parcel number opens one directly.</li>
           </ul>
         </div>
         <div className="faq-item">

@@ -13,10 +13,10 @@ import { fmt, fmtCompactCurrency, seriesColor } from "../lib/theme";
 
 const SUGGEST_DEBOUNCE_MS = 150;
 
-// What goes in the search box and the URL for a parcel: its address, or its parcel number when
-// the Assessor lists no street address.
-function parcelQueryText(parcel) {
-  return parcel.full_address || `Parcel ${parcel.parcel_id}`;
+// What goes in the search box and the URL for a parcel: its address, or its parcel number when it
+// has no street address or shares one with another parcel (the export marks those with `lookup`).
+function parcelQueryText(parcel, lookup) {
+  return lookup || parcel.full_address || `Parcel ${parcel.parcel_id}`;
 }
 
 export default function Property({ ctx }) {
@@ -38,7 +38,7 @@ export default function Property({ ctx }) {
   // Load the address in the URL: on arrival, and again when Back/Forward changes it. A search
   // rewrites q to the full address it found, which then matches and doesn't search twice.
   useEffect(() => {
-    if (url.q && (!data || url.q !== parcelQueryText(data.parcel))) search(url.q);
+    if (url.q && (!data || url.q !== parcelQueryText(data.parcel, data.lookup))) search(url.q);
   }, [url.q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A street list in the URL (?street=bonnabel-blvd), shown when no single address is. What's on
@@ -110,7 +110,7 @@ export default function Property({ ctx }) {
         setData(d);
         // Show the full "street, city, LA zip" once we know it — the search key stays the
         // plain street address (getPropertyLookup strips anything after the first comma).
-        const full = parcelQueryText(d.parcel);
+        const full = parcelQueryText(d.parcel, d.lookup);
         setAddress(full);
         navigate({ q: full, street: null }, { replace: !push });
       })
@@ -208,7 +208,7 @@ export default function Property({ ctx }) {
           <div className="suggestions" id="address-suggestions" role="listbox">
             {suggestions.map((a, i) => (
               <div
-                key={a.address}
+                key={`${a.kind || "address"}-${a.address}`}
                 id={`address-suggestion-${i}`}
                 role="option"
                 aria-selected={i === activeIndex}
@@ -248,13 +248,28 @@ export default function Property({ ctx }) {
   );
 }
 
+function cityOf(full) {
+  return (full || "").split(",")[1]?.trim() || "";
+}
+
+function blockLabel(block) {
+  const [city, hundred] = block.includes(" · ") ? block.split(" · ") : ["", block];
+  const n = Number(hundred);
+  return `${city ? `${city} · ` : ""}${n === 0 ? "1–99" : `${n.toLocaleString()} block`}`;
+}
+
 // Every parcel on one street, grouped by hundred-block, so a street name is enough to find a home.
 function StreetList({ street, onPick }) {
+  // A street name found in more than one city (Jefferson and Orleans both have some) is listed
+  // city by city, so two different streets don't interleave.
+  const byCity = street.cities.includes(",");
   const blocks = [];
-  for (const [number, address, full] of street.entries) {
-    const block = Math.floor(number / 100) * 100;
+  const sorted = [...street.entries].sort((a, b) => (byCity ? cityOf(a[2]).localeCompare(cityOf(b[2])) : 0) || a[0] - b[0]);
+  for (const [number, address, full, parcel] of sorted) {
+    const block = `${byCity ? `${cityOf(full)} · ` : ""}${Math.floor(number / 100) * 100}`;
     if (!blocks.length || blocks[blocks.length - 1][0] !== block) blocks.push([block, []]);
-    blocks[blocks.length - 1][1].push({ label: address.split(" ")[0], address, full });
+    // A second parcel at the same address carries its parcel ID, so it opens that parcel.
+    blocks[blocks.length - 1][1].push({ label: address.split(" ")[0], address, full, lookup: parcel || address, key: parcel || address });
   }
   return (
     <div className="panel">
@@ -266,10 +281,10 @@ function StreetList({ street, onPick }) {
       </div>
       {blocks.map(([block, homes]) => (
         <div key={block} className="street-block">
-          <div className="street-block-label">{block === 0 ? "1–99" : `${block.toLocaleString()} block`}</div>
+          <div className="street-block-label">{blockLabel(block)}</div>
           <div className="street-numbers">
             {homes.map((h) => (
-              <button key={h.address} type="button" className="btn street-number" title={h.full || h.address} onClick={() => onPick(h.address)}>
+              <button key={h.key} type="button" className="btn street-number" title={h.full || h.address} onClick={() => onPick(h.lookup)}>
                 {h.label}
               </button>
             ))}
@@ -533,6 +548,8 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
 // Assessor's owner, address and tax bill but no values.
 function sourceNote(p) {
   const pulled = p.fetched_at ? ` · pulled ${p.fetched_at.slice(0, 10)}` : "";
+  if (p.parish === "orleans" && p.source_kind === "bulk:socrata")
+    return `Source: City of New Orleans open-data parcels (data.nola.gov): parcel number, address and lot${pulled}. Owners and tax bill numbers will be added from the City's parcel search layer, which is down right now. Assessed values aren't published, so none are shown for Orleans yet.`;
   if (p.parish === "orleans")
     return `Source: City of New Orleans parcel layer: owner, address and tax bill from the Assessor's roll${pulled}. The City doesn't publish assessed values, so none are shown for Orleans yet.`;
   const placed = p.zip_code ? " City and ZIP are placed from the parcel's location." : "";
@@ -542,7 +559,7 @@ function sourceNote(p) {
 function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) {
   const p = data.parcel;
   const v = data.valuation;
-  const address = parcelQueryText(p);
+  const address = p.full_address || `Parcel ${p.parcel_id}`;
   const hasAddress = Boolean(p.full_address);
 
   const sections = [
@@ -587,7 +604,10 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) 
     .map(([title, items]) => [title, items.filter((s) => s.value)])
     .filter(([, items]) => items.length > 0);
 
-  const history = (data.value_history || []).map((h) => ({ ...h, monthLabel: String(h.tax_year) }));
+  // Years with no values at all (every Orleans year, until the Assessor's roll is loaded) aren't history.
+  const history = (data.value_history || [])
+    .filter((h) => ["land_val", "bld_val", "tot_mkt_val", "assessed_val"].some((k) => h[k] != null))
+    .map((h) => ({ ...h, monthLabel: String(h.tax_year) }));
   const implied = trend && v ? trend.filter((d) => d.zhvi != null).map((d, _, arr) => ({ monthLabel: monthLabel(d.month), month: d.month, implied: Math.round((d.zhvi / arr[arr.length - 1].zhvi) * v.est_mid) })) : [];
 
   return (
@@ -601,7 +621,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) 
             </div>
           </div>
           <div className="parcel-actions">
-            <CopyLinkButton address={address} />
+            <CopyLinkButton address={parcelQueryText(p, data.lookup)} />
           </div>
         </div>
         <FloodZone p={p} />

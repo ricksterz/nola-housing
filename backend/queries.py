@@ -675,6 +675,23 @@ def meta(con) -> dict:
                     else []
                 )
             },
+            "fetched_by_parish": {
+                r[0]: iso(r[1])
+                for r in (
+                    con.execute("SELECT parish, MAX(fetched_at) FROM assessor_parcels GROUP BY 1").fetchall()
+                    if _table_exists(con, "assessor_parcels")
+                    else []
+                )
+            },
+            # e.g. {"orleans": "bulk:socrata"} while the City's ParcelSearch layer is down
+            "source_by_parish": {
+                r[0]: r[1]
+                for r in (
+                    con.execute("SELECT parish, max(source_kind) FROM assessor_parcels GROUP BY 1").fetchall()
+                    if _table_exists(con, "assessor_parcels")
+                    else []
+                )
+            },
         },
     }
     return {

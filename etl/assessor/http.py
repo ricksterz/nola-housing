@@ -10,16 +10,35 @@ requires re-fetching.
 
 import hashlib
 import logging
+import tempfile
 import time
 import urllib.robotparser
 from pathlib import Path
 from urllib.parse import urlparse
 
+import certifi
 import requests
 
 from .. import config
 
 log = logging.getLogger(__name__)
+
+
+# Intermediate CA certificates some public servers fail to send (see each file's header). They're
+# added to certifi's roots, so every chain is still verified up to a trusted root.
+EXTRA_CA_DIR = config.ETL_DIR / "data" / "certs"
+
+
+def ca_bundle() -> str | bool:
+    """certifi's roots plus EXTRA_CA_DIR's intermediates, as a bundle path for requests."""
+    extras = sorted(EXTRA_CA_DIR.glob("*.pem"))
+    if not extras:
+        return True
+    text = Path(certifi.where()).read_text() + "".join("\n" + p.read_text() for p in extras)
+    path = Path(tempfile.gettempdir()) / "nola-housing-ca-bundle.pem"
+    if not path.exists() or path.read_text() != text:
+        path.write_text(text)
+    return str(path)
 
 
 class BudgetExhausted(RuntimeError):
@@ -53,7 +72,10 @@ class PoliteSession:
         self._last_request_at = 0.0
         self._robots: dict[str, urllib.robotparser.RobotFileParser | None] = {}
         self.requests_made = 0
-        self.session = session or requests.Session()
+        if session is None:
+            session = requests.Session()
+            session.verify = ca_bundle()
+        self.session = session
         self.session.headers.update(
             {"User-Agent": user_agent, "Accept": "text/html,application/json;q=0.9,*/*;q=0.8"}
         )
