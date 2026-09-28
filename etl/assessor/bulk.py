@@ -57,13 +57,21 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     # JR &") and the co-owner begins the next line, run into the mailing street ("LEONORIA S
     # DETIEGE 1506 AMES BLVD"). Only the name is kept (join_co_owner); the address is never stored.
     "co_owner_line": ("OWNER_ADDR",),
+    # data.nola.gov Parcels splits the site address into parts; assemble_situs joins them.
+    "situs_number": ("SITUS_NUMBER",),
+    "situs_dir": ("SITUS_DIR",),
+    "situs_street": ("SITUS_STREET",),
+    "situs_type": ("SITUS_TYPE",),
     # Orleans (City ParcelSearch) carries a second owner in its own field; it's joined on with "&".
     "owner_name_2": ("OWNERNME2", "OWNER2", "OWNER_NAME_2"),
     "mailing_address": ("MAIL_ADDR", "MAILING_ADDRESS", "OWNER_ADDRESS", "MAILADDRESS"),
     "legal_description": ("LEGAL", "LEGAL_DESC", "LEGAL_DESCRIPTION", "LGL_DESC"),
     "subdivision": ("SUBDIVISION", "SUBDIV", "SUBDIVISION_NAME", "PARCELSUBD"),
     "property_class": ("PROP_CLASS", "PROPERTY_CLASS", "CLASS", "LAND_USE", "USE_CODE", "PROPERTY_TYPE"),
-    "land_area": ("LAND_AREA", "LOT_SQFT", "SQ_FT_LAND", "LAND_SQFT", "ACRES", "SHAPE_AREA"),
+    # Square feet only. Shape-area fields are left out: their units follow each server's map
+    # projection (Orleans ParcelSearch reports ~1,135 for a 9,140 sq ft lot).
+    "land_area": ("LAND_AREA", "LOT_SQFT", "SQ_FT_LAND", "LAND_SQFT"),
+    "land_acres": ("ACRES",),  # converted to land_area by lot_area_from_acres
     "building_area": (
         "BLDG_AREA",
         "BUILDING_AREA",
@@ -164,7 +172,29 @@ class BulkProbeResult:
 
 
 def _mapping_ok(field_map: dict) -> bool:
-    return "parcel_id" in field_map and any(k in field_map for k in REQUIRED_ANY)
+    has_address = "site_address" in field_map or "situs_street" in field_map
+    return "parcel_id" in field_map and (has_address or any(k in field_map for k in REQUIRED_ANY))
+
+
+_SITUS_PARTS = ("situs_number", "situs_dir", "situs_street", "situs_type")
+
+
+def lot_area_from_acres(mapped: dict) -> None:
+    """Fill land_area (sq ft) from an acreage field, in place."""
+    acres = mapped.pop("land_acres", None)
+    try:
+        acres = float(acres)
+    except (TypeError, ValueError):
+        return
+    if acres > 0 and not mapped.get("land_area"):
+        mapped["land_area"] = round(acres * 43_560)
+
+
+def assemble_situs(mapped: dict) -> None:
+    """Join split site-address parts ("2511", "", "EAGLE", "ST") into site_address, in place."""
+    parts = [str(mapped.pop(k) or "").strip() for k in _SITUS_PARTS if k in mapped]
+    if not mapped.get("site_address") and len(parts) == len(_SITUS_PARTS) and parts[0] and parts[2]:
+        mapped["site_address"] = " ".join(p for p in parts if p)
 
 
 # ---------------------------------------------------------------------------
@@ -290,6 +320,7 @@ def fetch_arcgis(
             if isinstance(second, str) and second.strip():
                 first = (mapped.get("owner_name") or "").strip()
                 mapped["owner_name"] = f"{first} & {second.strip()}" if first else second.strip()
+            lot_area_from_acres(mapped)
             street, zip_code = split_site_address(mapped.get("site_address"))
             mapped["site_address"] = street
             if zip_code and not str(mapped.get("zip_code") or "").strip():
@@ -312,6 +343,23 @@ def fetch_arcgis(
 # ---------------------------------------------------------------------------
 # Socrata (SODA 2.x) — e.g. data.nola.gov
 # ---------------------------------------------------------------------------
+def _geojson_centroid(geom) -> tuple[float | None, float | None]:
+    """Vertex average of a GeoJSON Point/Polygon/MultiPolygon, as (lat, lng)."""
+    if not isinstance(geom, dict) or not geom.get("coordinates"):
+        return None, None
+    coords, kind = geom["coordinates"], geom.get("type")
+    if kind == "Point":
+        return coords[1], coords[0]
+    polygons = coords if kind == "MultiPolygon" else [coords] if kind == "Polygon" else []
+    pts = []
+    for poly in polygons:
+        for ring in poly[:1]:  # outer ring only
+            pts.extend(ring[:-1] if len(ring) > 1 and ring[0] == ring[-1] else ring)
+    if not pts:
+        return None, None
+    return sum(p[1] for p in pts) / len(pts), sum(p[0] for p in pts) / len(pts)
+
+
 def probe_socrata(
     domain: str, dataset_id: str, session: PoliteSession, aliases: dict | None = None
 ) -> BulkProbeResult:
@@ -336,7 +384,15 @@ def probe_socrata(
         return BulkProbeResult(
             "socrata", url, False, f"columns not mappable ({sorted(cols)[:15]}...)", field_map
         )
-    return BulkProbeResult("socrata", url, True, "ok", field_map, None)
+    count = None
+    try:
+        rows = session.get_json(
+            f"https://{domain}/resource/{dataset_id}.json", params={"$select": "count(*)"}
+        )
+        count = int(next(iter(rows[0].values())))
+    except Exception as e:  # noqa: BLE001
+        log.info("socrata count query failed for %s: %s", dataset_id, e)
+    return BulkProbeResult("socrata", url, True, "ok", field_map, count)
 
 
 def fetch_socrata(
@@ -348,28 +404,39 @@ def fetch_socrata(
     field_map: dict,
     page_size: int = 5000,
     max_records: int | None = None,
+    stats: dict | None = None,
 ) -> list[ParcelRecord]:
+    """Page through a Socrata dataset (ordered by row id, so pages never shift under us).
+    ``stats["features"]`` counts rows read, as in fetch_arcgis."""
     out: list[ParcelRecord] = []
     offset = 0
     url = f"https://{domain}/resource/{dataset_id}.json"
+    geo_keys = ("location", "the_geom", "geometry")
     while True:
         rows = session.get_json(
-            url, params={"$limit": page_size, "$offset": offset}, cache_key=f"{parish}/socrata_page_{offset}"
+            url,
+            params={"$limit": page_size, "$offset": offset, "$order": ":id"},
+            cache_key=f"{parish}/socrata_page_{offset}",
         )
+        if stats is not None:
+            stats["features"] = offset + len(rows)
         for row in rows:
             mapped = {target: row.get(src) for target, src in field_map.items()}
-            loc = row.get("location") or row.get("the_geom") or row.get("geometry")
-            if isinstance(loc, dict):
-                coords = loc.get("coordinates")
-                if loc.get("type") == "Point" and coords:
-                    mapped.setdefault("lng", coords[0])
-                    mapped.setdefault("lat", coords[1])
-                elif "latitude" in loc:
-                    mapped.setdefault("lat", loc.get("latitude"))
-                    mapped.setdefault("lng", loc.get("longitude"))
+            assemble_situs(mapped)
+            lot_area_from_acres(mapped)
+            loc = next((row[k] for k in geo_keys if isinstance(row.get(k), dict)), None)
+            if loc is not None and "latitude" in loc:
+                mapped.setdefault("lat", float(loc["latitude"]))
+                mapped.setdefault("lng", float(loc["longitude"]))
+            else:
+                lat, lng = _geojson_centroid(loc)
+                mapped.setdefault("lat", lat)
+                mapped.setdefault("lng", lng)
             if not str(mapped.get("parcel_id") or "").strip():
                 continue
-            out.append(record_from_mapping(parish, parish_fips, mapped, extra={"raw": row}))
+            # Keep the row's attributes, not its polygon: the lot center is all the join needs.
+            raw = {k: v for k, v in row.items() if k not in geo_keys}
+            out.append(record_from_mapping(parish, parish_fips, mapped, extra={"raw": raw}))
             if max_records and len(out) >= max_records:
                 return out
         if len(rows) < page_size:

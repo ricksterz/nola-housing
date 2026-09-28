@@ -176,7 +176,11 @@ export async function suggestAddresses(q) {
   if (!/^\d/.test(needle)) return suggestStreets(needle);
   if (IS_STATIC) {
     const shard = await getAddressShard(needle);
-    return shard.filter((a) => a.address.startsWith(needle)).slice(0, 8);
+    // A second parcel at an address carries its parcel ID: look that up, and say which one it is.
+    return shard
+      .filter((a) => a.address.startsWith(needle))
+      .slice(0, 8)
+      .map((a) => (a.parcel ? { ...a, address: a.parcel, sub: `Parcel ${a.parcel}` } : a));
   }
   const r = await get(`/api/property/suggest?q=${encodeURIComponent(q)}`);
   return r.suggestions;
