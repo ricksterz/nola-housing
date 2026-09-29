@@ -6,7 +6,7 @@ pydantic
 
 # Transitive pins to clear known CVEs (pip-audit) in versions fastapi/uvicorn
 # would otherwise resolve to.
-starlette>=1.6.0
+starlette>=1.7.0
 anyio>=4.15.1
 click>=8.5.0
 python-dotenv>=1.2.3
