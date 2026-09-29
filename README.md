@@ -33,6 +33,7 @@ etl/
   load_costs.py          ACS property tax rate + NFIP flood cost by ZIP  -> zip_tax_rate, zip_flood_cost
   db_compact.py          reclaim DuckDB file space after a refresh (VACUUM doesn't)
   db_store.py            download / publish the database on the `data` release (not in git)
+  build_floodlens_tracts.py  FloodLens's validated top-fifth tracts -> data/floodlens_tracts.geojson
   assessor/
     http.py              polite session: UA, robots.txt, rate limit, backoff, budget, raw landing
     bulk.py              ArcGIS REST + Socrata probes/fetchers
@@ -155,6 +156,18 @@ valuation needs a comps source or the Redfin `$/sqft` implied value in
 Raw source tables keep every column the join needs plus provenance:
 `redfin_market`, `zillow_index`, `fred_series`, `assessor_parcels_raw`
 (parsed columns + full JSON payload), `assessor_bulk_probes`.
+
+## FloodLens tracts
+
+`etl/data/floodlens_tracts.geojson` holds the census tracts FloodLens's NFIP backtest evaluated
+inside FEMA A zones, with each tract's quintile, plus the claim rates and the pre-registered result
+in its `floodlens` header. The site flags A-zone parcels in a top-fifth tract and says nothing about
+Zone X, matching what the backtest supports. After FloodLens's monthly refresh (the 15th), rebuild
+it from a local FloodLens checkout and commit the file:
+
+```bash
+~/floodlens/venv/bin/python -m etl.build_floodlens_tracts --floodlens ~/floodlens
+```
 
 ## Refresh cadence
 

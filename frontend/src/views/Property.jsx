@@ -243,7 +243,7 @@ export default function Property({ ctx }) {
       )}
 
       {showStreet && <StreetList street={street} onPick={pickNearby} />}
-      {showParcel && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} onPick={pickNearby} />}
+      {showParcel && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} onPick={pickNearby} floodlensSummary={meta?.floodlens} />}
     </div>
   );
 }
@@ -410,7 +410,35 @@ function floodInfo(p) {
   return { tone: "low", title: `FEMA zone ${zone}`, detail: "" };
 }
 
-function FloodZone({ p }) {
+// FloodLens's one validated signal, inside FEMA A zones only: whether the parcel's census tract is
+// in its top fifth, where claim rates ran ~3x the other high-risk tracts. The lower four fifths
+// had similar rates, so they get no ranking. See etl/build_floodlens_tracts.py.
+function FloodLensNote({ flag, summary }) {
+  if (!flag || !summary?.rates) return null;
+  const r = summary.rates;
+  const rates = r.per_1000_policy_years;
+  const lower = [1, 2, 3, 4].map((q) => rates[q]).filter((v) => v != null);
+  const pre = summary.pre_registered;
+  const top = flag.quintile === 5;
+  return (
+    <div className={`floodlens-note${top ? " floodlens-note--top" : ""}`}>
+      <div className="floodlens-title">
+        {top ? "FloodLens: one of the highest-claim areas in the high-risk zone" : "FloodLens: not flagged within the high-risk zone"}
+      </div>
+      <div className="flood-detail">
+        {top
+          ? `This census tract is in FloodLens's top fifth of high-risk-zone tracts. Homes there filed flood insurance claims at about ${Math.round(r.top_vs_rest)}× the rate of other high-risk-zone tracts: ${rates[5].toFixed(1)} vs ${r.rest.toFixed(1)} claims per 1,000 insured homes a year (${summary.window}).`
+          : `This census tract isn't in FloodLens's top fifth. Outside that fifth, high-risk-zone tracts had similar claim rates (${Math.min(...lower).toFixed(1)}–${Math.max(...lower).toFixed(1)} per 1,000 insured homes a year), so FloodLens doesn't rank them further.`}
+      </div>
+      <div className="method-note" style={{ marginTop: 6 }}>
+        <span>{`Tested before the results were known: FloodLens ${pre.model.replace("FloodLens ", "")} found a claim rate ${pre.top_vs_bottom.toFixed(1)} times as high in its top fifth of high-risk-zone tracts as in its bottom fifth (${pre.claims.toLocaleString()} claims, ${pre.window}); rechecked monthly, latest ${r.top_vs_bottom.toFixed(1)} times. An area measure from census tracts, not a rating of this house. `}</span>
+        <a href="https://nola-floodlens.onrender.com/about.html" target="_blank" rel="noreferrer">How it was tested ↗</a>
+      </div>
+    </div>
+  );
+}
+
+function FloodZone({ p, floodlens, floodlensSummary }) {
   const f = floodInfo(p);
   if (!f) return null;
   return (
@@ -425,6 +453,7 @@ function FloodZone({ p }) {
         FEMA National Flood Hazard Layer, effective maps{p.nfhl_pulled_at ? ` · pulled ${p.nfhl_pulled_at.slice(0, 10)}` : ""}.
         Placed by the lot's center point. A map zone, not an elevation certificate or an insurance quote.
       </div>
+      {/^A/i.test(p.flood_zone || "") && <FloodLensNote flag={floodlens} summary={floodlensSummary} />}
     </div>
   );
 }
@@ -556,7 +585,7 @@ function sourceNote(p) {
   return `Source: Jefferson Parish Assessor, as published${pulled}.${placed} Assessed value is the tax value, not a market price.`;
 }
 
-function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) {
+function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, floodlensSummary }) {
   const p = data.parcel;
   const v = data.valuation;
   const address = p.full_address || `Parcel ${p.parcel_id}`;
@@ -624,7 +653,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick }) 
             <CopyLinkButton address={parcelQueryText(p, data.lookup)} />
           </div>
         </div>
-        <FloodZone p={p} />
+        <FloodZone p={p} floodlens={data.floodlens} floodlensSummary={floodlensSummary} />
         {sections.map(([title, items]) => (
           <div key={title} className="stat-section">
             <div className="stat-section-title">{title}</div>

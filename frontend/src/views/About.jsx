@@ -8,6 +8,7 @@ export default function About({ ctx }) {
   const a = meta?.sources?.assessor || {};
   const parcels = a.by_parish?.jefferson ?? a.parcels ?? 0;
   const orleansParcels = a.by_parish?.orleans || 0;
+  const fl = meta?.floodlens;
   const orleansFallback = a.source_by_parish?.orleans === "bulk:socrata";
   const geocoded = a.geocoded ?? null;
   const pulled = (a.fetched_by_parish?.jefferson || a.fetched_at || "").slice(0, 10) || null;
@@ -60,6 +61,7 @@ export default function About({ ctx }) {
           <li><strong>U.S. Census Bureau</strong> — ZIP Code Tabulation Area boundaries, used to place parcels in a ZIP, and American Community Survey 5-year estimates of property taxes paid and home values, used for each ZIP's effective tax rate. Checked monthly, updated when a new 5-year release comes out.</li>
           <li><strong>OpenFEMA NFIP policies</strong> — flood insurance policies in force by ZIP, used for typical flood insurance cost. Monthly.</li>
           <li><strong>OpenStreetMap</strong> — the base map on a property page (© OpenStreetMap contributors). The dots on it are Assessor parcels, placed by each lot's center point.</li>
+          <li><strong>FloodLens</strong> — which census tracts fall in FloodLens's top fifth inside FEMA high-risk zones, from its claims backtest{fl?.generated ? ` (updated ${fl.generated})` : ""}; see Methodology.</li>
           <li><strong>FEMA National Flood Hazard Layer</strong> — effective flood zones, placed on each parcel. Monthly.{flooded ? ` ${n(flooded)} parcels${floodPulled ? `, last pulled ${floodPulled}` : ""}.` : ""}</li>
         </ul>
       </div>
@@ -110,6 +112,13 @@ export default function About({ ctx }) {
             <li>Zone X covers moderate-risk areas (0.2% annual chance) and areas FEMA credits with reduced risk because of levees. Levee-protected isn't flood-proof, and FEMA reports more than 20% of flood insurance claims come from outside high-risk areas.</li>
             <li>These are effective maps only; preliminary or pending map changes aren't included. Polygons are simplified to about 1 meter, and a lot is placed by its center, so a parcel on a zone line or a large lot spanning two zones can differ from its official determination.</li>
             <li>A map zone isn't a flood-risk score, an elevation certificate or an insurance quote. Premiums under FEMA's current rating depend on the building, not just the zone.</li>
+            <li>
+              FloodLens (a flood-risk model built alongside this site) is shown for A-zone parcels only, and only as a flag.
+              {fl?.rates
+                ? ` Its backtest against FEMA flood insurance claims found one result that holds up: inside A zones, census tracts in FloodLens's top fifth filed claims at about ${Math.round(fl.rates.top_vs_rest)}× the rate of the other A-zone tracts (${fl.rates.per_1000_policy_years[5].toFixed(1)} vs ${fl.rates.rest.toFixed(1)} claims per 1,000 insured homes a year, ${fl.window}). The lower four fifths had similar rates, so they aren't ranked; a parcel is either in a top-fifth tract or it isn't flagged.`
+                : ""}{" "}
+              The test was specified before the results were known{fl?.pre_registered ? ` (a claim rate ${fl.pre_registered.top_vs_bottom.toFixed(1)} times as high in the top fifth as the bottom, ${fl.pre_registered.claims.toLocaleString()} claims, ${fl.pre_registered.window})` : ""} and is rechecked monthly. In Zone X the same test was inconclusive, so no FloodLens flag appears there. Claims data is by census tract, so this describes an area, not a house.
+            </li>
           </ul>
         </div>
         <div className="faq-item">

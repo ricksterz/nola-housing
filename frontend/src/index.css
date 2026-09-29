@@ -350,3 +350,8 @@ a { color: var(--blue); }
 .compare-table td, .compare-table th { white-space: normal; padding: 8px 6px; }
 .compare-table td:first-child, .compare-table th:first-child { padding-left: 0; }
 .compare-notes { margin-top: 12px; font-size: 12.5px; color: var(--text-dim); }
+
+/* FloodLens note inside the flood card (A zones only) */
+.floodlens-note { margin-top: 12px; padding-top: 10px; border-top: 1px dashed color-mix(in srgb, var(--tone) 35%, var(--border)); }
+.floodlens-title { font-weight: 650; color: var(--text-bright); margin-bottom: 2px; }
+.floodlens-note--top .floodlens-title { color: var(--red); }
