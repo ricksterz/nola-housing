@@ -365,6 +365,47 @@ def assessment_comparisons(con, parcel_id: str | None = None) -> dict[str, dict]
     return out
 
 
+# ---------------------------------------------------------------------------
+# FloodLens: the one validated signal, a top-fifth flag inside FEMA A zones
+# ---------------------------------------------------------------------------
+FLOODLENS_TRACTS = config.ETL_DIR / "data" / "floodlens_tracts.geojson"
+
+
+def floodlens_summary() -> dict | None:
+    """The tract file's header: model, window, claim rates, pre-registered result."""
+    if not FLOODLENS_TRACTS.exists():
+        return None
+    return json.loads(FLOODLENS_TRACTS.read_text()).get("floodlens")
+
+
+def floodlens_flags(con, parcel_id: str | None = None) -> dict[str, dict]:
+    """{parcel_id: {"quintile", "geoid"}} for parcels in an A zone whose lot center falls in a
+    census tract FloodLens's backtest evaluated. A zones only: that's where the result held
+    (see etl/build_floodlens_tracts.py). 2010 tract outlines win, as they did in the backtest."""
+    if not FLOODLENS_TRACTS.exists() or not _table_exists(con, "parcel_market"):
+        return {}
+    try:
+        con.execute("LOAD spatial")
+    except Exception:  # noqa: BLE001 - not installed yet
+        con.execute("INSTALL spatial")
+        con.execute("LOAD spatial")
+    only = "AND p.parcel_id = ?" if parcel_id else ""
+    rows = con.execute(
+        f"""
+        WITH t AS (SELECT geoid, vintage, quintile, geom FROM ST_Read(?)),
+        hits AS (
+            SELECT p.parcel_id, t.geoid, t.quintile,
+                   row_number() OVER (PARTITION BY p.parcel_id ORDER BY t.vintage) AS pick
+            FROM parcel_market p JOIN t ON ST_Contains(t.geom, ST_Point(p.lng, p.lat))
+            WHERE upper(p.flood_zone) LIKE 'A%' AND p.lat IS NOT NULL AND p.lng IS NOT NULL {only}
+        )
+        SELECT parcel_id, geoid, quintile FROM hits WHERE pick = 1
+        """,
+        [str(FLOODLENS_TRACTS), *([parcel_id] if parcel_id else [])],
+    ).fetchall()
+    return {pid: {"quintile": int(q), "geoid": geoid} for pid, geoid, q in rows}
+
+
 def lookup_miss_message(street: str, has_nearby: bool) -> str:
     """Shared wording with frontend/src/api.js for an address with no record."""
     if has_nearby:
@@ -492,6 +533,7 @@ def property_lookup(con, address: str) -> dict | None:
 def _property_payload(con, parcel: dict) -> dict:
     parcel["full_address"] = full_address_or_none(parcel)
     comparison = assessment_comparisons(con, parcel["parcel_id"]).get(parcel["parcel_id"])
+    floodlens = floodlens_flags(con, parcel["parcel_id"]).get(parcel["parcel_id"])
     history = _rows(
         con,
         """SELECT tax_year, land_val, bld_val, tot_mkt_val, assessed_val, homestead_exempt_val, taxable_val
@@ -504,6 +546,7 @@ def _property_payload(con, parcel: dict) -> dict:
         "value_history": history,
         "valuation": implied_valuation(con, parcel),
         "comparison": comparison,
+        "floodlens": floodlens,
     }
 
 
@@ -700,4 +743,5 @@ def meta(con) -> dict:
         "geos": geos(),
         "property_count": sources["assessor"]["parcels"] or 0,
         "refresh_windows": {p: m["refresh_window"] for p, m in config.PARISHES.items()},
+        "floodlens": floodlens_summary(),
     }

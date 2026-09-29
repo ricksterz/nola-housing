@@ -150,6 +150,8 @@ def export_properties(con) -> int:
     zip_stats = {r["geo_id"]: r for r in queries._rows(con, _ZIP_VALUATION_SQL)}
     print("Comparing every assessment with similar parcels nearby and in its subdivision...")
     comparisons = queries.assessment_comparisons(con)
+    print("Placing high-risk-zone parcels in FloodLens's validated census tracts...")
+    floodlens = queries.floodlens_flags(con)
 
     print(f"Writing property files for {len(parcels)} parcels...")
     written: set[str] = set()
@@ -176,6 +178,7 @@ def export_properties(con) -> int:
             "value_history": history_by_parcel.get((parcel["parish"], parcel["parcel_id"]), []),
             "valuation": _implied_valuation(parcel, zip_stats),
             "comparison": comparisons.get(parcel["parcel_id"]),
+            "floodlens": floodlens.get(parcel["parcel_id"]),
         }
         if addr and not owns_address:
             # Its address opens another parcel's page, so links and reloads go by parcel number.
