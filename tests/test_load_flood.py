@@ -108,3 +108,28 @@ def test_raw_table_gains_new_columns(con):
         "R1A",
         True,
     )
+
+
+def test_carry_over_gives_tax_bill_records_their_lots_zone(con):
+    from etl import load_flood
+
+    load_flood.ensure_table(con)
+    con.execute("CREATE TABLE assessor_parcels_raw (parish VARCHAR, parcel_id VARCHAR, payload VARCHAR)")
+    con.execute(
+        "INSERT INTO assessor_parcels_raw VALUES"
+        """ ('orleans', '103109611', '{"lot_id": "41212159"}'),"""  # two condo units on one lot
+        """ ('orleans', '103109620', '{"lot_id": "41212159"}'),"""
+        """ ('orleans', '105306710', '{"lot_id": "41033176"}'),"""  # already has its own zone
+        """ ('jefferson', '0820015268', '{"raw": {}}')"""
+    )
+    con.execute(
+        "INSERT INTO parcel_flood VALUES"
+        " ('orleans', '41212159', 'X', 'AREA OF MINIMAL FLOOD HAZARD', false, NULL),"
+        " ('orleans', '105306710', 'AE', NULL, true, NULL),"
+        " ('orleans', '41033176', 'X', NULL, false, NULL)"
+    )
+    assert load_flood.carry_over_by_lot(con) == 2
+    zones = dict(con.execute("SELECT parcel_id, flood_zone FROM parcel_flood").fetchall())
+    assert zones["103109611"] == zones["103109620"] == "X"
+    assert zones["105306710"] == "AE"  # its own zone wins
+    assert load_flood.carry_over_by_lot(con) == 0  # idempotent
