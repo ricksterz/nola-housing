@@ -162,6 +162,41 @@ def assign_zones(con: duckdb.DuckDBPyConnection, parish: str, pages: list[Path],
     return con.execute("SELECT COUNT(*) FROM parcel_flood WHERE parish = ?", [parish]).fetchone()[0]
 
 
+def carry_over_by_lot(con: duckdb.DuckDBPyConnection) -> int:
+    """Give records keyed by tax bill the flood zone already found for their lot.
+
+    Orleans records are keyed by tax bill (several condo units share one lot) but flood zones
+    were last placed when they were keyed by lot (GEOPIN). Every tax-bill record keeps its lot as
+    ``lot_id``, and a lot's zone is the same for every record on it, so the zone carries over
+    without asking FEMA again. Only fills records that have no zone of their own."""
+    ensure_table(con)
+    if not con.execute(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'assessor_parcels_raw'"
+    ).fetchone()[0]:
+        return 0
+    before = con.execute("SELECT COUNT(*) FROM parcel_flood").fetchone()[0]
+    con.execute(
+        """
+        INSERT INTO parcel_flood
+        SELECT DISTINCT r.parish, r.parcel_id, f.flood_zone, f.flood_zone_subtype, f.flood_sfha,
+               f.nfhl_pulled_at
+        FROM (
+            SELECT DISTINCT parish, parcel_id, json_extract_string(payload, '$.lot_id') AS lot_id
+            FROM assessor_parcels_raw
+        ) r
+        JOIN parcel_flood f ON f.parish = r.parish AND f.parcel_id = r.lot_id
+        WHERE r.lot_id IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM parcel_flood x WHERE x.parish = r.parish AND x.parcel_id = r.parcel_id
+          )
+        """
+    )
+    added = con.execute("SELECT COUNT(*) FROM parcel_flood").fetchone()[0] - before
+    if added:
+        print(f"  flood zones carried over to {added:,} records from their lot")
+    return added
+
+
 def load(con: duckdb.DuckDBPyConnection, parishes=None, session: PoliteSession | None = None) -> dict:
     con.execute("INSTALL spatial")
     con.execute("LOAD spatial")
