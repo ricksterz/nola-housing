@@ -245,6 +245,53 @@ def full_address(parcel: dict) -> str:
     return addr
 
 
+# ---------------------------------------------------------------------------
+# Units: condos and apartments
+# ---------------------------------------------------------------------------
+# A unit can sit in the site address ("2600 BELLE CHASSE HWY #203", "1965 ... UNIT 179", "7015
+# JEFFERSON HWY STE D"), trail the street as a bare token ("600 PORT OF NEW ORLEANS PL 11B", how
+# parcel layers often write condos), or only appear in a condo's legal description ("PARK PLACE
+# CONDO UNIT 108 PLUS AN UNDIV ..."). Same rules as frontend/src/api.js parseUnit.
+_UNIT_WORD = re.compile(r"\s*(?:\b(?:UNIT|APT|APARTMENT|STE|SUITE|NO)\b\.?|#)\s*([A-Z0-9][A-Z0-9-]*)\s*$")
+_STREET_TYPES = (
+    "ST|AVE|AV|BLVD|BL|DR|RD|LN|PL|CT|WAY|HWY|PKWY|PKY|CIR|TER|ROW|SQ|WALK|LOOP|TRCE|PLZ|CV|EXPY|"
+    "PT|XING|ALY|TRL|BND|PATH"
+)
+_BARE_UNIT = re.compile(rf"^(.*\b(?:{_STREET_TYPES})\b)\s+([A-Z]?\d+[A-Z]?(?:-\d*[A-Z]?)?)$")
+_CONDO_WORD = re.compile(r"\bCONDO(?:MINIUM)?S?\b")  # not "CONDON", a surname
+_CONDO_UNIT = re.compile(r"\b(?:UNIT|UN|SUITE|APT)\s*(?:NO\.?\s*)?#?\s*([A-Z0-9][A-Z0-9-]*)")
+
+
+def _is_unit_token(t: str) -> bool:
+    """A unit label has a digit ("11B", "203", "230C") or is a single letter ("D")."""
+    return any(ch.isdigit() for ch in t) or (len(t) == 1 and t.isalpha())
+
+
+def split_unit(address: str | None, legal: str | None = None) -> tuple[str | None, str | None]:
+    """("714 FAIRFAX DR", "122") from an address and/or a condo legal description; the unit is
+    None for a whole building or lot. Addresses are normalized (upper case, single spaces)."""
+    addr = re.sub(r"\s+", " ", (address or "").strip().upper()) or None
+    if addr:
+        m = _UNIT_WORD.search(addr)
+        if m and _is_unit_token(m.group(1)) and m.start() > 0:
+            return addr[: m.start()].strip(), m.group(1)
+        m = _BARE_UNIT.match(addr)
+        if m and split_house_number(m.group(1)):
+            return m.group(1), m.group(2)
+    legal_u = (legal or "").upper()
+    if _CONDO_WORD.search(legal_u):
+        for m in _CONDO_UNIT.finditer(legal_u):
+            if _is_unit_token(m.group(1)):
+                return addr, m.group(1)
+    return addr, None
+
+
+def unit_address(building_full: str, unit: str) -> str:
+    """"714 Fairfax Dr, Gretna, LA 70056" + "122" -> "714 Fairfax Dr Unit 122, Gretna, LA 70056"."""
+    street, _, rest = building_full.partition(",")
+    return f"{street} Unit {unit}" + (f",{rest}" if rest else "")
+
+
 _HOUSE_NUMBER = re.compile(r"^(\d+)[A-Z]?(?:-\d+[A-Z]?)?\s+(.+)$")
 
 
@@ -488,11 +535,11 @@ def nearby(con, lat: float, lng: float, radius_m: float = 400) -> list[list]:
     return [nearby_entry(r) for r in rows]
 
 
-_PARCEL_QUERY = re.compile(r"^(?:PARCEL#?)?(\d{7,})$")
+_PARCEL_QUERY = re.compile(r"^(?:PARCEL#?)?(\d{7,}[A-Z]{0,2})$")  # Jefferson sub-parcels end in A, B...
 
 
 def parcel_query(q: str) -> str | None:
-    """A parcel number typed as a search ("0820015268", "Parcel 0820015268"), else None.
+    """A parcel number typed as a search ("0820015268", "Parcel 0820008042A"), else None.
     House numbers top out at 5 digits, so 7+ digits is always a parcel. Same rule as
     frontend/src/api.js parcelQuery."""
     m = _PARCEL_QUERY.match(re.sub(r"[\s-]", "", normalize_address(q or "")))
