@@ -154,24 +154,51 @@ def export_properties(con) -> int:
     floodlens = queries.floodlens_flags(con)
 
     print(f"Writing property files for {len(parcels)} parcels...")
+    # Condos and apartments: an address with any unit parcel becomes a building. Its address page
+    # lists the units; every unit (and any lot or common-area parcel at that address) gets its own
+    # page by parcel number, titled "714 Fairfax Dr Unit 122, ...".
+    for parcel in parcels:
+        parcel["_building"], parcel["_unit"] = queries.split_unit(
+            parcel.get("site_address_norm"), parcel.get("legal_description")
+        )
+    unit_buildings = {p["_building"] for p in parcels if p["_unit"] and p["_building"]}
+    buildings: dict[str, dict] = {}
     written: set[str] = set()
     shards: dict[str, list] = {}
     near: dict[str, list] = {}
     streets: dict[str, list] = {}
     pids: dict[str, list] = {}
     for parcel in parcels:
-        addr = (parcel.get("site_address_norm") or "").strip()
+        building_addr, unit = parcel.pop("_building"), parcel.pop("_unit")
+        in_building = building_addr in unit_buildings
+        addr = building_addr if in_building else (parcel.get("site_address_norm") or "").strip()
         slug = queries.slugify(addr) if addr else ""
         # The first parcel at an address owns its address page and its spot on the map. The rest
-        # (the same address in the other parish, condo units) and parcels with no street address
-        # get a page by parcel number.
-        owns_address = bool(slug) and slug not in written
+        # (the same address in the other parish, a lot sharing a number), building units, and
+        # parcels with no street address get a page by parcel number.
+        owns_address = bool(slug) and slug not in written and not in_building
         if not owns_address:
             slug = f"parcel-{queries.slugify(parcel['parcel_id'])}"
         written.add(slug)
         if REDACT_OWNER_NAMES:
             parcel.pop("owner_name", None)
-        parcel["full_address"] = queries.full_address_or_none(parcel)
+        if in_building:
+            building_full = queries.full_address({**parcel, "site_address": addr, "site_address_norm": addr})
+            parcel["full_address"] = queries.unit_address(building_full, unit) if unit else building_full
+            parcel["unit"] = unit
+            b = buildings.setdefault(
+                addr, {"address": addr, "full": building_full, "parcel": parcel, "units": []}
+            )
+            b["units"].append(
+                {
+                    "unit": unit,
+                    "parcel_id": parcel["parcel_id"],
+                    "full": parcel["full_address"],
+                    "assessed_val": parcel.get("assessed_val"),
+                }
+            )
+        else:
+            parcel["full_address"] = queries.full_address_or_none(parcel)
         parcel.pop("assessed_value_history", None)
         data = {
             "parcel": parcel,
@@ -181,10 +208,13 @@ def export_properties(con) -> int:
             "floodlens": floodlens.get(parcel["parcel_id"]),
         }
         if addr and not owns_address:
-            # Its address opens another parcel's page, so links and reloads go by parcel number.
+            # Its address opens another page (a building, or another parcel), so links and reloads
+            # go by parcel number.
             data["lookup"] = f"Parcel {parcel['parcel_id']}"
+        if in_building:
+            data["building"] = {"address": addr, "full": buildings[addr]["full"]}
         write_json(prop_dir / f"{slug}.json", data, compact=True)
-        label = queries.parcel_label(parcel)
+        label = parcel["full_address"] or queries.parcel_label(parcel)
         pids.setdefault(pid_key(parcel["parcel_id"]), []).append([parcel["parcel_id"], slug, label])
         # Tax bill numbers find the parcel too (Orleans bills are numbered separately from parcels).
         bill = (parcel.get("tax_bill_number") or "").strip()
@@ -192,13 +222,16 @@ def export_properties(con) -> int:
             pids.setdefault(pid_key(bill), []).append([bill, slug, label, "bill"])
         if not addr:
             continue
-        # Every parcel with an address is in the address and street indexes. A second parcel at an
-        # address (the same number in the other parish, a condo unit) carries its parcel ID, so
-        # picking it opens that parcel rather than the address's first one.
+        # Every parcel with an address is in the address index. A second parcel at an address, or a
+        # unit, carries its parcel ID (and unit), so picking it opens that parcel.
         entry = {"address": addr, "full": parcel["full_address"], "slug": slug}
         if not owns_address:
             entry["parcel"] = parcel["parcel_id"]
+        if unit:
+            entry["unit"] = unit
         shards.setdefault(shard_key(addr), []).append(entry)
+        if in_building:
+            continue  # the building's street-list row and map dot are added once, below
         parts = queries.split_house_number(addr)
         if parts:
             row = [parts[0], addr, parcel["full_address"]]
@@ -206,6 +239,45 @@ def export_properties(con) -> int:
         if owns_address and parcel.get("lat") is not None and parcel.get("lng") is not None:
             near.setdefault(near_key(parcel["lat"], parcel["lng"]), []).append(queries.nearby_entry(parcel))
 
+    # Building pages: the address opens a list of its units.
+    for addr, b in buildings.items():
+        slug = queries.slugify(addr)
+        written.add(slug)
+        first = b.pop("parcel")
+        units = sorted(b["units"], key=lambda u: _natural(u["unit"] or ""))
+        write_json(
+            prop_dir / f"{slug}.json",
+            {
+                "building": {
+                    **b,
+                    "units": units,
+                    "parish": first["parish"],
+                    "lat": first.get("lat"),
+                    "lng": first.get("lng"),
+                }
+            },
+            compact=True,
+        )
+        n_units = sum(1 for u in units if u["unit"])
+        shards.setdefault(shard_key(addr), []).append(
+            {"address": addr, "full": b["full"], "slug": slug, "units": n_units}
+        )
+        parts = queries.split_house_number(addr)
+        if parts:
+            streets.setdefault(parts[1], []).append([parts[0], addr, b["full"]])
+        if first.get("lat") is not None and first.get("lng") is not None:
+            spot = {
+                **first,
+                "site_address": addr,
+                "site_address_norm": addr,
+                "assessed_val": None,
+                "last_sale_price": None,
+            }
+            near.setdefault(near_key(first["lat"], first["lng"]), []).append(queries.nearby_entry(spot))
+    in_buildings = sum(len(b["units"]) for b in buildings.values())
+    print(f"  {len(buildings):,} buildings with units ({in_buildings:,} parcels)")
+
+    parcel_pages = len(written) - len(buildings)  # building pages list units; they aren't parcels
     _write_dir(prop_dir, {}, keep=written)
     _write_dir(addr_dir, shards)
     _write_dir(near_dir, near)
@@ -214,7 +286,12 @@ def export_properties(con) -> int:
     # street-name index that street search matches against.
     _write_dir(street_dir, {queries.slugify(k): sorted(v) for k, v in streets.items()})
     write_json(OUT_DIR / "streets.json", queries.street_index(streets), compact=True)
-    return len(written)
+    return parcel_pages
+
+
+def _natural(label: str) -> list:
+    """Sort key for unit labels: 2 < 10 < 10A < B."""
+    return [(0, int(t), "") if t.isdigit() else (1, 0, t) for t in re.findall(r"\d+|\D+", label)]
 
 
 def _write_dir(directory: Path, files: dict[str, list], keep: set[str] | None = None) -> None:

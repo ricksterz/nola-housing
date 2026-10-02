@@ -19,6 +19,11 @@ function parcelQueryText(parcel, lookup) {
   return lookup || parcel.full_address || `Parcel ${parcel.parcel_id}`;
 }
 
+// The same for any lookup result: a parcel page, or a building's list of units.
+function queryText(d) {
+  return d.parcel ? parcelQueryText(d.parcel, d.lookup) : d.building.full;
+}
+
 export default function Property({ ctx }) {
   const { meta, theme, navigate, url, macro, scorecard } = ctx;
   const [address, setAddress] = useState(url.q || "");
@@ -38,7 +43,7 @@ export default function Property({ ctx }) {
   // Load the address in the URL: on arrival, and again when Back/Forward changes it. A search
   // rewrites q to the full address it found, which then matches and doesn't search twice.
   useEffect(() => {
-    if (url.q && (!data || url.q !== parcelQueryText(data.parcel, data.lookup))) search(url.q);
+    if (url.q && (!data || url.q !== queryText(data))) search(url.q);
   }, [url.q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A street list in the URL (?street=bonnabel-blvd), shown when no single address is. What's on
@@ -110,7 +115,7 @@ export default function Property({ ctx }) {
         setData(d);
         // Show the full "street, city, LA zip" once we know it — the search key stays the
         // plain street address (getPropertyLookup strips anything after the first comma).
-        const full = parcelQueryText(d.parcel, d.lookup);
+        const full = queryText(d);
         setAddress(full);
         navigate({ q: full, street: null }, { replace: !push });
       })
@@ -243,7 +248,8 @@ export default function Property({ ctx }) {
       )}
 
       {showStreet && <StreetList street={street} onPick={pickNearby} />}
-      {showParcel && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} onPick={pickNearby} floodlensSummary={meta?.floodlens} />}
+      {showParcel && data.building && !data.parcel && <BuildingView building={data.building} onPick={pickNearby} />}
+      {showParcel && data.parcel && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} onPick={pickNearby} floodlensSummary={meta?.floodlens} />}
     </div>
   );
 }
@@ -256,6 +262,50 @@ function blockLabel(block) {
   const [city, hundred] = block.includes(" · ") ? block.split(" · ") : ["", block];
   const n = Number(hundred);
   return `${city ? `${city} · ` : ""}${n === 0 ? "1–99" : `${n.toLocaleString()} block`}`;
+}
+
+// A condo or apartment building: every unit on record at one address (and any lot or common-area
+// parcel there), each opening its own page.
+function BuildingView({ building, onPick }) {
+  const units = building.units.filter((u) => u.unit);
+  const other = building.units.filter((u) => !u.unit);
+  const [street, ...rest] = building.full.split(",");
+  return (
+    <div className="panel">
+      <div className="parcel-header">
+        <div>
+          <div className="parcel-address">{building.full}</div>
+          <div className="parcel-sub">{`${building.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · ${units.length} unit${units.length === 1 ? "" : "s"} on record`}</div>
+        </div>
+        <div className="parcel-actions">
+          <CopyLinkButton address={building.full} />
+        </div>
+      </div>
+      <div className="stat-section-title">Units at {street}</div>
+      <div className="street-numbers">
+        {units.map((u) => (
+          <button key={u.parcel_id} type="button" className="btn street-number" title={u.full} onClick={() => onPick(`Parcel ${u.parcel_id}`)}>
+            {`Unit ${u.unit}`}
+          </button>
+        ))}
+      </div>
+      {other.length > 0 && (
+        <>
+          <div className="stat-section-title" style={{ marginTop: 16 }}>Also at this address</div>
+          <div className="street-numbers">
+            {other.map((u) => (
+              <button key={u.parcel_id} type="button" className="btn street-number" onClick={() => onPick(`Parcel ${u.parcel_id}`)}>
+                {`Lot / common area · Parcel ${u.parcel_id}`}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      <div className="method-note" style={{ marginTop: 12 }}>
+        <span>{`Each unit is its own record on the Assessor's roll${rest.length ? `, all at ${street}` : ""}. Units are read from the address or the condo's legal description, so a unit the roll doesn't number may be missing.`}</span>
+      </div>
+    </div>
+  );
 }
 
 // Every parcel on one street, grouped by hundred-block, so a street name is enough to find a home.
@@ -650,6 +700,11 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
             </div>
           </div>
           <div className="parcel-actions">
+            {data.building && (
+              <button type="button" className="btn" onClick={() => onPick(data.building.full)}>
+                {`All units at ${data.building.full.split(",")[0]}`}
+              </button>
+            )}
             <CopyLinkButton address={parcelQueryText(p, data.lookup)} />
           </div>
         </div>

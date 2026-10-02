@@ -153,6 +153,7 @@ export default function About({ ctx }) {
             <li>An address, starting with the house number ("420 Bonnabel"), suggests matching addresses.</li>
             <li>A street name ("Bonnabel", "n causeway") suggests streets. Pick one to see every parcel on it, grouped by block.</li>
             <li>A parcel or tax bill number (7 or more digits) finds that parcel. This is the only way to reach the 10,806 Jefferson parcels the Assessor lists with no street address, and units that share an address with another parcel.</li>
+            <li>Apartments and condos: add the unit ("714 Fairfax Dr apt 122", "#122", "unit 122", "ste D", even after the ZIP). A building's address lists every unit on record, and each unit has its own page. Units come from the address or the condo's legal description; Orleans units arrive with the City's parcel search layer, which is retried weekly while it's down.</li>
             <li>If an address has no record, the closest house numbers on that street are offered instead.</li>
           </ul>
         </div>
