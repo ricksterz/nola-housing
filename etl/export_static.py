@@ -154,15 +154,22 @@ def export_properties(con) -> int:
     floodlens = queries.floodlens_flags(con)
 
     print(f"Writing property files for {len(parcels)} parcels...")
-    # Condos and apartments: an address with any unit parcel becomes a building. Its address page
-    # lists the units; every unit (and any lot or common-area parcel at that address) gets its own
-    # page by parcel number, titled "714 Fairfax Dr Unit 122, ...".
+    # Condos and apartments become buildings: an address with any numbered unit, or several records
+    # on one lot at one address (how Orleans lists condo units: same lot and address, one tax bill
+    # each, no unit number). Its address page lists the units; every unit (and any lot or
+    # common-area parcel there) gets its own page by parcel number. Keyed by parish, so the same
+    # address text in Jefferson and Orleans never merges.
+    on_lot: dict[tuple, int] = {}
     for parcel in parcels:
         parcel["_building"], parcel["_unit"] = queries.split_unit(
             parcel.get("site_address_norm"), parcel.get("legal_description")
         )
-    unit_buildings = {p["_building"] for p in parcels if p["_unit"] and p["_building"]}
-    buildings: dict[str, dict] = {}
+        if parcel["_building"] and parcel.get("lat") is not None:
+            spot = (parcel["parish"], parcel["_building"], round(parcel["lat"], 6), round(parcel["lng"], 6))
+            on_lot[spot] = on_lot.get(spot, 0) + 1
+    unit_buildings = {(p["parish"], p["_building"]) for p in parcels if p["_unit"] and p["_building"]}
+    unit_buildings |= {(parish, addr) for (parish, addr, _, _), n in on_lot.items() if n > 1}
+    buildings: dict[tuple, dict] = {}
     written: set[str] = set()
     shards: dict[str, list] = {}
     near: dict[str, list] = {}
@@ -170,7 +177,8 @@ def export_properties(con) -> int:
     pids: dict[str, list] = {}
     for parcel in parcels:
         building_addr, unit = parcel.pop("_building"), parcel.pop("_unit")
-        in_building = building_addr in unit_buildings
+        key = (parcel["parish"], building_addr)
+        in_building = key in unit_buildings
         addr = building_addr if in_building else (parcel.get("site_address_norm") or "").strip()
         slug = queries.slugify(addr) if addr else ""
         # The first parcel at an address owns its address page and its spot on the map. The rest
@@ -187,7 +195,7 @@ def export_properties(con) -> int:
             parcel["full_address"] = queries.unit_address(building_full, unit) if unit else building_full
             parcel["unit"] = unit
             b = buildings.setdefault(
-                addr, {"address": addr, "full": building_full, "parcel": parcel, "units": []}
+                key, {"address": addr, "full": building_full, "parcel": parcel, "units": []}
             )
             b["units"].append(
                 {
@@ -195,6 +203,9 @@ def export_properties(con) -> int:
                     "parcel_id": parcel["parcel_id"],
                     "full": parcel["full_address"],
                     "assessed_val": parcel.get("assessed_val"),
+                    # Units the roll doesn't number are told apart by tax bill and owner.
+                    "tax_bill": parcel.get("tax_bill_number"),
+                    "owner": parcel.get("owner_name"),
                 }
             )
         else:
@@ -212,7 +223,7 @@ def export_properties(con) -> int:
             # go by parcel number.
             data["lookup"] = f"Parcel {parcel['parcel_id']}"
         if in_building:
-            data["building"] = {"address": addr, "full": buildings[addr]["full"]}
+            data["building"] = {"address": addr, "full": buildings[key]["full"]}
         write_json(prop_dir / f"{slug}.json", data, compact=True)
         label = parcel["full_address"] or queries.parcel_label(parcel)
         pids.setdefault(pid_key(parcel["parcel_id"]), []).append([parcel["parcel_id"], slug, label])
@@ -240,11 +251,16 @@ def export_properties(con) -> int:
             near.setdefault(near_key(parcel["lat"], parcel["lng"]), []).append(queries.nearby_entry(parcel))
 
     # Building pages: the address opens a list of its units.
-    for addr, b in buildings.items():
+    for (parish, addr), b in buildings.items():
         slug = queries.slugify(addr)
+        if slug in written:  # the same address text is a house in the other parish
+            slug = f"{slug}-{parish}"
         written.add(slug)
+        b["slug"] = slug
         first = b.pop("parcel")
-        units = sorted(b["units"], key=lambda u: _natural(u["unit"] or ""))
+        units = sorted(
+            b["units"], key=lambda u: (_natural(u["unit"] or ""), u["tax_bill"] or "", u["parcel_id"])
+        )
         write_json(
             prop_dir / f"{slug}.json",
             {
@@ -258,7 +274,9 @@ def export_properties(con) -> int:
             },
             compact=True,
         )
-        n_units = sum(1 for u in units if u["unit"])
+        # Numbered units if the roll numbers them (a lot or common-area record isn't a unit);
+        # otherwise every record on the lot is one.
+        n_units = sum(1 for u in units if u["unit"]) or len(units)
         shards.setdefault(shard_key(addr), []).append(
             {"address": addr, "full": b["full"], "slug": slug, "units": n_units}
         )
