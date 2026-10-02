@@ -52,7 +52,9 @@ jobs:
         working-directory: frontend
         env:
           VITE_STATIC_DATA: "true"
-          VITE_BASE: "/${{ github.event.repository.name }}/"
+          # Relative asset paths: the same build works at nolaatlas.com/ and at the github.io
+          # project path, so switching domains never serves a page whose assets 404.
+          VITE_BASE: "./"
       - uses: actions/upload-pages-artifact@v5
         with:
           path: frontend/dist
