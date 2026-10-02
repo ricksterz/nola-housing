@@ -85,8 +85,35 @@ export function getMacroIndex() {
 // A suggestion/lookup key is always the plain street address — city/state/zip is display-only
 // (in `.full`) and never round-tripped into a query, so a full formatted address pasted back
 // in (e.g. after picking a suggestion, then hitting Search again) still matches.
+// Units: "apt 11B", "unit 122", "#203", "ste D" anywhere in what's typed (people put them after
+// the ZIP too), or a bare token after the street type ("600 Port of New Orleans Pl 11B"). Same
+// rules as backend/queries.py split_unit.
+const STREET_TYPES = "ST|AVE|AV|BLVD|BL|DR|RD|LN|PL|CT|WAY|HWY|PKWY|PKY|CIR|TER|ROW|SQ|WALK|LOOP|TRCE|PLZ|CV|EXPY|PT|XING|ALY|TRL|BND|PATH";
+const UNIT_WORD = /\s*(?:\b(?:UNIT|APT|APARTMENT|STE|SUITE)\b\.?|#)\s*([A-Z0-9][A-Z0-9-]*)/;
+const BARE_UNIT = new RegExp(`^(\\d+[A-Z]?\\s.*\\b(?:${STREET_TYPES})\\b)\\s+([A-Z]?\\d+[A-Z]?(?:-\\d*[A-Z]?)?)$`);
+const isUnitToken = (t) => /\d/.test(t) || /^[A-Z]$/.test(t);
+
+/** "600 Port of New Orleans Pl, New Orleans, LA 70130 apt 11B" -> { street: "600 PORT OF NEW ORLEANS PL", unit: "11B" } */
+export function parseAddress(q) {
+  let text = (q || "").toUpperCase().replace(/\s+/g, " ").trim();
+  let unit = null;
+  const m = UNIT_WORD.exec(text);
+  if (m && m.index > 0 && isUnitToken(m[1])) {
+    unit = m[1];
+    text = `${text.slice(0, m.index)} ${text.slice(m.index + m[0].length)}`.replace(/\s+/g, " ").trim();
+  }
+  let street = text.split(",")[0].trim();
+  if (!unit) {
+    const b = BARE_UNIT.exec(street);
+    if (b) [street, unit] = [b[1], b[2]];
+  }
+  return { street, unit };
+}
+
+const normUnit = (u) => String(u || "").toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^0+(?=\d)/, "");
+
 function streetOnly(address) {
-  return address.split(",")[0].trim().toUpperCase().replace(/\s+/g, " ");
+  return parseAddress(address).street;
 }
 
 // The address list (133k+ entries, multiple MB) is sharded by its first 3 characters at build
@@ -104,7 +131,9 @@ function getAddressShard(prefix) {
 // A parcel number typed as a search: 7+ digits (house numbers stop at 5), optionally written
 // "Parcel 0820015268" or with dashes. Same rule as backend/queries.py parcel_query.
 export function parcelQuery(q) {
-  const m = /^(?:PARCEL#?)?(\d{7,})$/.exec(streetOnly(q || "").replace(/[\s-]/g, ""));
+  // Read before unit parsing, so "Parcel #0820015268" isn't taken for unit "0820015268". Some
+  // Jefferson parcel numbers end in a letter ("0820008042A").
+  const m = /^(?:PARCEL)?(\d{7,}[A-Z]{0,2})$/.exec((q || "").split(",")[0].toUpperCase().replace(/[\s#-]/g, ""));
   return m ? m[1] : null;
 }
 
@@ -175,12 +204,21 @@ export async function suggestAddresses(q) {
   if (needle.length < 3) return [];
   if (!/^\d/.test(needle)) return suggestStreets(needle);
   if (IS_STATIC) {
+    const { unit } = parseAddress(q);
     const shard = await getAddressShard(needle);
-    // A second parcel at an address carries its parcel ID: look that up, and say which one it is.
-    return shard
-      .filter((a) => a.address.startsWith(needle))
+    // Buildings first, then their units in order; a unit typed narrows to matching units.
+    const rank = (a) => (a.units ? 0 : a.unit ? 2 : 1);
+    let hits = shard.filter((a) => a.address.startsWith(needle));
+    if (unit) hits = hits.filter((a) => a.unit && normUnit(a.unit).startsWith(normUnit(unit)));
+    return hits
+      .sort((a, b) => a.address.localeCompare(b.address) || rank(a) - rank(b) || naturalCompare(a.unit, b.unit))
       .slice(0, 8)
-      .map((a) => (a.parcel ? { ...a, address: a.parcel, sub: `Parcel ${a.parcel}` } : a));
+      .map((a) => {
+        if (a.units) return { ...a, sub: `${a.units} unit${a.units === 1 ? "" : "s"} on record` };
+        // A unit or a second parcel at an address carries its parcel ID: look that up.
+        if (a.parcel) return { ...a, address: a.parcel, sub: a.unit ? null : `Parcel ${a.parcel}` };
+        return a;
+      });
   }
   const r = await get(`/api/property/suggest?q=${encodeURIComponent(q)}`);
   return r.suggestions;
@@ -222,6 +260,21 @@ function lookupMiss(street, nearby) {
   return Object.assign(new Error(message), { nearby });
 }
 
+function naturalCompare(a, b) {
+  return String(a || "").localeCompare(String(b || ""), undefined, { numeric: true, sensitivity: "base" });
+}
+
+/** One unit of a building: its own page, or a miss listing the units that are on record. */
+async function unitInBuilding(building, unit) {
+  const hit = building.units.find((u) => u.unit && normUnit(u.unit) === normUnit(unit));
+  if (hit) return getPropertyLookup(`Parcel ${hit.parcel_id}`);
+  const street = building.full.split(",")[0];
+  const listed = building.units.filter((u) => u.unit).slice(0, 12);
+  throw Object.assign(new Error(`No unit ${unit} on record at ${street}. Units on record:`), {
+    nearby: listed.map((u) => ({ address: `Parcel ${u.parcel_id}`, full: `Unit ${u.unit}` })),
+  });
+}
+
 export async function getPropertyLookup(address) {
   const pid = parcelQuery(address);
   if (pid) {
@@ -230,18 +283,19 @@ export async function getPropertyLookup(address) {
     if (hit) return getStatic(`property/${hit[1]}.json`);
     throw new Error(`No parcel or tax bill numbered ${pid}. Jefferson parcel numbers are 10 digits; Orleans tax bills are 9.`);
   }
-  const needle = streetOnly(address);
+  const { street: needle, unit } = parseAddress(address);
   if (IS_STATIC) {
-    try {
-      return await getStatic(`property/${slugify(needle)}.json`);
-    } catch {
+    let doc = await getStatic(`property/${slugify(needle)}.json`).catch(() => null);
+    if (!doc) {
       const shard = await getAddressShard(needle);
-      const match = shard.find((a) => a.address.startsWith(needle)) || shard.find((a) => a.address.includes(needle));
-      if (match) return getStatic(`property/${match.slug}.json`);
-      const parts = splitHouseNumber(needle);
-      const street = parts ? await getStatic(`street/${slugify(parts[1])}.json`).catch(() => []) : [];
-      throw lookupMiss(address.split(",")[0].trim(), parts ? closestOnStreet(street, parts[0]) : []);
+      const match = shard.find((a) => a.address.startsWith(needle) && !a.parcel) || shard.find((a) => a.address.includes(needle) && !a.parcel);
+      if (match) doc = await getStatic(`property/${match.slug}.json`);
     }
+    if (doc?.building && unit) return unitInBuilding(doc.building, unit);
+    if (doc) return doc;
+    const parts = splitHouseNumber(needle);
+    const street = parts ? await getStatic(`street/${slugify(parts[1])}.json`).catch(() => []) : [];
+    throw lookupMiss(address.split(",")[0].trim(), parts ? closestOnStreet(street, parts[0]) : []);
   }
   return get(`/api/property/lookup?address=${encodeURIComponent(needle)}`);
 }

@@ -17,6 +17,10 @@ on:
     - cron: "0 6 1-20 8 *"   # Orleans window closes Aug 15 (+5 days for final values)
     - cron: "0 6 15-31 8 *"  # Jefferson inspection period opens Aug 15
     - cron: "0 6 1-30 9 *"   # Jefferson certification
+    # Orleans, weekly all year: the City's ParcelSearch layer (owners, tax bills, condo units) has
+    # been down since late Sep 2026. Until it answers, Orleans stays on the data.nola.gov land map;
+    # the first run after it recovers replaces that with the full records, with nobody watching.
+    - cron: "0 7 * * 1"      # Mondays 07:00 UTC
   workflow_dispatch:
     inputs:
       parish:
@@ -77,19 +81,26 @@ jobs:
           ASSESSOR_CONTACT: ${{ secrets.ASSESSOR_CONTACT }}
           ASSESSOR_SEED_FILE: ${{ vars.ASSESSOR_SEED_FILE }}
           ASSESSOR_MAX_REQUESTS_PER_RUN: ${{ vars.ASSESSOR_MAX_REQUESTS_PER_RUN || '5000' }}
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          PARISH: ${{ github.event.inputs.parish }}
+          TAX_YEAR: ${{ github.event.inputs.tax_year }}
+          MAX_RECORDS: ${{ github.event.inputs.max_records }}
         run: |
           ARGS=""
-          if [ "${{ github.event_name }}" = "schedule" ]; then
+          if [ "$EVENT" = "schedule" ] && [ "$SCHEDULE" = "0 7 * * 1" ]; then
+            ARGS="--parish orleans"
+          elif [ "$EVENT" = "schedule" ]; then
             ARGS="--auto"
-          elif [ "${{ github.event.inputs.parish }}" != "both" ] && [ -n "${{ github.event.inputs.parish }}" ]; then
-            ARGS="--parish ${{ github.event.inputs.parish }}"
+          elif [ "$PARISH" != "both" ] && [ -n "$PARISH" ]; then
+            ARGS="--parish $PARISH"
           fi
-          [ -n "${{ github.event.inputs.tax_year }}" ] && ARGS="$ARGS --tax-year ${{ github.event.inputs.tax_year }}"
-          [ -n "${{ github.event.inputs.max_records }}" ] && ARGS="$ARGS --max-records ${{ github.event.inputs.max_records }}"
+          [ -n "$TAX_YEAR" ] && ARGS="$ARGS --tax-year $TAX_YEAR"
+          [ -n "$MAX_RECORDS" ] && ARGS="$ARGS --max-records $MAX_RECORDS"
           python -m etl.refresh_assessor $ARGS
 
       - name: Publish the database if it changed
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PARISH: ${{ github.event_name == 'schedule' && 'scheduled' || github.event.inputs.parish }}
+          PARISH: ${{ github.event.schedule == '0 7 * * 1' && 'orleans weekly' || github.event_name == 'schedule' && 'scheduled' || github.event.inputs.parish }}
         run: python -m etl.db_store publish --before "$RUNNER_TEMP/before.duckdb" --notes "Assessor refresh ($PARISH)"
