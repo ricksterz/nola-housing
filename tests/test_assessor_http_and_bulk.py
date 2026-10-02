@@ -296,3 +296,20 @@ def test_lot_area_from_acres():
     kept = {"land_area": 5000, "land_acres": "1"}
     bulk.lot_area_from_acres(kept)
     assert kept == {"land_area": 5000}  # a real square-footage field wins
+
+
+def test_fetch_arcgis_rides_out_gateway_timeouts(fake_http):
+    from tests.conftest import FakeResponse
+
+    calls = {"n": 0}
+
+    def slow_gateway(url, params):
+        calls["n"] += 1
+        if calls["n"] <= 2:  # the City's gateway gives up on slow pages with a 504
+            return FakeResponse(url, 504, "<html>Gateway Timeout</html>")
+        return FakeResponse(url, 200, _orleans_page([_orleans_feature("41033176")]), "application/json")
+
+    sleeps = []
+    session = _session(fake_http({"https://gis.test/O/0": slow_gateway}), sleep=sleeps.append, max_retries=0)
+    recs = bulk.fetch_arcgis("https://gis.test/O/0", session, "orleans", "22071", ORLEANS_MAP, page_size=500)
+    assert len(recs) == 1 and sleeps == [30.0, 60.0]  # the long page-level waits, not quick retries
