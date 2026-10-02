@@ -92,7 +92,7 @@ python -m etl.build_db --db /tmp/smoke.duckdb --skip-assessor
 
 ## App (backend + frontend)
 
-**NOLA Housing Pulse** is the New Orleans–Metairie counterpart of heightscomps.com, on the same stack (FastAPI
+**NOLA Atlas** ([nolaatlas.com](https://nolaatlas.com)) is the New Orleans–Metairie counterpart of heightscomps.com, on the same stack (FastAPI
 over DuckDB; Vite + React + recharts; static export for GitHub Pages) with a
 wider feature set:
 
@@ -118,7 +118,7 @@ cd frontend && npm install && npm run dev
 
 # Static site (GitHub Pages / previews): bake JSON, then build
 python -m etl.export_static
-cd frontend && VITE_STATIC_DATA=true npm run build   # add VITE_BASE=/nola-housing/ for Pages
+cd frontend && VITE_STATIC_DATA=true npm run build   # Pages builds use VITE_BASE=./ (relative)
 ```
 
 `etl/export_static.py` writes `frontend/public/data/` (meta, macro, scorecard,

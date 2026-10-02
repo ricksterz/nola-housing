@@ -94,13 +94,13 @@ export default function App() {
             </div>
             <h1 className="app-title">
               <a className="app-title-link" href={window.location.pathname} onClick={goHome} title="Home">
-                NOLA Housing Pulse<span className="accent">.</span>
+                NOLA Atlas<span className="accent">.</span>
               </a>
             </h1>
+            <p className="app-tagline">Every address in New Orleans and Metairie, explained.</p>
             <p className="app-subtitle">
-              Home values, rents, market velocity and parcel records for <b>Metairie</b>, <b>Old Metairie</b> and{" "}
-              <b>New Orleans</b> — every ZIP across Jefferson and Orleans Parish, from the parish assessors,
-              Redfin, Zillow and FRED.
+              Flood risk, the true monthly cost, how an assessment compares and the market around it, for every parcel
+              in <b>Jefferson</b> and <b>Orleans</b> Parish, from public records.
             </p>
           </div>
         </header>

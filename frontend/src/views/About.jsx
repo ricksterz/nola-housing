@@ -20,10 +20,11 @@ export default function About({ ctx }) {
   return (
     <div>
       <div className="panel">
-        <h3 className="panel-title">About NOLA Housing Pulse</h3>
+        <h3 className="panel-title">About NOLA Atlas</h3>
         <p className="text-block">
-          NOLA Housing Pulse is a free, independent reference for home values, rents and market trends across Metairie,
-          Old Metairie and New Orleans — every residential ZIP in Jefferson and Orleans Parish. It is built by a
+          NOLA Atlas is a free, independent reference for every address in New Orleans and Metairie: flood risk, the
+          true monthly cost of owning, how an assessment compares, and home values, rents and market trends for every
+          residential ZIP in Jefferson and Orleans Parish. It is built by a
           local resident, not a brokerage, on public data, and refreshes automatically: market feeds monthly, parcel
           records on each parish assessor's calendar.
         </p>
