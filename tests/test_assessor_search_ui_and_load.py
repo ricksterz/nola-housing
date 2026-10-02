@@ -389,3 +389,59 @@ def test_fallback_never_replaces_a_fuller_load(con, fake_http, raw_dir, monkeypa
     assert con.execute("SELECT source_kind, owner_name FROM assessor_parcels_raw").fetchall() == [
         ("bulk:arcgis", "GRUNEWALD GEORGE II")
     ]
+
+
+def test_orleans_requests_all_fields_and_keys_condo_units_by_tax_bill(con, fake_http, raw_dir, monkeypatch):
+    # The republished ParcelSearch rejects named outFields; units share a lot (PARCELID) and an
+    # address and differ only by tax bill.
+    unit = {"PARCELID": "41212159", "SITEADDRESS": "1 POYDRAS ST, LA, 70130", "OWNERNME2": None}
+    rows = json.dumps(
+        {
+            "features": [
+                {
+                    "attributes": {**unit, "TAXBILLID": "103109611", "OWNERNME1": "STEEG ROBERT M"},
+                    "geometry": {"x": -90.06, "y": 29.95},
+                },
+                {
+                    "attributes": {**unit, "TAXBILLID": "103109620", "OWNERNME1": "GUIDRY WEST LLC"},
+                    "geometry": {"x": -90.06, "y": 29.95},
+                },
+            ]
+        }
+    )
+    asked = []
+
+    def arc(url, params):
+        if not url.endswith("/query"):
+            return FakeResponse(url, 200, ARC_LAYER, "application/json")
+        asked.append(params.get("outFields"))
+        if params.get("returnCountOnly"):
+            return FakeResponse(url, 200, '{"count": 2}', "application/json")
+        return FakeResponse(url, 200, rows, "application/json")
+
+    monkeypatch.setitem(
+        config.ASSESSOR_SOURCES["orleans"],
+        "bulk_candidates",
+        [
+            {
+                "kind": "arcgis",
+                "url": ARC,
+                **{
+                    k: config.ASSESSOR_SOURCES["orleans"]["bulk_candidates"][0][k]
+                    for k in ("out_fields", "field_overrides")
+                },
+            }
+        ],
+    )
+    s = PoliteSession(session=fake_http({ARC: arc}), min_interval=0, sleep=lambda _: None)
+    load_assessor.load_parish(con, "orleans", session=s, tax_year=2026)
+    assert "*" in asked
+    got = con.execute(
+        "SELECT parcel_id, tax_bill_number, site_address, owner_name, payload"
+        " FROM assessor_parcels_raw ORDER BY 1"
+    ).fetchall()
+    assert [r[:4] for r in got] == [
+        ("103109611", "103109611", "1 POYDRAS ST", "STEEG ROBERT M"),
+        ("103109620", "103109620", "1 POYDRAS ST", "GUIDRY WEST LLC"),
+    ]
+    assert '"lot_id": "41212159"' in got[0][4]  # the shared lot is kept with each unit
