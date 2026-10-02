@@ -106,7 +106,14 @@ def _fetch_bulk(cand: dict, probe, session, parish: str, fips: str, max_records:
     pulled: dict = {}
     if probe.kind == "arcgis":
         records = bulk.fetch_arcgis(
-            cand["url"], session, parish, fips, probe.field_map, max_records=max_records, stats=pulled
+            cand["url"],
+            session,
+            parish,
+            fips,
+            {**probe.field_map, **cand.get("field_overrides", {})},
+            max_records=max_records,
+            stats=pulled,
+            out_fields=cand.get("out_fields"),
         )
     else:
         records = bulk.fetch_socrata(

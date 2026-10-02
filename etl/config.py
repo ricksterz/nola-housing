@@ -256,6 +256,18 @@ ASSESSOR_SOURCES = {
                     "ORLEANS_ARCGIS_PARCELS_URL",
                     "https://gis.nola.gov/arcgis/rest/services/ParcelSearch/MapServer/0",
                 ),
+                # Since the City republished the layer (Sep 2026), any query naming fields fails
+                # ("Failed to execute query") while outFields=* works. It has no mailing-address
+                # fields, so asking for everything stores nothing extra.
+                "out_fields": "*",
+                # Condo units are separate rows sharing one lot (PARCELID) and one address, told
+                # apart only by tax bill, so the tax bill is the record's key: keyed by lot, every
+                # unit in a building would collapse into one.
+                "field_overrides": {
+                    "parcel_id": "TAXBILLID",
+                    "tax_bill_number": "TAXBILLID",
+                    "lot_id": "PARCELID",
+                },
             },
             {
                 # Fallback while ParcelSearch is down: data.nola.gov "Parcels" (~151k rows) has

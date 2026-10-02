@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
-import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, parcelQuery, suggestAddresses, suggestStreets } from "../api";
+import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, parcelQuery, suggestAddresses, suggestStreets, unitRecordLabel } from "../api";
 import ChartPanel from "../components/ChartPanel";
 import AssessmentComparison from "../components/AssessmentComparison";
 import { CostInputs } from "../components/MonthlyCost";
@@ -238,8 +238,8 @@ export default function Property({ ctx }) {
           {error.nearby.length > 0 && (
             <div className="btn-row" style={{ marginTop: 10, marginBottom: 0 }}>
               {error.nearby.map((a) => (
-                <button key={a.address} type="button" className="btn" onClick={() => pick(a)}>
-                  {a.full.split(",")[0]}
+                <button key={a.address} type="button" className="btn" onClick={() => pick({ ...a, full: a.full || a.label })}>
+                  {a.label || a.full.split(",")[0]}
                 </button>
               ))}
             </div>
@@ -248,7 +248,7 @@ export default function Property({ ctx }) {
       )}
 
       {showStreet && <StreetList street={street} onPick={pickNearby} />}
-      {showParcel && data.building && !data.parcel && <BuildingView building={data.building} onPick={pickNearby} />}
+      {showParcel && data.building && !data.parcel && <BuildingView building={data.building} notice={data.notice} onPick={pickNearby} />}
       {showParcel && data.parcel && <ParcelCard data={data} trend={trend} theme={theme} navigate={navigate} macro={macro} scorecard={scorecard} onPick={pickNearby} floodlensSummary={meta?.floodlens} />}
     </div>
   );
@@ -266,7 +266,7 @@ function blockLabel(block) {
 
 // A condo or apartment building: every unit on record at one address (and any lot or common-area
 // parcel there), each opening its own page.
-function BuildingView({ building, onPick }) {
+function BuildingView({ building, notice, onPick }) {
   const units = building.units.filter((u) => u.unit);
   const other = building.units.filter((u) => !u.unit);
   const [street, ...rest] = building.full.split(",");
@@ -275,21 +275,41 @@ function BuildingView({ building, onPick }) {
       <div className="parcel-header">
         <div>
           <div className="parcel-address">{building.full}</div>
-          <div className="parcel-sub">{`${building.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · ${units.length} unit${units.length === 1 ? "" : "s"} on record`}</div>
+          <div className="parcel-sub">{`${building.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · ${(units.length || other.length).toLocaleString()} unit${(units.length || other.length) === 1 ? "" : "s"} on record`}</div>
         </div>
         <div className="parcel-actions">
           <CopyLinkButton address={building.full} />
         </div>
       </div>
-      <div className="stat-section-title">Units at {street}</div>
-      <div className="street-numbers">
-        {units.map((u) => (
-          <button key={u.parcel_id} type="button" className="btn street-number" title={u.full} onClick={() => onPick(`Parcel ${u.parcel_id}`)}>
-            {`Unit ${u.unit}`}
-          </button>
-        ))}
-      </div>
-      {other.length > 0 && (
+      {notice && <div className="stat-note" style={{ margin: "0 0 10px", color: "var(--text)" }}>{notice}</div>}
+      {units.length > 0 ? (
+        <>
+          <div className="stat-section-title">Units at {street}</div>
+          <div className="street-numbers">
+            {units.map((u) => (
+              <button key={u.parcel_id} type="button" className="btn street-number" title={u.full} onClick={() => onPick(`Parcel ${u.parcel_id}`)}>
+                {`Unit ${u.unit}`}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="stat-section-title">{`${other.length} units at ${street}`}</div>
+          {!notice && <div className="stat-note" style={{ marginBottom: 6 }}>The City's records don't number these units; each is its own tax bill. Pick yours by owner or tax bill.</div>}
+          <ul className="nearby-list">
+            {other.map((u) => (
+              <li key={u.parcel_id}>
+                <button type="button" className="nearby-item" onClick={() => onPick(`Parcel ${u.parcel_id}`)}>
+                  <span className="nearby-street">{unitRecordLabel(u).split(" · ")[0]}</span>
+                  <span className="nearby-sub">{unitRecordLabel(u).split(" · ").slice(1).join(" · ") || "Owner not listed"}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {units.length > 0 && other.length > 0 && (
         <>
           <div className="stat-section-title" style={{ marginTop: 16 }}>Also at this address</div>
           <div className="street-numbers">
@@ -696,7 +716,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
           <div>
             <div className="parcel-address">{address}</div>
             <div className="parcel-sub">
-              {`${p.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · ${hasAddress ? `Parcel ${p.parcel_id}` : `No street address listed${p.city ? ` · ${p.city}` : ""}`}`}
+              {`${p.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · ${p.tax_bill_number && p.tax_bill_number === p.parcel_id ? "Tax bill" : "Parcel"} ${p.parcel_id}${hasAddress ? "" : ` · No street address listed${p.city ? ` · ${p.city}` : ""}`}`}
             </div>
           </div>
           <div className="parcel-actions">

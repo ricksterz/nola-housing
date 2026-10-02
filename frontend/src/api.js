@@ -260,18 +260,30 @@ function lookupMiss(street, nearby) {
   return Object.assign(new Error(message), { nearby });
 }
 
+/** "Tax bill 103109611 · Steeg Robert M" for a unit the roll doesn't number. */
+export function unitRecordLabel(u) {
+  const owner = (u.owner || "").replace(/\s*,\s*/g, ", ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  return [u.tax_bill ? `Tax bill ${u.tax_bill}` : `Parcel ${u.parcel_id}`, owner].filter(Boolean).join(" · ");
+}
+
 function naturalCompare(a, b) {
   return String(a || "").localeCompare(String(b || ""), undefined, { numeric: true, sensitivity: "base" });
 }
 
 /** One unit of a building: its own page, or a miss listing the units that are on record. */
-async function unitInBuilding(building, unit) {
+async function unitInBuilding(doc, unit) {
+  const { building } = doc;
   const hit = building.units.find((u) => u.unit && normUnit(u.unit) === normUnit(unit));
   if (hit) return getPropertyLookup(`Parcel ${hit.parcel_id}`);
   const street = building.full.split(",")[0];
-  const listed = building.units.filter((u) => u.unit).slice(0, 12);
+  const numbered = building.units.filter((u) => u.unit);
+  if (!numbered.length) {
+    // Orleans lists condo units as records on one lot with no unit numbers: open the building,
+    // where every record is listed by owner and tax bill, and say why the unit wasn't matched.
+    return { ...doc, notice: `The City's records don't number the units at ${street}, so unit ${unit} can't be matched directly. Pick yours by owner or tax bill below.` };
+  }
   throw Object.assign(new Error(`No unit ${unit} on record at ${street}. Units on record:`), {
-    nearby: listed.map((u) => ({ address: `Parcel ${u.parcel_id}`, full: `Unit ${u.unit}` })),
+    nearby: numbered.slice(0, 12).map((u) => ({ address: `Parcel ${u.parcel_id}`, label: `Unit ${u.unit}` })),
   });
 }
 
@@ -291,7 +303,7 @@ export async function getPropertyLookup(address) {
       const match = shard.find((a) => a.address.startsWith(needle) && !a.parcel) || shard.find((a) => a.address.includes(needle) && !a.parcel);
       if (match) doc = await getStatic(`property/${match.slug}.json`);
     }
-    if (doc?.building && unit) return unitInBuilding(doc.building, unit);
+    if (doc?.building && unit) return unitInBuilding(doc, unit);
     if (doc) return doc;
     const parts = splitHouseNumber(needle);
     const street = parts ? await getStatic(`street/${slugify(parts[1])}.json`).catch(() => []) : [];

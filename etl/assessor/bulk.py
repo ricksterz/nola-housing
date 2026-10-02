@@ -282,15 +282,19 @@ def fetch_arcgis(
     where: str = "1=1",
     max_records: int | None = None,
     stats: dict | None = None,
+    out_fields: str | None = None,
 ) -> list[ParcelRecord]:
     """Page through an ArcGIS layer; returns ParcelRecords with WGS84 centroid lat/lng.
+    ``out_fields`` overrides the requested field list (e.g. "*" for a layer that rejects named
+    fields); stored raw attributes are still limited to the mapped fields.
 
     ``stats["features"]`` is set to the number of features read, including ones skipped for
     having no parcel ID, so callers can check the pull against the layer's record count."""
     out: list[ParcelRecord] = []
     offset = 0
     seen = 0
-    out_fields = ",".join(sorted(set(field_map.values())))
+    wanted = set(field_map.values())
+    out_fields = out_fields or ",".join(sorted(wanted))
     while True:
         page = _arcgis_page(
             session,
@@ -311,7 +315,7 @@ def fetch_arcgis(
         if stats is not None:
             stats["features"] = seen
         for feat in features:
-            attrs = feat.get("attributes", {})
+            attrs = {k: v for k, v in feat.get("attributes", {}).items() if k in wanted}
             mapped = {target: attrs.get(src) for target, src in field_map.items()}
             if "co_owner_line" in field_map:
                 mapped["owner_name"] = join_co_owner(mapped.get("owner_name"), mapped.pop("co_owner_line"))
