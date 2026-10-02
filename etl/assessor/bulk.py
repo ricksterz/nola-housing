@@ -11,6 +11,8 @@ import logging
 import re
 from dataclasses import dataclass
 
+import requests
+
 from .base import ParcelRecord, map_aliases, record_from_mapping
 from .http import PoliteSession
 
@@ -251,20 +253,27 @@ ARCGIS_RETRY_SECONDS = 30.0
 
 
 def _arcgis_page(session: PoliteSession, url: str, params: dict, cache_key: str) -> dict:
-    """One query page. ArcGIS reports a failed query as HTTP 200 with an "error" body, so those are
-    retried with a growing wait and then raised: a bad page must never read as the end of the
-    layer, or a refresh would replace a whole parish with the pages before it."""
+    """One query page. ArcGIS reports a failed query as HTTP 200 with an "error" body, and a slow
+    server's gateway answers 504 or drops the connection; all of those are retried with a growing
+    wait and then raised: a bad page must never read as the end of the layer, or a refresh would
+    replace a whole parish with the pages before it."""
     delay = ARCGIS_RETRY_SECONDS
     for attempt in range(ARCGIS_PAGE_RETRIES + 1):
-        page = session.get_json(url, params=params, cache_key=cache_key)
-        if not isinstance(page, dict) or "error" not in page:
+        try:
+            page = session.get_json(url, params=params, cache_key=cache_key)
+            problem = page.get("error") if isinstance(page, dict) else None
+        except (
+            requests.RequestException
+        ) as e:  # 504s, timeouts, resets (after the session's own quick retries)
+            page, problem = None, str(e)
+        if page is not None and not problem:
             return page
         if attempt == ARCGIS_PAGE_RETRIES:
-            raise ArcgisQueryFailed(f"{url} at offset {params.get('resultOffset')}: {page['error']}")
+            raise ArcgisQueryFailed(f"{url} at offset {params.get('resultOffset')}: {problem}")
         log.warning(
             "ArcGIS query failed at offset %s (%s); retrying in %.0fs",
             params.get("resultOffset"),
-            page["error"],
+            problem,
             delay,
         )
         session._sleep(delay)
