@@ -313,3 +313,43 @@ def test_fetch_arcgis_rides_out_gateway_timeouts(fake_http):
     session = _session(fake_http({"https://gis.test/O/0": slow_gateway}), sleep=sleeps.append, max_retries=0)
     recs = bulk.fetch_arcgis("https://gis.test/O/0", session, "orleans", "22071", ORLEANS_MAP, page_size=500)
     assert len(recs) == 1 and sleeps == [30.0, 60.0]  # the long page-level waits, not quick retries
+
+
+def test_fetch_arcgis_resumes_from_recently_saved_pages(fake_http, tmp_path):
+    """A pull that ran out of time is finished by the next run without re-querying good pages;
+    error bodies and stale pages are queried again."""
+    import os
+
+    from tests.conftest import FakeResponse
+
+    asked = []
+
+    def server(failing_offsets):
+        def handler(url, params):
+            off = params["resultOffset"]
+            asked.append(off)
+            if off in failing_offsets:
+                return FakeResponse(url, 200, _orleans_page([], {"code": 400}), "application/json")
+            feats = [_orleans_feature(f"4103317{off}")] if off < 2 else []
+            return FakeResponse(url, 200, _orleans_page(feats), "application/json")
+
+        return {"https://gis.test/O/0": handler}
+
+    def pull(failing):
+        session = _session(fake_http(server(failing)), raw_dir=tmp_path)
+        return bulk.fetch_arcgis(
+            "https://gis.test/O/0", session, "orleans", "22071", ORLEANS_MAP, page_size=1, resume_seconds=3600
+        )
+
+    with pytest.raises(bulk.ArcgisQueryFailed):  # the first run gets page 0, then page 1 never answers
+        pull({1})
+    asked.clear()
+    recs = pull(set())
+    assert asked == [1, 2]  # page 0 came from the saved copy; page 1's error body was not reused
+    assert [r.parcel_id for r in recs] == ["41033170", "41033171"]
+
+    old = tmp_path / "orleans" / "arcgis_page_0.json"
+    os.utime(old, (old.stat().st_mtime - 7200,) * 2)
+    asked.clear()
+    pull(set())
+    assert asked == [0]  # stale page 0 queried again; 1 and 2 were saved by the last run
