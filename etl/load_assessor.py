@@ -115,6 +115,7 @@ def _fetch_bulk(cand: dict, probe, session, parish: str, fips: str, max_records:
             stats=pulled,
             out_fields=cand.get("out_fields"),
             page_size=cand.get("page_size", 1000),
+            resume_seconds=cand.get("resume_hours", 0) * 3600 or None,
         )
     else:
         records = bulk.fetch_socrata(
