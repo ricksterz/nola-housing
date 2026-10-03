@@ -260,9 +260,10 @@ ASSESSOR_SOURCES = {
                 # ("Failed to execute query") while outFields=* works. It has no mailing-address
                 # fields, so asking for everything stores nothing extra.
                 "out_fields": "*",
-                # 1,000-row pages take ~57 s, right at the gateway's ~60 s limit (one 504'd at
-                # offset 95,000 on 2026-10-02); 500-row pages take ~30 s.
-                "page_size": 500,
+                # Every query costs ~57 s on this server whatever its size (500 rows, 1,000 rows,
+                # with or without geometry, even a record-ID range), so pages stay at its 1,000-row
+                # maximum: 162 queries. Gateway 504s are ridden out by the page-level retries.
+                "page_size": 1000,
                 # Condo units are separate rows sharing one lot (PARCELID) and one address, told
                 # apart only by tax bill, so the tax bill is the record's key: keyed by lot, every
                 # unit in a building would collapse into one.
