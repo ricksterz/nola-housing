@@ -9,6 +9,7 @@ requires re-fetching.
 """
 
 import hashlib
+import json
 import logging
 import tempfile
 import time
@@ -147,6 +148,19 @@ class PoliteSession:
         return resp.json()
 
     # -- raw landing --------------------------------------------------------
+    def cached_json(self, cache_key: str, max_age_seconds: float):
+        """A JSON body this key landed within ``max_age_seconds``, or None. Lets a long pull that
+        ran out of time resume from the pages an earlier run already fetched."""
+        if not self.raw_dir:
+            return None
+        path = self.raw_dir / (cache_key + ".json")
+        try:
+            if time.time() - path.stat().st_mtime > max_age_seconds:
+                return None
+            return json.loads(path.read_bytes())
+        except (OSError, ValueError):
+            return None
+
     def _cache(self, resp: requests.Response, cache_key: str | None) -> None:
         if not self.raw_dir:
             return

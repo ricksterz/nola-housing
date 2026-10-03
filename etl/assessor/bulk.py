@@ -252,11 +252,20 @@ ARCGIS_PAGE_RETRIES = 5
 ARCGIS_RETRY_SECONDS = 30.0
 
 
-def _arcgis_page(session: PoliteSession, url: str, params: dict, cache_key: str) -> dict:
+def _arcgis_page(
+    session: PoliteSession, url: str, params: dict, cache_key: str, resume_seconds: float | None = None
+) -> dict:
     """One query page. ArcGIS reports a failed query as HTTP 200 with an "error" body, and a slow
     server's gateway answers 504 or drops the connection; all of those are retried with a growing
     wait and then raised: a bad page must never read as the end of the layer, or a refresh would
-    replace a whole parish with the pages before it."""
+    replace a whole parish with the pages before it.
+
+    With ``resume_seconds``, a good page landed that recently (by an earlier run that ran out of
+    time) is reused instead of queried again."""
+    if resume_seconds:
+        cached = session.cached_json(cache_key, resume_seconds)
+        if isinstance(cached, dict) and "features" in cached and not cached.get("error"):
+            return cached
     delay = ARCGIS_RETRY_SECONDS
     for attempt in range(ARCGIS_PAGE_RETRIES + 1):
         try:
@@ -292,10 +301,13 @@ def fetch_arcgis(
     max_records: int | None = None,
     stats: dict | None = None,
     out_fields: str | None = None,
+    resume_seconds: float | None = None,
 ) -> list[ParcelRecord]:
     """Page through an ArcGIS layer; returns ParcelRecords with WGS84 centroid lat/lng.
     ``out_fields`` overrides the requested field list (e.g. "*" for a layer that rejects named
-    fields); stored raw attributes are still limited to the mapped fields.
+    fields); stored raw attributes are still limited to the mapped fields. ``resume_seconds``
+    reuses pages fetched that recently (see ``_arcgis_page``), so a slow layer can be pulled
+    across more than one run.
 
     ``stats["features"]`` is set to the number of features read, including ones skipped for
     having no parcel ID, so callers can check the pull against the layer's record count."""
@@ -318,6 +330,7 @@ def fetch_arcgis(
                 "f": "json",
             },
             cache_key=f"{parish}/arcgis_page_{offset}",
+            resume_seconds=resume_seconds,
         )
         features = page.get("features", [])
         seen += len(features)

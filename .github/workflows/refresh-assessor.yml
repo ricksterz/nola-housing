@@ -35,9 +35,14 @@ on:
         description: "Cap records per parish (smoke test); blank = no cap"
         required: false
         default: ""
+      continuation:
+        description: "Set by a run that ran out of time and started this one to finish it"
+        required: false
+        default: "0"
 
 permissions:
   contents: write
+  actions: write  # a run that runs out of time dispatches the run that finishes it
 
 # One refresh at a time across all three refresh workflows: each downloads the database, changes
 # it and publishes it back, so two running at once would overwrite each other's work.
@@ -65,7 +70,7 @@ jobs:
           cp etl/nola_housing.duckdb "$RUNNER_TEMP/before.duckdb"
 
       - name: Restore raw landing zone (HTML/JSON payloads from earlier runs)
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: etl/raw
           key: assessor-raw-${{ github.run_id }}
@@ -76,7 +81,11 @@ jobs:
           ASSESSOR_CONTACT: ${{ secrets.ASSESSOR_CONTACT }}
         run: python -m etl.probe_assessor_bulk
 
+      # Stops short of the job limit so the pages fetched so far are still saved below; the
+      # Orleans pull reuses a recent page instead of querying it again (config "resume_hours").
       - name: Refresh assessor data and rebuild the join
+        id: refresh
+        timeout-minutes: 320
         env:
           ASSESSOR_CONTACT: ${{ secrets.ASSESSOR_CONTACT }}
           ASSESSOR_SEED_FILE: ${{ vars.ASSESSOR_SEED_FILE }}
@@ -104,3 +113,30 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           PARISH: ${{ github.event.schedule == '0 7 * * 1' && 'orleans weekly' || github.event_name == 'schedule' && 'scheduled' || github.event.inputs.parish }}
         run: python -m etl.db_store publish --before "$RUNNER_TEMP/before.duckdb" --notes "Assessor refresh ($PARISH)"
+
+      - name: Save raw landing zone (also when the pull ran out of time)
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: etl/raw
+          key: assessor-raw-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # A pull that ran out of time is finished by a fresh run that reuses the pages saved above,
+      # at most twice in a row so a server that never answers can't chain runs forever.
+      - name: Start a run to finish the pull
+        if: failure() && steps.refresh.outcome == 'failure' && fromJSON(github.event.inputs.continuation || '0') < 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PARISH: ${{ github.event.schedule == '0 7 * * 1' && 'orleans' || github.event.inputs.parish || 'both' }}
+          CONTINUATION: ${{ github.event.inputs.continuation || '0' }}
+        run: |
+          # Only a pull that was getting somewhere: pages landed during this run.
+          if ! find etl/raw -name 'arcgis_page_*.json' -mmin -360 2>/dev/null | grep -q .; then
+            echo "No pages were fetched this run; nothing to resume."
+            exit 0
+          fi
+          NEXT=$((CONTINUATION + 1))
+          gh workflow run refresh-assessor.yml --ref "$GITHUB_REF_NAME" \
+            -f parish="$PARISH" -f continuation="$NEXT"
+          echo "::notice::Started continuation run $NEXT for $PARISH"
+
