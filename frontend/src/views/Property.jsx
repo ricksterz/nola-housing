@@ -147,6 +147,10 @@ export default function Property({ ctx }) {
       openStreet(a.slug);
       return;
     }
+    if (a.kind === "owner") {
+      navigate({ view: "ownership", owner: a.slug, q: null, street: null });
+      return;
+    }
     setAddress(a.full);
     search(a.address, { push: Boolean(url.street) });
   }
@@ -201,8 +205,8 @@ export default function Property({ ctx }) {
           onChange={(e) => onInput(e.target.value)}
           onFocus={() => suggestions.length > 0 && setSuggestOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Address, street name or parcel number"
-          aria-label="Address, street name or parcel number"
+          placeholder="Address, street, parcel # or organization"
+          aria-label="Address, street name, parcel number or organization"
           role="combobox"
           aria-expanded={suggestOpen}
           aria-controls="address-suggestions"
@@ -750,7 +754,17 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
     [
       "Ownership",
       [
-        { label: "Owner", value: p.owner_name ? ownerName(p.owner_name) : null, wide: true },
+        {
+          label: "Owner",
+          value: p.owner_name ? ownerName(p.owner_name) : null,
+          wide: true,
+          // Public bodies and organizations with other properties link to all of them; people don't.
+          note: data.owner && (
+            <button type="button" className="link-button" onClick={() => navigate({ view: "ownership", owner: data.owner.slug, q: null, street: null })}>
+              {`${data.owner.name} has ${(data.owner.count - 1).toLocaleString()} other propert${data.owner.count === 2 ? "y" : "ies"} on the rolls · See all`}
+            </button>
+          ),
+        },
         lastSale(p),
         { label: "Tax bill #", value: p.tax_bill_number || null },
       ],
