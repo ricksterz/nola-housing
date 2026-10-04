@@ -7,6 +7,7 @@ import About from "./views/About";
 import Compare from "./views/Compare";
 import Macro from "./views/Macro";
 import Overview from "./views/Overview";
+import Ownership from "./views/Ownership";
 import Property from "./views/Property";
 import Scorecard from "./views/Scorecard";
 
@@ -16,6 +17,7 @@ const VIEWS = [
   ["compare", "Compare"],
   ["macro", "Macro"],
   ["property", "Property Lookup"],
+  ["ownership", "Ownership"],
   ["about", "About"],
 ];
 
@@ -127,6 +129,7 @@ export default function App() {
           {view === "compare" && <Compare ctx={ctx} />}
           {view === "macro" && <Macro ctx={ctx} />}
           {view === "property" && <Property ctx={ctx} />}
+          {view === "ownership" && <Ownership ctx={ctx} />}
           {view === "about" && <About ctx={ctx} />}
         </ErrorBoundary>
       </div>

@@ -376,3 +376,14 @@ a { color: var(--blue); }
 .floodlens-note { margin-top: 12px; padding-top: 10px; border-top: 1px dashed color-mix(in srgb, var(--tone) 35%, var(--border)); }
 .floodlens-title { font-weight: 650; color: var(--text-bright); margin-bottom: 2px; }
 .floodlens-note--top .floodlens-title { color: var(--red); }
+
+/* Ownership: stacked share bars with a legend under each */
+.own-bar-block { margin-bottom: 4px; }
+.own-bar { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: var(--border-alt); }
+.own-bar span { display: block; height: 100%; }
+.own-bar span + span { box-shadow: inset 1px 0 0 var(--panel); }
+.own-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 12.5px; color: var(--text); }
+.own-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.own-legend-item .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.own-legend-item b { color: var(--text-bright); font-weight: 650; font-variant-numeric: tabular-nums; }
+
