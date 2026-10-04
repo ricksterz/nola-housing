@@ -264,6 +264,10 @@ ASSESSOR_SOURCES = {
                 # with or without geometry, even a record-ID range), so pages stay at its 1,000-row
                 # maximum: 162 queries. Gateway 504s are ridden out by the page-level retries.
                 "page_size": 1000,
+                # At ~2.5-3 h a pull sits close to a GitHub job's 6 h limit once retries pile up,
+                # so pages fetched in the last day and a half are reused: a run that runs out of
+                # time is finished by the next one instead of starting over.
+                "resume_hours": 36,
                 # Condo units are separate rows sharing one lot (PARCELID) and one address, told
                 # apart only by tax bill, so the tax bill is the record's key: keyed by lot, every
                 # unit in a building would collapse into one.
