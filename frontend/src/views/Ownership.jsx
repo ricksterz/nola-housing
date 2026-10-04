@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { getOwner, getOwnership, ownerKindLabel } from "../api";
+import { getOwner, getOwnership, ownerKindLabel, recordQuery } from "../api";
 import GeoPicker from "../components/GeoPicker";
 import OwnerMap from "../components/OwnerMap";
 import { METRO, geoKey, geoLabel, parseGeo } from "../lib/geo";
 import { seriesColor } from "../lib/theme";
 
-// Who owns what, from the Assessors' rolls (etl/export_owners.py). People are counted, never
-// named: only public bodies and organizations are listed, linked or searchable.
+// Who owns what, from the Assessors' public rolls (etl/export_owners.py).
 const KINDS = [
   ["individual", "Individuals", 0],
   ["organization", "Organizations", 1],
@@ -17,6 +16,8 @@ const HOLDERS = [
   ["2-9", "Own 2–9 on the rolls", 0.65],
   ["10+", "Own 10 or more", 1],
 ];
+// Units at one unnumbered-unit address all read alike, so each record shows its own number.
+const recordNumber = (r) => (r.slug.startsWith("parcel-") ? `${r.parish === "orleans" ? "Tax bill" : "Parcel"} ${r.slug.slice(7).toUpperCase()}` : null);
 const pct = (n, d) => (d ? `${Math.round((n / d) * 1000) / 10}%` : "—");
 
 export default function Ownership({ ctx }) {
@@ -117,11 +118,11 @@ function OwnershipStats({ ctx }) {
           <div className="stat-section-title" style={{ marginTop: 18 }}>How many the owner holds</div>
           <StackedBar label="Owners by holdings" total={area.with_owner} parts={HOLDERS.map(([k, label, opacity]) => ({ label, value: area.by_holder_size[k], color: gold, opacity }))} />
           <div className="stat-note" style={{ marginTop: 6 }}>{`The 10 largest owners here hold ${pct(area.top_owners_share, 1)} of it.`}</div>
-          {area.top_organizations.length > 0 && (
+          {area.top_owners.length > 0 && (
             <>
-              <div className="stat-section-title" style={{ marginTop: 18 }}>Largest organization and public owners here</div>
+              <div className="stat-section-title" style={{ marginTop: 18 }}>Largest owners here</div>
               <ul className="nearby-list" style={{ marginTop: 0 }}>
-                {area.top_organizations.map(([slug, name, count, kind]) => (
+                {area.top_owners.map(([slug, name, count, kind]) => (
                   <li key={slug || name}>
                     <button type="button" className="nearby-item" onClick={() => slug && navigate({ owner: slug })}>
                       <span className="nearby-street">{name}</span>
@@ -182,7 +183,7 @@ function OwnershipStats({ ctx }) {
 
       <div className="method-note">
         <span>
-          Counts are records on the Jefferson and Orleans Assessors' rolls; each condo unit is its own record. Owners are matched by name as written on the roll, so one owner spelled two ways counts twice, and two people with the same name count once. Individuals are counted but never named or listed. Organizations include companies, trusts, churches and nonprofits; public bodies include city, parish, state and federal agencies. "Lived in by the owner" is the share of Jefferson buildings claiming a homestead exemption, which only an owner's primary residence can.
+          Counts are records on the Jefferson and Orleans Assessors' rolls; each condo unit is its own record. Owners are matched by name as written on the roll, so one owner spelled two ways counts twice, and two people with the same name count once. Organizations include companies, trusts, churches and nonprofits; public bodies include city, parish, state and federal agencies. "Lived in by the owner" is the share of Jefferson buildings claiming a homestead exemption, which only an owner's primary residence can.
         </span>
       </div>
     </div>
@@ -210,7 +211,7 @@ function OwnerPage({ ctx, slug }) {
   if (!owner) return <div className="panel"><div className="loading">Loading owner…</div></div>;
   const words = query.toUpperCase().split(/\s+/).filter(Boolean);
   const records = words.length ? owner.records.filter((r) => words.every((w) => (r.label || "").toUpperCase().includes(w) || (r.zip || "").includes(w))) : owner.records;
-  const open = (r) => navigate({ view: "property", owner: null, q: r.slug.startsWith("parcel-") ? `Parcel ${r.slug.slice(7).toUpperCase()}` : r.label });
+  const open = (r) => navigate({ view: "property", owner: null, q: recordQuery(r.slug, r.label) });
   const parishes = Object.entries(owner.parishes).map(([p, n]) => `${p === "jefferson" ? "Jefferson" : "Orleans"} ${n.toLocaleString()}`);
 
   return (
@@ -267,7 +268,7 @@ function OwnerPage({ ctx, slug }) {
             <li key={r.slug}>
               <button type="button" className="nearby-item" onClick={() => open(r)}>
                 <span className="nearby-street">{(r.label || "").split(",")[0]}</span>
-                <span className="nearby-sub">{[(r.label || "").split(",").slice(1).join(",").trim(), r.zone ? `zone ${r.zone}` : null].filter(Boolean).join(" · ")}</span>
+                <span className="nearby-sub">{[(r.label || "").split(",").slice(1).join(",").trim(), recordNumber(r), r.zone ? `zone ${r.zone}` : null].filter(Boolean).join(" · ")}</span>
               </button>
             </li>
           ))}

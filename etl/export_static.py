@@ -334,9 +334,10 @@ def export_properties(con) -> int:
     _write_dir(OUT_DIR / "owner", {}, keep=set(owner_pages))
     for owner_slug, page in owner_pages.items():
         write_json(OUT_DIR / "owner" / f"{owner_slug}.json", page, compact=True)
-    write_json(OUT_DIR / "owners.json", owners.index(), compact=True)
+    _write_dir(OUT_DIR / "ownidx", owners.name_index())
+    (OUT_DIR / "owners.json").unlink(missing_ok=True)  # replaced by ownidx/
     write_json(OUT_DIR / "ownership.json", owners.stats(queries.geos()), compact=True)
-    print(f"  {len(owner_pages):,} owner pages (government and organizations with two or more records)")
+    print(f"  {len(owner_pages):,} owner pages (owners with two or more records)")
     return parcel_pages
 
 

@@ -1,4 +1,4 @@
-"""Owners on the Assessors' rolls: one name key per owner, and whether an owner is a person.
+"""Owners on the Assessors' rolls: one name key per owner, and what kind of owner it is.
 
 Owner names are free text, written differently by each roll ("NEW ORLEANS,CITY OF", "THE CITY
 OF NEW ORLEANS", "CITY OF NEW ORLEANS"; Jefferson's "BABIN,TODD J" is Orleans' "BABIN TODD J"),
@@ -7,10 +7,8 @@ punctuation, word order of "X, CITY OF" and a leading "THE" are set aside. Nothi
 people can share a name, and the site says matches are by name as written.
 
 ``owner_kind`` sorts owners into government, organization (companies, trusts, churches,
-nonprofits) and individual. Only government and organizations get owner pages, owner search and a
-"same owner" panel; people are counted in the ownership statistics but never listed or linked,
-so the site can't be used to gather one person's homes. When in doubt the answer is
-"individual": a misread company only loses its page, a misread person would gain one.
+nonprofits) and individual, for the ownership statistics and labels. When in doubt the answer is
+"individual".
 """
 
 import re
@@ -83,8 +81,3 @@ def owner_kind(name: str | None) -> str | None:
             return "individual"
         return "organization"
     return "individual"
-
-
-def is_listed(kind: str | None) -> bool:
-    """Owners who get pages, search and "same owner" links."""
-    return kind in ("government", "organization")

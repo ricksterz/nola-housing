@@ -200,33 +200,42 @@ export async function suggestStreets(q, limit = 6) {
   return out;
 }
 
-// Owners: government and organizations with two or more records (etl/export_owners.py). People
-// aren't in the index, so a name search can't gather one person's homes.
-const OWNER_KIND_LABEL = { government: "Public body", organization: "Organization" };
+// Owner-name search over the public rolls (etl/export_owners.py): each owner is filed under the
+// first four letters of every word of their name, so either name order finds them. Owners with
+// several records open an owner page; an owner with one record opens that property.
+const OWNER_KIND_LABEL = { government: "Public body", organization: "Organization", individual: "Owner" };
 export const ownerKindLabel = (kind) => OWNER_KIND_LABEL[kind] || "Owner";
+const OWNER_INDEX_SKIP = new Set(["LLC", "INC", "THE", "OF", "AND", "TRUST", "CO", "JR", "SR", "II", "III", "IV", "CORP", "LP"]);
 
-function getOwnersIndex() {
-  return IS_STATIC ? getStatic("owners.json").catch(() => []) : Promise.resolve([]);
+/** The Property Lookup query that opens a record page: by parcel for parcel-* pages, else by address. */
+export function recordQuery(slug, label) {
+  return slug.startsWith("parcel-") ? `Parcel ${slug.slice(7).toUpperCase()}` : label;
 }
 
-/** Owners whose name has every typed word (as a word start), largest first. */
-export async function suggestOwners(q, limit = 4) {
-  const words = (q || "").toUpperCase().replace(/[^A-Z0-9& ]/g, " ").split(/\s+/).filter((w) => w.length > 1);
-  if (!words.length) return [];
-  const index = await getOwnersIndex();
+// Must match etl/export_owners.py name_prefix(): a word's first four letters, or the whole word.
+const ownerPrefix = (word) => word.slice(0, 4);
+
+export async function suggestOwners(q, limit = 5) {
+  const words = (q || "").toUpperCase().replace(/[^A-Z0-9& ]/g, " ").split(/\s+/).filter(Boolean);
+  const keyWord = words.filter((w) => w.length >= 2 && !OWNER_INDEX_SKIP.has(w)).sort((a, b) => b.length - a.length)[0];
+  if (!IS_STATIC || !keyWord) return [];
+  const shard = await getStatic(`ownidx/${ownerPrefix(keyWord)}.json`).catch(() => []);
   const out = [];
-  for (const [slug, name, count, kind] of index) {
-    const parts = name.toUpperCase().split(/[\s-]+/);
-    if (words.every((w) => parts.some((p) => p.startsWith(w)))) {
-      out.push({ kind: "owner", slug, address: slug, full: name, sub: `${count.toLocaleString()} properties · ${ownerKindLabel(kind)}` });
-      if (out.length >= limit) break;
-    }
+  for (const [slug, name, count, kind, page, label] of shard) {
+    const parts = name.toUpperCase().split(/[\s,-]+/);
+    if (!words.every((w) => parts.some((part) => part.startsWith(w)))) continue;
+    out.push(
+      slug
+        ? { kind: "owner", slug, address: slug, full: name, sub: `${count.toLocaleString()} properties · ${ownerKindLabel(kind)}` }
+        : { kind: "owner-record", address: recordQuery(page, label), full: name, sub: `Owner of ${(label || "").split(",")[0]}` },
+    );
+    if (out.length >= limit) break;
   }
   return out;
 }
 
 export function getOwner(slug) {
-  return getStatic(`owner/${slug}.json`, "That owner isn't on record. Owner pages are kept for public bodies and organizations with two or more properties.");
+  return getStatic(`owner/${slug}.json`, "That owner isn't on record. Owner pages are kept for owners with two or more properties; search the name to find a single property.");
 }
 
 /** Ownership breakdown per area, keyed "metro:35380", "county:22071", "zip:70130". */
@@ -267,7 +276,7 @@ export async function suggestAddresses(q) {
   if (needle.length < 3) return [];
   if (!/^\d/.test(needle)) {
     const [streets, owners] = await Promise.all([suggestStreets(needle), suggestOwners(q)]);
-    return [...streets.slice(0, owners.length ? 4 : 6), ...owners];
+    return [...streets.slice(0, owners.length ? 3 : 6), ...owners];
   }
   if (IS_STATIC) {
     const { unit } = parseAddress(q);
