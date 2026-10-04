@@ -7,6 +7,7 @@ zip -> 5-digit ZIP, county -> parish FIPS, metro -> CBSA 35380.
 import json
 import math
 import re
+import unicodedata
 from datetime import date
 
 from etl import config
@@ -286,8 +287,91 @@ def split_unit(address: str | None, legal: str | None = None) -> tuple[str | Non
     return addr, None
 
 
+# Written-out street types and directions, as the City's address list and people type them, to the
+# tax roll's abbreviations ("417 South Solomon Street" -> "417 S SOLOMON ST"). Only the last word
+# (the street type) and a direction right after the house number are touched, so a street named
+# for one of these words ("100 COURT ST", "100 NORTH ST") keeps its name. Same table as
+# frontend/src/api.js USPS_TYPES.
+USPS_TYPES = {
+    "STREET": "ST",
+    "AVENUE": "AVE",
+    "BOULEVARD": "BLVD",
+    "DRIVE": "DR",
+    "ROAD": "RD",
+    "LANE": "LN",
+    "PLACE": "PL",
+    "COURT": "CT",
+    "HIGHWAY": "HWY",
+    "PARKWAY": "PKWY",
+    "CIRCLE": "CIR",
+    "TERRACE": "TER",
+    "SQUARE": "SQ",
+    "TRACE": "TRCE",
+    "PLAZA": "PLZ",
+    "COVE": "CV",
+    "EXPRESSWAY": "EXPY",
+    "POINT": "PT",
+    "CROSSING": "XING",
+    "ALLEY": "ALY",
+    "TRAIL": "TRL",
+    "BEND": "BND",
+}
+USPS_DIRECTIONS = {"NORTH": "N", "SOUTH": "S", "EAST": "E", "WEST": "W"}
+USPS_WORDS = {
+    "SAINT": "ST",
+    "FIRST": "1ST",
+    "SECOND": "2ND",
+    "THIRD": "3RD",
+    "FOURTH": "4TH",
+    "FIFTH": "5TH",
+    "SIXTH": "6TH",
+    "SEVENTH": "7TH",
+    "EIGHTH": "8TH",
+    "NINTH": "9TH",
+    "TENTH": "10TH",
+    "ELEVENTH": "11TH",
+    "TWELFTH": "12TH",
+}
+
+
+def _plain_letters(text: str) -> str:
+    """Accents dropped ("Dupré" -> "Dupre"), including text that was decoded as Latin-1 when it
+    was UTF-8 ("DuprÃ©", as some City files have it)."""
+    try:
+        text = text.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+
+
+def usps_style(address: str | None) -> str | None:
+    """Upper-case street address in the tax roll's style: street type and direction abbreviated,
+    a trailing direction moved up front ("5724 Louis Prima Drive West" -> "5724 W LOUIS PRIMA
+    DR"), "Saint" and ordinal words shortened, periods, commas and accents dropped. For a street
+    address only: a comma before the city would be dropped too."""
+    text = _plain_letters(address or "").upper().replace(".", " ").replace(",", " ")
+    words = re.sub(r"\s+", " ", text).strip().split(" ")
+    if not words or not words[0]:
+        return None
+    numbered = words[0][:1].isdigit()
+    if (
+        numbered
+        and len(words) >= 4
+        and words[-1] in USPS_DIRECTIONS
+        and words[-2] in {*USPS_TYPES, *USPS_TYPES.values()}
+    ):
+        words = [words[0], words[-1], *words[1:-1]]
+    if len(words) >= 3 and words[-1] in USPS_TYPES:
+        words[-1] = USPS_TYPES[words[-1]]
+    if numbered and len(words) >= 4 and words[1] in USPS_DIRECTIONS:
+        words[1] = USPS_DIRECTIONS[words[1]]
+    if numbered:
+        words = [words[0], *(USPS_WORDS.get(w, w) for w in words[1:])]
+    return " ".join(words)
+
+
 def unit_address(building_full: str, unit: str) -> str:
-    """"714 Fairfax Dr, Gretna, LA 70056" + "122" -> "714 Fairfax Dr Unit 122, Gretna, LA 70056"."""
+    """ "714 Fairfax Dr, Gretna, LA 70056" + "122" -> "714 Fairfax Dr Unit 122, Gretna, LA 70056"."""
     street, _, rest = building_full.partition(",")
     return f"{street} Unit {unit}" + (f",{rest}" if rest else "")
 
@@ -558,8 +642,12 @@ def property_lookup(con, address: str) -> dict | None:
             con, "SELECT * FROM parcel_market WHERE parcel_id = ? OR tax_bill_number = ? LIMIT 1", [pid, pid]
         )
         return _property_payload(con, rows[0]) if rows else None
-    needle = normalize_address(address)
+    needle = usps_style(normalize_address(address)) or ""
     rows = _rows(con, "SELECT * FROM parcel_market WHERE site_address_norm = ? LIMIT 1", [needle])
+    if not rows:
+        alias = _on_lot_of(con, needle)
+        if alias:
+            return alias
     if not rows:
         rows = _rows(
             con,
@@ -575,6 +663,37 @@ def property_lookup(con, address: str) -> dict | None:
     if not rows:
         return None
     return _property_payload(con, rows[0])
+
+
+def _on_lot_of(con, needle: str) -> dict | None:
+    """An address the roll files under another one (the City's address points, etl/
+    load_address_points.py): the record on its lot, with a notice saying so. Same rule as the
+    static export: only a lot with one roll address."""
+    if not (_table_exists(con, "address_points") and _table_exists(con, "assessor_parcels_raw")):
+        return None
+    rows = _rows(
+        con,
+        """WITH lots AS (
+               SELECT DISTINCT parish, parcel_id,
+                      coalesce(json_extract_string(payload, '$.lot_id'), parcel_id) AS lot_id
+               FROM assessor_parcels_raw
+           )
+           SELECT m.* FROM address_points a
+           JOIN lots l ON l.parish = a.parish AND l.lot_id = a.lot_id
+           JOIN parcel_market m ON m.parish = l.parish AND m.parcel_id = l.parcel_id
+           WHERE a.address = ? AND m.site_address_norm IS NOT NULL
+           ORDER BY m.parcel_id""",
+        [split_unit(needle)[0]],
+    )
+    if not rows or len({r["site_address_norm"] for r in rows}) != 1:
+        return None
+    payload = _property_payload(con, rows[0])
+    asked = _title_case_address(needle)
+    filed = _title_case_address(rows[0]["site_address_norm"])
+    payload["notice"] = (
+        f"{asked} is on the same lot as {filed}, the address the Assessor's roll files it under."
+    )
+    return payload
 
 
 def _property_payload(con, parcel: dict) -> dict:

@@ -46,10 +46,11 @@ etl/
   refresh_market_data.py monthly: Redfin + Zillow + FRED + ownership costs, rebuild join
   refresh_assessor.py    assessor leg on the parish calendars, rebuild join
   refresh_flood.py       monthly: FEMA flood zones, rebuild join
+  load_address_points.py monthly: City address points -> lot, for addresses the roll files under another
   probe_assessor_bulk.py report which official bulk options answer
 tests/                   fixture-backed tests for every loader, the assessor fallbacks and the join
 .github/workflows/       ci.yml, security.yml, refresh-market-data.yml, refresh-assessor.yml,
-                         refresh-flood.yml, deploy-pages.yml
+                         refresh-flood.yml, refresh-addresses.yml, deploy-pages.yml
 ```
 
 ## Setup
