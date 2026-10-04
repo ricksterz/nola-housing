@@ -296,17 +296,8 @@ function BuildingView({ building, notice, onPick }) {
       ) : (
         <>
           <div className="stat-section-title">{`${other.length} units at ${street}`}</div>
-          {!notice && <div className="stat-note" style={{ marginBottom: 6 }}>The City's records don't number these units; each is its own tax bill. Pick yours by owner or tax bill.</div>}
-          <ul className="nearby-list">
-            {other.map((u) => (
-              <li key={u.parcel_id}>
-                <button type="button" className="nearby-item" onClick={() => onPick(`Parcel ${u.parcel_id}`)}>
-                  <span className="nearby-street">{unitRecordLabel(u).split(" · ")[0]}</span>
-                  <span className="nearby-sub">{unitRecordLabel(u).split(" · ").slice(1).join(" · ") || "Owner not listed"}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {!notice && <div className="stat-note" style={{ marginBottom: 6 }}>The City's records don't number these units; each is its own tax bill. Find yours by owner or tax bill.</div>}
+          <UnitDirectory records={other} onPick={onPick} />
         </>
       )}
       {units.length > 0 && other.length > 0 && (
@@ -325,6 +316,78 @@ function BuildingView({ building, notice, onPick }) {
         <span>{`Each unit is its own record on the Assessor's roll${rest.length ? `, all at ${street}` : ""}. Units are read from the address or the condo's legal description, so a unit the roll doesn't number may be missing.`}</span>
       </div>
     </div>
+  );
+}
+
+// Units the roll doesn't number (Orleans condos): one row per owner, A–Z, since a name is what
+// people know. An owner with several units shows the count and opens to their tax bills. A dense
+// grid with a filter, so a 90-unit building fits on a phone screen or two.
+function UnitDirectory({ records, onPick }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(null);
+  const groups = [];
+  const byOwner = new Map();
+  for (const u of records) {
+    const key = (u.owner || "").toUpperCase().replace(/\s+/g, " ").trim() || `~${u.parcel_id}`;
+    if (!byOwner.has(key)) {
+      byOwner.set(key, { key, label: unitRecordLabel(u).split(" · ").slice(1).join(" · ") || "Owner not listed", units: [] });
+      groups.push(byOwner.get(key));
+    }
+    byOwner.get(key).units.push(u);
+  }
+  groups.sort((a, b) => (a.key.startsWith("~") - b.key.startsWith("~")) || a.label.localeCompare(b.label));
+  for (const g of groups) g.units.sort((a, b) => String(a.tax_bill).localeCompare(String(b.tax_bill)));
+  const words = query.toUpperCase().split(/\s+/).filter(Boolean);
+  const shown = words.length
+    ? groups.filter((g) => words.every((w) => g.key.includes(w) || g.units.some((u) => String(u.tax_bill || u.parcel_id).includes(w))))
+    : groups;
+  const unitCount = shown.reduce((n, g) => n + g.units.length, 0);
+  const multi = groups.filter((g) => g.units.length > 1).length;
+  const bill = (u) => (u.tax_bill ? `Tax bill ${u.tax_bill}` : `Parcel ${u.parcel_id}`);
+  return (
+    <>
+      {records.length > 8 && (
+        <input
+          className="search-input unit-filter"
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filter by owner name or tax bill"
+          aria-label="Filter units by owner name or tax bill"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      )}
+      <div className="stat-note" style={{ margin: "6px 0 0" }}>
+        {query ? `${unitCount} of ${records.length} units match` : `${groups.length} owner${groups.length === 1 ? "" : "s"}${multi ? ` · ${multi} own more than one unit here` : ""}`}
+      </div>
+      <div className="unit-grid">
+        {shown.map((g) =>
+          g.units.length === 1 ? (
+            <button key={g.key} type="button" className="unit-cell" onClick={() => onPick(`Parcel ${g.units[0].parcel_id}`)}>
+              <span className="unit-owner">{g.label}</span>
+              <span className="unit-bill">{bill(g.units[0])}</span>
+            </button>
+          ) : (
+            <div key={g.key} className={`unit-group${open === g.key ? " unit-group--open" : ""}`}>
+              <button type="button" className="unit-cell" aria-expanded={open === g.key} onClick={() => setOpen(open === g.key ? null : g.key)}>
+                <span className="unit-owner">{g.label}</span>
+                <span className="unit-count">{`${g.units.length} units`}</span>
+              </button>
+              {open === g.key && (
+                <div className="unit-group-bills">
+                  {g.units.map((u) => (
+                    <button key={u.parcel_id} type="button" className="btn street-number" onClick={() => onPick(`Parcel ${u.parcel_id}`)}>
+                      {bill(u)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ),
+        )}
+      </div>
+    </>
   );
 }
 
@@ -728,6 +791,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
             <CopyLinkButton address={parcelQueryText(p, data.lookup)} />
           </div>
         </div>
+        {data.notice && <div className="stat-note" style={{ margin: "0 0 10px", color: "var(--text)" }}>{data.notice}</div>}
         <FloodZone p={p} floodlens={data.floodlens} floodlensSummary={floodlensSummary} />
         {sections.map(([title, items]) => (
           <div key={title} className="stat-section">

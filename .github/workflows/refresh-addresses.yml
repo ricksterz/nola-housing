@@ -1,0 +1,48 @@
+name: Address Points Refresh (City of New Orleans)
+
+# The City's address list ties every address it knows to its lot, so the site can open the record
+# for an address the Assessor's roll files under another one (etl/load_address_points.py). The
+# list changes rarely, so this runs monthly; a failed or short pull keeps the previous rows.
+
+on:
+  schedule:
+    - cron: "0 10 3 * *"  # 10:00 UTC on the 3rd of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One refresh at a time across the refresh workflows: each downloads the database, changes it and
+# publishes it back, so two running at once would overwrite each other's work.
+concurrency:
+  group: nola-db
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install duckdb requests
+
+      - name: Download the current database
+        run: |
+          python -m etl.db_store pull
+          cp etl/nola_housing.duckdb "$RUNNER_TEMP/before.duckdb"
+
+      - name: Load the City's address points
+        env:
+          ASSESSOR_CONTACT: ${{ secrets.ASSESSOR_CONTACT }}
+        run: python -m etl.load_address_points
+
+      - name: Publish the database if it changed
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m etl.db_store publish --before "$RUNNER_TEMP/before.duckdb" --notes "Address points refresh (City of New Orleans)"

@@ -93,6 +93,35 @@ const UNIT_WORD = /\s*(?:\b(?:UNIT|APT|APARTMENT|STE|SUITE)\b\.?|#)\s*([A-Z0-9][
 const BARE_UNIT = new RegExp(`^(\\d+[A-Z]?\\s.*\\b(?:${STREET_TYPES})\\b)\\s+([A-Z]?\\d+[A-Z]?(?:-\\d*[A-Z]?)?)$`);
 const isUnitToken = (t) => /\d/.test(t) || /^[A-Z]$/.test(t);
 
+// Written-out street types and directions to the roll's abbreviations ("417 South Solomon Street"
+// -> "417 S SOLOMON ST"). Same rules as backend/queries.py usps_style.
+const USPS_TYPES = {
+  STREET: "ST", AVENUE: "AVE", BOULEVARD: "BLVD", DRIVE: "DR", ROAD: "RD", LANE: "LN", PLACE: "PL", COURT: "CT",
+  HIGHWAY: "HWY", PARKWAY: "PKWY", CIRCLE: "CIR", TERRACE: "TER", SQUARE: "SQ", TRACE: "TRCE", PLAZA: "PLZ",
+  COVE: "CV", EXPRESSWAY: "EXPY", POINT: "PT", CROSSING: "XING", ALLEY: "ALY", TRAIL: "TRL", BEND: "BND",
+};
+const USPS_DIRECTIONS = { NORTH: "N", SOUTH: "S", EAST: "E", WEST: "W" };
+const USPS_WORDS = {
+  SAINT: "ST", FIRST: "1ST", SECOND: "2ND", THIRD: "3RD", FOURTH: "4TH", FIFTH: "5TH", SIXTH: "6TH",
+  SEVENTH: "7TH", EIGHTH: "8TH", NINTH: "9TH", TENTH: "10TH", ELEVENTH: "11TH", TWELFTH: "12TH",
+};
+const isType = (w) => w in USPS_TYPES || Object.values(USPS_TYPES).includes(w);
+
+export function uspsStyle(street) {
+  let words = street.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[.,]/g, " ").replace(/\s+/g, " ").trim().split(" ");
+  if (!words[0]) return street;
+  const numbered = /^\d/.test(words[0]);
+  if (numbered && words.length >= 4 && words.at(-1) in USPS_DIRECTIONS && isType(words.at(-2))) {
+    words = [words[0], words.at(-1), ...words.slice(1, -1)];
+  }
+  if (words.length >= 3 && words.at(-1) in USPS_TYPES) words[words.length - 1] = USPS_TYPES[words.at(-1)];
+  // A bare unit after a written-out type ("... PLACE 11B").
+  else if (words.length >= 4 && words.at(-2) in USPS_TYPES && isUnitToken(words.at(-1))) words[words.length - 2] = USPS_TYPES[words.at(-2)];
+  if (numbered && words.length >= 4 && words[1] in USPS_DIRECTIONS) words[1] = USPS_DIRECTIONS[words[1]];
+  if (numbered) words = [words[0], ...words.slice(1).map((w) => USPS_WORDS[w] || w)];
+  return words.join(" ");
+}
+
 /** "600 Port of New Orleans Pl, New Orleans, LA 70130 apt 11B" -> { street: "600 PORT OF NEW ORLEANS PL", unit: "11B" } */
 export function parseAddress(q) {
   let text = (q || "").toUpperCase().replace(/\s+/g, " ").trim();
@@ -102,7 +131,7 @@ export function parseAddress(q) {
     unit = m[1];
     text = `${text.slice(0, m.index)} ${text.slice(m.index + m[0].length)}`.replace(/\s+/g, " ").trim();
   }
-  let street = text.split(",")[0].trim();
+  let street = uspsStyle(text.split(",")[0].trim());
   if (!unit) {
     const b = BARE_UNIT.exec(street);
     if (b) [street, unit] = [b[1], b[2]];
@@ -215,6 +244,7 @@ export async function suggestAddresses(q) {
       .slice(0, 8)
       .map((a) => {
         if (a.units) return { ...a, sub: `${a.units} unit${a.units === 1 ? "" : "s"} on record` };
+        if (a.alias) return { ...a, sub: `Filed as ${a.alias.split(",")[0]}` };
         // A unit or a second parcel at an address carries its parcel ID: look that up.
         if (a.parcel) return { ...a, address: a.parcel, sub: a.unit ? null : `Parcel ${a.parcel}` };
         return a;
@@ -261,8 +291,14 @@ function lookupMiss(street, nearby) {
 }
 
 /** "Tax bill 103109611 · Steeg Robert M" for a unit the roll doesn't number. */
+// Title case, keeping the abbreviations and generational suffixes on owner names in capitals.
+const OWNER_CAPS = new Set(["LLC", "LLP", "LP", "INC", "II", "III", "IV", "USA", "HUD", "NOLA"]);
+
 export function unitRecordLabel(u) {
-  const owner = (u.owner || "").replace(/\s*,\s*/g, ", ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  const owner = (u.owner || "")
+    .replace(/\s*,\s*/g, ", ")
+    .toLowerCase()
+    .replace(/\b\w+/g, (w) => (OWNER_CAPS.has(w.toUpperCase()) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)));
   return [u.tax_bill ? `Tax bill ${u.tax_bill}` : `Parcel ${u.parcel_id}`, owner].filter(Boolean).join(" · ");
 }
 
@@ -271,6 +307,12 @@ function naturalCompare(a, b) {
 }
 
 /** One unit of a building: its own page, or a miss listing the units that are on record. */
+function aliasNotice(match) {
+  const asked = match.full.split(",")[0];
+  const filed = match.alias.split(",")[0];
+  return `${asked} is on the same lot as ${filed}, the address the Assessor's roll files it under.`;
+}
+
 async function unitInBuilding(doc, unit) {
   const { building } = doc;
   const hit = building.units.find((u) => u.unit && normUnit(u.unit) === normUnit(unit));
@@ -298,12 +340,17 @@ export async function getPropertyLookup(address) {
   const { street: needle, unit } = parseAddress(address);
   if (IS_STATIC) {
     let doc = await getStatic(`property/${slugify(needle)}.json`).catch(() => null);
+    let filedAs = null;
     if (!doc) {
       const shard = await getAddressShard(needle);
-      const match = shard.find((a) => a.address.startsWith(needle) && !a.parcel) || shard.find((a) => a.address.includes(needle) && !a.parcel);
+      const usable = shard.filter((a) => !a.parcel);
+      const match = usable.find((a) => a.address === needle) || usable.find((a) => a.address.startsWith(needle)) || usable.find((a) => a.address.includes(needle));
       if (match) doc = await getStatic(`property/${match.slug}.json`);
+      // An address the City knows on a lot the roll files under another address.
+      if (doc && match.alias) filedAs = aliasNotice(match);
     }
-    if (doc?.building && unit) return unitInBuilding(doc, unit);
+    if (doc?.building && unit) doc = await unitInBuilding(doc, unit);
+    if (doc && filedAs) return { ...doc, notice: [filedAs, doc.notice].filter(Boolean).join(" ") };
     if (doc) return doc;
     const parts = splitHouseNumber(needle);
     const street = parts ? await getStatic(`street/${slugify(parts[1])}.json`).catch(() => []) : [];

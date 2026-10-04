@@ -14,6 +14,7 @@ on:
       - "Monthly Market Data Refresh (Redfin, Zillow, FRED)"
       - "Assessor Refresh (Jefferson annual, Orleans open rolls)"
       - "Monthly Flood Zone Refresh (FEMA NFHL)"
+      - "Address Points Refresh (City of New Orleans)"
     types: [completed]
 
 permissions:
