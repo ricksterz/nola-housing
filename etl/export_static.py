@@ -175,6 +175,10 @@ def export_properties(con) -> int:
     near: dict[str, list] = {}
     streets: dict[str, list] = {}
     pids: dict[str, list] = {}
+    # What's on each lot (Orleans GEOPIN), so an address the roll files under another one opens it.
+    lot_of = _lot_ids(con)
+    lot_targets: dict[tuple, set] = {}
+    known: set[tuple] = set()
     for parcel in parcels:
         building_addr, unit = parcel.pop("_building"), parcel.pop("_unit")
         key = (parcel["parish"], building_addr)
@@ -233,6 +237,12 @@ def export_properties(con) -> int:
             pids.setdefault(pid_key(bill), []).append([bill, slug, label, "bill"])
         if not addr:
             continue
+        known.add((parcel["parish"], addr))
+        if in_building or owns_address:
+            lot = lot_of.get((parcel["parish"], parcel["parcel_id"]))
+            target = ("building", key) if in_building else ("parcel", slug, parcel["full_address"])
+            if lot and (in_building or parcel["full_address"]):
+                lot_targets.setdefault((parcel["parish"], lot), set()).add(target)
         # Every parcel with an address is in the address index. A second parcel at an address, or a
         # unit, carries its parcel ID (and unit), so picking it opens that parcel.
         entry = {"address": addr, "full": parcel["full_address"], "slug": slug}
@@ -294,6 +304,15 @@ def export_properties(con) -> int:
             near.setdefault(near_key(first["lat"], first["lng"]), []).append(queries.nearby_entry(spot))
     in_buildings = sum(len(b["units"]) for b in buildings.values())
     print(f"  {len(buildings):,} buildings with units ({in_buildings:,} parcels)")
+    aliases = _address_aliases(con, known, lot_targets, buildings)
+    for address, full, slug, roll_full in aliases:
+        shards.setdefault(shard_key(address), []).append(
+            {"address": address, "full": full, "slug": slug, "alias": roll_full}
+        )
+        parts = queries.split_house_number(address)
+        if parts:
+            streets.setdefault(parts[1], []).append([parts[0], address, full])
+    print(f"  {len(aliases):,} other addresses on those lots (City address points)")
 
     parcel_pages = len(written) - len(buildings)  # building pages list units; they aren't parcels
     _write_dir(prop_dir, {}, keep=written)
@@ -305,6 +324,50 @@ def export_properties(con) -> int:
     _write_dir(street_dir, {queries.slugify(k): sorted(v) for k, v in streets.items()})
     write_json(OUT_DIR / "streets.json", queries.street_index(streets), compact=True)
     return parcel_pages
+
+
+def _lot_ids(con) -> dict[tuple, str]:
+    """(parish, parcel_id) -> lot. Records keyed by tax bill keep their lot as ``lot_id``; a
+    record keyed by lot (GEOPIN) is its own lot."""
+    if not queries._table_exists(con, "assessor_parcels_raw"):
+        return {}
+    rows = con.execute(
+        """SELECT DISTINCT parish, parcel_id, json_extract_string(payload, '$.lot_id')
+           FROM assessor_parcels_raw WHERE parish = 'orleans'"""
+    ).fetchall()
+    lots = {(parish, pid): lot or pid for parish, pid, lot in rows}
+    lots.update({(parish, pid): lot for parish, pid, lot in rows if lot})  # a lot_id wins
+    return lots
+
+
+def _address_aliases(con, known: set, lot_targets: dict, buildings: dict) -> list[tuple]:
+    """(address, full address, slug, roll address) for each City address point that isn't on the
+    roll but sits on a lot with exactly one building or addressed parcel. A lot holding several is
+    left out rather than guessed at."""
+    if not queries._table_exists(con, "address_points"):
+        return []
+    out = []
+    rows = con.execute(
+        "SELECT DISTINCT parish, address, lot_id FROM address_points ORDER BY 1, 2, 3"
+    ).fetchall()
+    seen = set()
+    for parish, address, lot in rows:
+        if (parish, address) in known or (parish, address) in seen:
+            continue
+        targets = lot_targets.get((parish, lot))
+        if not targets or len(targets) != 1:
+            continue
+        seen.add((parish, address))
+        target = next(iter(targets))
+        if target[0] == "building":
+            b = buildings[target[1]]
+            slug, roll_full = b["slug"], b["full"]
+        else:
+            slug, roll_full = target[1], target[2]
+        city_zip = roll_full.split(",", 1)[1] if "," in roll_full else ""
+        full = queries._title_case_address(address) + (f",{city_zip}" if city_zip else "")
+        out.append((address, full, slug, roll_full))
+    return out
 
 
 def _natural(label: str) -> list:
