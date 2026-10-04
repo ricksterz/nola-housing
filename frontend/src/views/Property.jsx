@@ -319,16 +319,31 @@ function BuildingView({ building, notice, onPick }) {
   );
 }
 
-// Units the roll doesn't number (Orleans condos): owners A–Z, since a name is what people know, in
-// a dense grid with a filter, so a 90-unit building fits on a phone screen or two.
+// Units the roll doesn't number (Orleans condos): one row per owner, A–Z, since a name is what
+// people know. An owner with several units shows the count and opens to their tax bills. A dense
+// grid with a filter, so a 90-unit building fits on a phone screen or two.
 function UnitDirectory({ records, onPick }) {
   const [query, setQuery] = useState("");
-  const owner = (u) => unitRecordLabel(u).split(" · ").slice(1).join(" · ");
-  const sorted = [...records].sort((a, b) => (owner(a) || "~").localeCompare(owner(b) || "~") || String(a.tax_bill).localeCompare(String(b.tax_bill)));
+  const [open, setOpen] = useState(null);
+  const groups = [];
+  const byOwner = new Map();
+  for (const u of records) {
+    const key = (u.owner || "").toUpperCase().replace(/\s+/g, " ").trim() || `~${u.parcel_id}`;
+    if (!byOwner.has(key)) {
+      byOwner.set(key, { key, label: unitRecordLabel(u).split(" · ").slice(1).join(" · ") || "Owner not listed", units: [] });
+      groups.push(byOwner.get(key));
+    }
+    byOwner.get(key).units.push(u);
+  }
+  groups.sort((a, b) => (a.key.startsWith("~") - b.key.startsWith("~")) || a.label.localeCompare(b.label));
+  for (const g of groups) g.units.sort((a, b) => String(a.tax_bill).localeCompare(String(b.tax_bill)));
   const words = query.toUpperCase().split(/\s+/).filter(Boolean);
   const shown = words.length
-    ? sorted.filter((u) => words.every((w) => (u.owner || "").toUpperCase().includes(w) || String(u.tax_bill || u.parcel_id).includes(w)))
-    : sorted;
+    ? groups.filter((g) => words.every((w) => g.key.includes(w) || g.units.some((u) => String(u.tax_bill || u.parcel_id).includes(w))))
+    : groups;
+  const unitCount = shown.reduce((n, g) => n + g.units.length, 0);
+  const multi = groups.filter((g) => g.units.length > 1).length;
+  const bill = (u) => (u.tax_bill ? `Tax bill ${u.tax_bill}` : `Parcel ${u.parcel_id}`);
   return (
     <>
       {records.length > 8 && (
@@ -343,14 +358,34 @@ function UnitDirectory({ records, onPick }) {
           spellCheck={false}
         />
       )}
-      {query && <div className="stat-note" style={{ margin: "6px 0 0" }}>{`${shown.length} of ${records.length} units match`}</div>}
+      <div className="stat-note" style={{ margin: "6px 0 0" }}>
+        {query ? `${unitCount} of ${records.length} units match` : `${groups.length} owner${groups.length === 1 ? "" : "s"}${multi ? ` · ${multi} own more than one unit here` : ""}`}
+      </div>
       <div className="unit-grid">
-        {shown.map((u) => (
-          <button key={u.parcel_id} type="button" className="unit-cell" onClick={() => onPick(`Parcel ${u.parcel_id}`)}>
-            <span className="unit-owner">{owner(u) || "Owner not listed"}</span>
-            <span className="unit-bill">{u.tax_bill ? `Tax bill ${u.tax_bill}` : `Parcel ${u.parcel_id}`}</span>
-          </button>
-        ))}
+        {shown.map((g) =>
+          g.units.length === 1 ? (
+            <button key={g.key} type="button" className="unit-cell" onClick={() => onPick(`Parcel ${g.units[0].parcel_id}`)}>
+              <span className="unit-owner">{g.label}</span>
+              <span className="unit-bill">{bill(g.units[0])}</span>
+            </button>
+          ) : (
+            <div key={g.key} className={`unit-group${open === g.key ? " unit-group--open" : ""}`}>
+              <button type="button" className="unit-cell" aria-expanded={open === g.key} onClick={() => setOpen(open === g.key ? null : g.key)}>
+                <span className="unit-owner">{g.label}</span>
+                <span className="unit-count">{`${g.units.length} units`}</span>
+              </button>
+              {open === g.key && (
+                <div className="unit-group-bills">
+                  {g.units.map((u) => (
+                    <button key={u.parcel_id} type="button" className="btn street-number" onClick={() => onPick(`Parcel ${u.parcel_id}`)}>
+                      {bill(u)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ),
+        )}
       </div>
     </>
   );
