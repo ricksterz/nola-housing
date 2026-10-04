@@ -28,6 +28,7 @@ sys.path.insert(0, str(ROOT))
 
 from backend import queries  # noqa: E402
 from backend.db import get_connection  # noqa: E402
+from etl import export_owners  # noqa: E402
 
 OUT_DIR = ROOT / "frontend" / "public" / "data"
 REDACT_OWNER_NAMES = False  # assessor records are public; mirror the Houston default
@@ -175,6 +176,8 @@ def export_properties(con) -> int:
     near: dict[str, list] = {}
     streets: dict[str, list] = {}
     pids: dict[str, list] = {}
+    # Owners are read before the pages are written (names may be dropped from the pages).
+    owners = export_owners.Owners(parcels, enabled=not REDACT_OWNER_NAMES)
     # What's on each lot (Orleans GEOPIN), so an address the roll files under another one opens it.
     lot_of = _lot_ids(con)
     lot_targets: dict[tuple, set] = {}
@@ -228,8 +231,12 @@ def export_properties(con) -> int:
             data["lookup"] = f"Parcel {parcel['parcel_id']}"
         if in_building:
             data["building"] = {"address": addr, "full": buildings[key]["full"]}
+        owner_ref = owners.ref(parcel)
+        if owner_ref:
+            data["owner"] = owner_ref
         write_json(prop_dir / f"{slug}.json", data, compact=True)
         label = parcel["full_address"] or queries.parcel_label(parcel)
+        owners.add_page(parcel, slug, label)
         pids.setdefault(pid_key(parcel["parcel_id"]), []).append([parcel["parcel_id"], slug, label])
         # Tax bill numbers find the parcel too (Orleans bills are numbered separately from parcels).
         bill = (parcel.get("tax_bill_number") or "").strip()
@@ -323,6 +330,13 @@ def export_properties(con) -> int:
     # street-name index that street search matches against.
     _write_dir(street_dir, {queries.slugify(k): sorted(v) for k, v in streets.items()})
     write_json(OUT_DIR / "streets.json", queries.street_index(streets), compact=True)
+    owner_pages = owners.pages()
+    _write_dir(OUT_DIR / "owner", {}, keep=set(owner_pages))
+    for owner_slug, page in owner_pages.items():
+        write_json(OUT_DIR / "owner" / f"{owner_slug}.json", page, compact=True)
+    write_json(OUT_DIR / "owners.json", owners.index(), compact=True)
+    write_json(OUT_DIR / "ownership.json", owners.stats(queries.geos()), compact=True)
+    print(f"  {len(owner_pages):,} owner pages (government and organizations with two or more records)")
     return parcel_pages
 
 
