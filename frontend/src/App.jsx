@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getMacroSnapshot, getMeta, getScorecard, IS_STATIC } from "./api";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { trackView } from "./lib/metrics";
 import Footer from "./components/Footer";
 import MacroStrip from "./components/MacroStrip";
 import About from "./views/About";
@@ -43,6 +44,11 @@ export default function App() {
       /* private mode */
     }
   }, [theme]);
+
+  // One count per view opened, by view name only (lib/metrics.js).
+  useEffect(() => {
+    trackView(view);
+  }, [view]);
 
   useEffect(() => {
     getMeta().then(setMeta);
@@ -114,7 +120,7 @@ export default function App() {
             <button
               key={id}
               className={`btn${view === id ? " is-active" : ""}`}
-              onClick={() => navigate({ view: id })}
+              onClick={() => navigate({ view: id, owner: null })}
               aria-current={view === id ? "page" : undefined}
             >
               {label}

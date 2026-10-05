@@ -56,6 +56,9 @@ jobs:
           # Relative asset paths: the same build works at nolaatlas.com/ and at the github.io
           # project path, so switching domains never serves a page whose assets 404.
           VITE_BASE: "./"
+          # GoatCounter usage counts (frontend/src/lib/metrics.js); blank = off. Set the repo
+          # variable GOATCOUNTER_CODE to the site's code (the "nolaatlas" in nolaatlas.goatcounter.com).
+          VITE_GOATCOUNTER_CODE: ${{ vars.GOATCOUNTER_CODE }}
       - uses: actions/upload-pages-artifact@v5
         with:
           path: frontend/dist

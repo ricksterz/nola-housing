@@ -3,6 +3,7 @@ import { getOwner, getOwnership, ownerKindLabel, recordQuery } from "../api";
 import GeoPicker from "../components/GeoPicker";
 import OwnerMap from "../components/OwnerMap";
 import { METRO, geoKey, geoLabel, parseGeo } from "../lib/geo";
+import { EVENTS, trackEvent } from "../lib/metrics";
 import { seriesColor } from "../lib/theme";
 
 // Who owns what, from the Assessors' public rolls (etl/export_owners.py).
@@ -79,7 +80,14 @@ function OwnershipStats({ ctx }) {
   if (error) return <div className="error">{error}</div>;
   return (
     <div>
-      <GeoPicker geos={geos} selected={[geo]} onToggle={(g) => navigate({ geo: geoKey(g) })} />
+      <GeoPicker
+        geos={geos}
+        selected={[geo]}
+        onToggle={(g) => {
+          trackEvent(EVENTS.ownershipArea);
+          navigate({ geo: geoKey(g) });
+        }}
+      />
       {!area ? (
         <div className="panel">
           <div className="loading">{stats ? "No parcels on record for this area." : "Loading ownership…"}</div>
@@ -156,7 +164,10 @@ function OwnershipStats({ ctx }) {
                     ["big", "Owner holds 10+"],
                     ["home", "Lived in by owner"],
                   ].map(([k, label]) => (
-                    <th key={k} className={`num sortable${sort === k ? " is-sorted" : ""}`} onClick={() => setSort(k)} aria-sort={sort === k ? "descending" : undefined}>
+                    <th key={k} className={`num sortable${sort === k ? " is-sorted" : ""}`} onClick={() => {
+                      trackEvent(EVENTS.ownershipSort);
+                      setSort(k);
+                    }} aria-sort={sort === k ? "descending" : undefined}>
                       {label}
                     </th>
                   ))}
@@ -198,6 +209,7 @@ function OwnerPage({ ctx, slug }) {
   const [shown, setShown] = useState(50);
   useEffect(() => {
     let alive = true;
+    trackEvent(EVENTS.openOwnerPage);
     getOwner(slug).then(
       (o) => alive && setOwner(o),
       (e) => alive && setError(e.message),
