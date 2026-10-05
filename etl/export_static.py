@@ -16,12 +16,14 @@ Writes to frontend/public/data/:
     python -m etl.export_static
 """
 
+import html
 import json
 import math
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlencode
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -409,8 +411,6 @@ def write_sitemap(geos: list[dict], path: Path = SITEMAP_PATH) -> int:
     """Every tab, and each parish and ZIP's market overview and ownership page, at the same URLs
     the app gives them as canonical (frontend/src/App.jsx pageMeta). Property and owner pages
     aren't listed."""
-    from urllib.parse import urlencode
-    from xml.sax.saxutils import escape
 
     def url(**params) -> str:
         return SITE_URL + (f"?{urlencode(params)}" if params else "")
@@ -424,7 +424,7 @@ def write_sitemap(geos: list[dict], path: Path = SITEMAP_PATH) -> int:
             urls.append(url(view="overview", geo=key))
             urls.append(url(view="ownership", geo=key))
     today = datetime.now(timezone.utc).date().isoformat()
-    body = "".join(f"  <url><loc>{escape(u)}</loc><lastmod>{today}</lastmod></url>\n" for u in urls)
+    body = "".join(f"  <url><loc>{html.escape(u)}</loc><lastmod>{today}</lastmod></url>\n" for u in urls)
     path.write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n"
