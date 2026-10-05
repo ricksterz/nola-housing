@@ -181,6 +181,10 @@ export default function About({ ctx }) {
           <p className="text-block">Yes. Type a name in Property Lookup in either order ("Gloria Sexton" or "Sexton Gloria"), or a company, church or agency. An owner with several properties opens an owner page listing all of them on a map; an owner with one opens that property. The Ownership tab shows who owns each ZIP and parish.</p>
         </div>
         <div className="faq-item">
+          <div className="faq-q">What does the site track?</div>
+          <p className="text-block">Which tabs are opened and which features are used (for example, that an owner-name search ran or the cost calculator was changed), counted with Google Analytics and Cloudflare Web Analytics. The addresses, names and parcel numbers you search for are never sent, and Google Analytics is told to skip ad personalization. Google Analytics sets cookies; Cloudflare's doesn't. Browsers that send Global Privacy Control aren't counted by Google Analytics.</p>
+        </div>
+        <div className="faq-item">
           <div className="faq-q">Is the owner shown correct?</div>
           <p className="text-block">It's the name on the Assessor's roll at the time of the last pull, shown as published and not verified. Rolls lag sales and inheritances and can contain errors. Properties are grouped by the name exactly as written, so two people with the same name share a page and one owner spelled two ways gets two. It isn't a title search or proof of ownership: the Clerk of Court's conveyance records are the official record, and corrections go to the Assessor's office.</p>
         </div>

@@ -47,9 +47,10 @@ export default function Footer({ generated }) {
           or discriminate against anyone.
         </p>
         <p style={{ margin: "0 0 10px" }}>
-          <b>Usage counts.</b> Visits are counted with Cloudflare Web Analytics and GoatCounter, without cookies
-          and without personal data: which pages and features are used, never the addresses, names or parcel
-          numbers you search for.
+          <b>Usage counts.</b> Visits are counted with Google Analytics, which sets cookies, and Cloudflare Web
+          Analytics, which doesn't. They receive which pages and features are used, never the addresses, names or
+          parcel numbers you search for. Browsers that send Global Privacy Control aren't counted by Google
+          Analytics; you can also opt out with Google's opt-out browser add-on or an ad blocker.
         </p>
         <p style={{ margin: "0 0 14px" }}>
           This site is an independent project and is not affiliated with, endorsed by, or sponsored by either
