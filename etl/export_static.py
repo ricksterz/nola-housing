@@ -401,6 +401,37 @@ def _write_dir(directory: Path, files: dict[str, list], keep: set[str] | None = 
         write_json(directory / f"{stem}.json", rows, compact=True)
 
 
+SITE_URL = "https://nolaatlas.com/"
+SITEMAP_PATH = ROOT / "frontend" / "public" / "sitemap.xml"
+
+
+def write_sitemap(geos: list[dict], path: Path = SITEMAP_PATH) -> int:
+    """Every tab, and each parish and ZIP's market overview and ownership page, at the same URLs
+    the app gives them as canonical (frontend/src/App.jsx pageMeta). Property and owner pages
+    aren't listed."""
+    from urllib.parse import urlencode
+    from xml.sax.saxutils import escape
+
+    def url(**params) -> str:
+        return SITE_URL + (f"?{urlencode(params)}" if params else "")
+
+    urls = [url()] + [
+        url(view=v) for v in ("scorecard", "compare", "macro", "property", "ownership", "about")
+    ]
+    for g in geos:
+        key = f"{g['geo_level']}:{g['geo_id']}"
+        if g["geo_level"] != "metro":
+            urls.append(url(view="overview", geo=key))
+            urls.append(url(view="ownership", geo=key))
+    today = datetime.now(timezone.utc).date().isoformat()
+    body = "".join(f"  <url><loc>{escape(u)}</loc><lastmod>{today}</lastmod></url>\n" for u in urls)
+    path.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n"
+    )
+    return len(urls)
+
+
 def main():
     con = get_connection()
     export_market(con)
@@ -410,6 +441,7 @@ def main():
     meta["property_count"] = count
     meta["owner_names_redacted"] = REDACT_OWNER_NAMES
     write_json(OUT_DIR / "meta.json", meta)
+    print(f"Sitemap: {write_sitemap(queries.geos())} pages")
     print(f"Done. {count} properties, {len(queries.geos())} geographies.")
 
 

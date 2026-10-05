@@ -27,3 +27,4 @@ frontend/dist/
 
 # Static export (regenerated from the DuckDB snapshot by the deploy workflow)
 frontend/public/data/
+frontend/public/sitemap.xml
