@@ -174,7 +174,15 @@ export default function About({ ctx }) {
         </div>
         <div className="faq-item">
           <div className="faq-q">Where do the parcel records come from?</div>
-          <p className="text-block">The Jefferson Parish Assessor's public GIS parcel layer, pulled on the assessment calendar. Owner names, addresses and assessed values are public record in Louisiana and are published by the Assessor.</p>
+          <p className="text-block">Jefferson: the Jefferson Parish Assessor's public GIS parcel layer, pulled on the assessment calendar. Orleans: the City of New Orleans' ParcelSearch layer, which carries the Orleans Parish Assessor's owners and tax bills. Owner names, addresses and assessed values are public record in Louisiana and are published by the Assessors.</p>
+        </div>
+        <div className="faq-item">
+          <div className="faq-q">Can I search by owner name?</div>
+          <p className="text-block">Yes. Type a name in Property Lookup in either order ("Gloria Sexton" or "Sexton Gloria"), or a company, church or agency. An owner with several properties opens an owner page listing all of them on a map; an owner with one opens that property. The Ownership tab shows who owns each ZIP and parish.</p>
+        </div>
+        <div className="faq-item">
+          <div className="faq-q">Is the owner shown correct?</div>
+          <p className="text-block">It's the name on the Assessor's roll at the time of the last pull, shown as published and not verified. Rolls lag sales and inheritances and can contain errors. Properties are grouped by the name exactly as written, so two people with the same name share a page and one owner spelled two ways gets two. It isn't a title search or proof of ownership: the Clerk of Court's conveyance records are the official record, and corrections go to the Assessor's office.</p>
         </div>
         <div className="faq-item">
           <div className="faq-q">My address isn't found. Why?</div>
