@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getMacroSnapshot, getMeta, getScorecard, IS_STATIC } from "./api";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { trackView } from "./lib/metrics";
+import { geoLabel, parseGeo } from "./lib/geo";
 import Footer from "./components/Footer";
 import MacroStrip from "./components/MacroStrip";
 import About from "./views/About";
@@ -21,6 +22,31 @@ const VIEWS = [
   ["ownership", "Ownership"],
   ["about", "About"],
 ];
+
+const SITE = "https://nolaatlas.com/";
+const DEFAULT_TITLE = "NOLA Atlas — Every address in New Orleans and Metairie, explained";
+
+// Title and canonical URL per view, so search engines index each tab and area as its own page.
+// Only view and area count: a searched address, street or owner (q, street, owner) never goes in
+// the canonical URL or the title, so property and owner pages fold into their tab's page.
+function pageMeta(view, url, geos) {
+  const geo = parseGeo(url.geo);
+  const area = geo ? geoLabel(geo, geos) : null;
+  const titles = {
+    overview: area ? `${area} housing market` : null,
+    scorecard: "ZIP Scorecard",
+    compare: "Compare areas",
+    macro: "Macro trends",
+    property: "Property Lookup",
+    ownership: url.owner ? "Owner" : area ? `Who owns ${area}` : "Who owns New Orleans and Metairie",
+    about: "About and methodology",
+  };
+  const params = new URLSearchParams();
+  if (view !== "overview" || geo) params.set("view", view);
+  if (geo && (view === "overview" || (view === "ownership" && !url.owner))) params.set("geo", url.geo);
+  const qs = params.toString();
+  return { title: titles[view] ? `${titles[view]} · NOLA Atlas` : DEFAULT_TITLE, canonical: qs ? `${SITE}?${qs}` : SITE };
+}
 
 function readUrl() {
   const p = new URLSearchParams(window.location.search);
@@ -44,6 +70,12 @@ export default function App() {
       /* private mode */
     }
   }, [theme]);
+
+  useEffect(() => {
+    const { title, canonical } = pageMeta(view, url, meta?.geos);
+    document.title = title;
+    document.querySelector('link[rel="canonical"]')?.setAttribute("href", canonical);
+  }, [view, url, meta?.geos]);
 
   // One count per view opened, by view name only (lib/metrics.js).
   useEffect(() => {
