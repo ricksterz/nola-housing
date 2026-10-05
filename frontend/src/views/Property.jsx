@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
-import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, parcelQuery, suggestAddresses, suggestStreets, unitRecordLabel } from "../api";
+import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, parcelQuery, suggestAddresses, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
 import ChartPanel from "../components/ChartPanel";
 import AssessmentComparison from "../components/AssessmentComparison";
 import { CostInputs } from "../components/MonthlyCost";
@@ -98,13 +98,20 @@ export default function Property({ ctx }) {
   async function search(addr = address, { push = false } = {}) {
     if (!addr.trim()) return;
     setSuggestOpen(false);
-    // A street name with no house number opens that street's list.
+    // A street name with no house number opens that street's list; otherwise an owner's name
+    // opens their owner page (or their one property).
     if (!parcelQuery(addr) && !/^\d/.test(addr.trim())) {
       const [best] = await suggestStreets(addr, 1);
       if (best) {
         openStreet(best.slug);
         return;
       }
+      const [owner] = await suggestOwners(addr, 1);
+      if (owner?.kind === "owner") {
+        navigate({ view: "ownership", owner: owner.slug, q: null, street: null });
+        return;
+      }
+      if (owner) addr = owner.address;
     }
     setLoading(true);
     setError(null);
@@ -205,8 +212,8 @@ export default function Property({ ctx }) {
           onChange={(e) => onInput(e.target.value)}
           onFocus={() => suggestions.length > 0 && setSuggestOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Address, street, parcel # or organization"
-          aria-label="Address, street name, parcel number or organization"
+          placeholder="Address, street, owner name or parcel #"
+          aria-label="Address, street name, owner name or parcel number"
           role="combobox"
           aria-expanded={suggestOpen}
           aria-controls="address-suggestions"
@@ -758,7 +765,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
           label: "Owner",
           value: p.owner_name ? ownerName(p.owner_name) : null,
           wide: true,
-          // Public bodies and organizations with other properties link to all of them; people don't.
+          // An owner with other properties on the rolls links to all of them.
           note: data.owner && (
             <button type="button" className="link-button" onClick={() => navigate({ view: "ownership", owner: data.owner.slug, q: null, street: null })}>
               {`${data.owner.name} has ${(data.owner.count - 1).toLocaleString()} other propert${data.owner.count === 2 ? "y" : "ies"} on the rolls · See all`}
