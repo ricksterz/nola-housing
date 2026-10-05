@@ -56,6 +56,9 @@ jobs:
           # Relative asset paths: the same build works at nolaatlas.com/ and at the github.io
           # project path, so switching domains never serves a page whose assets 404.
           VITE_BASE: "./"
+          # Google Analytics usage counts (frontend/src/lib/metrics.js); blank = off. The repo
+          # variable GA_MEASUREMENT_ID holds the GA4 property's measurement ID (G-...).
+          VITE_GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
       - uses: actions/upload-pages-artifact@v5
         with:
           path: frontend/dist

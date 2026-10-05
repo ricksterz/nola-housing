@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getNearbyRows } from "../api";
 import { NEAR_RADIUS_M, fmtDistance, nearestHomes } from "../lib/nearby";
+import { EVENTS, trackEvent } from "../lib/metrics";
 import { fmt, seriesColor } from "../lib/theme";
 
 // OpenStreetMap's standard tiles: free with attribution and no API key, fine for a site this size
@@ -114,7 +115,7 @@ export default function NearbyMap({ p, theme, onPick }) {
             prices.
           </div>
         </div>
-        <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`} target="_blank" rel="noreferrer">
+        <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.googleMaps)}>
           Google Maps ↗
         </a>
       </div>

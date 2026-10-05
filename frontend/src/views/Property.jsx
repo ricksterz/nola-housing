@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
 import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, parcelQuery, suggestAddresses, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
 import ChartPanel from "../components/ChartPanel";
+import { EVENTS, trackEvent } from "../lib/metrics";
 import AssessmentComparison from "../components/AssessmentComparison";
 import { CostInputs } from "../components/MonthlyCost";
 import NearbyMap from "../components/NearbyMap";
@@ -103,22 +104,27 @@ export default function Property({ ctx }) {
     if (!parcelQuery(addr) && !/^\d/.test(addr.trim())) {
       const [best] = await suggestStreets(addr, 1);
       if (best) {
+        trackEvent(EVENTS.searchStreet);
         openStreet(best.slug);
         return;
       }
       const [owner] = await suggestOwners(addr, 1);
+      if (owner) trackEvent(EVENTS.searchOwner);
       if (owner?.kind === "owner") {
         navigate({ view: "ownership", owner: owner.slug, q: null, street: null });
         return;
       }
       if (owner) addr = owner.address;
     }
+    const counted = parcelQuery(addr) ? EVENTS.searchParcel : EVENTS.searchAddress;
     setLoading(true);
     setError(null);
     setData(null);
     setTrend(null);
     getPropertyLookup(addr)
       .then((d) => {
+        trackEvent(counted);
+        if (d.building && !d.parcel) trackEvent(EVENTS.openBuilding);
         setData(d);
         // Show the full "street, city, LA zip" once we know it — the search key stays the
         // plain street address (getPropertyLookup strips anything after the first comma).
@@ -126,7 +132,10 @@ export default function Property({ ctx }) {
         setAddress(full);
         navigate({ q: full, street: null }, { replace: !push });
       })
-      .catch((e) => setError({ message: e.message, nearby: e.nearby || [] }))
+      .catch((e) => {
+        trackEvent(EVENTS.searchMiss);
+        setError({ message: e.message, nearby: e.nearby || [] });
+      })
       .finally(() => setLoading(false));
   }
 
@@ -151,10 +160,12 @@ export default function Property({ ctx }) {
   function pick(a) {
     setSuggestOpen(false);
     if (a.kind === "street") {
+      trackEvent(EVENTS.searchStreet);
       openStreet(a.slug);
       return;
     }
     if (a.kind === "owner") {
+      trackEvent(EVENTS.searchOwner);
       navigate({ view: "ownership", owner: a.slug, q: null, street: null });
       return;
     }
@@ -362,7 +373,10 @@ function UnitDirectory({ records, onPick }) {
           className="search-input unit-filter"
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            trackEvent(EVENTS.filterUnits, { once: true });
+          }}
           placeholder="Filter by owner name or tax bill"
           aria-label="Filter units by owner name or tax bill"
           autoComplete="off"
@@ -489,6 +503,7 @@ function CopyLinkButton({ address }) {
       if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
       else legacyCopy(url);
       setState("copied");
+      trackEvent(EVENTS.copyLink);
     } catch {
       try {
         legacyCopy(url);
@@ -767,7 +782,14 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
           wide: true,
           // An owner with other properties on the rolls links to all of them.
           note: data.owner && (
-            <button type="button" className="link-button" onClick={() => navigate({ view: "ownership", owner: data.owner.slug, q: null, street: null })}>
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => {
+                trackEvent(EVENTS.ownerLinkFromProperty);
+                navigate({ view: "ownership", owner: data.owner.slug, q: null, street: null });
+              }}
+            >
               {`${data.owner.name} has ${(data.owner.count - 1).toLocaleString()} other propert${data.owner.count === 2 ? "y" : "ies"} on the rolls · See all`}
             </button>
           ),
@@ -843,7 +865,10 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
 
       <AssessmentComparison key={`compare-${p.parcel_id}`} p={p} comparison={data.comparison} />
       {p.lat != null && p.lng != null && <NearbyMap key={`map-${p.parcel_id}`} p={p} theme={theme} onPick={onPick} />}
-      <MonthlyCostPanel key={`cost-${p.parcel_id}`} p={p} theme={theme} macro={macro} scorecard={scorecard} />
+      {/* Counted once per visit when any cost input changes. */}
+      <div onChangeCapture={() => trackEvent(EVENTS.costCalculator, { once: true })}>
+        <MonthlyCostPanel key={`cost-${p.parcel_id}`} p={p} theme={theme} macro={macro} scorecard={scorecard} />
+      </div>
 
       {v && (
         <div className="panel panel--gold">
