@@ -7,7 +7,7 @@ import RangeToggle from "../components/RangeToggle";
 import StatTile from "../components/StatTile";
 import { Frame, MetricLine, currencyAxis } from "../components/charts";
 import { geoKey, geoLabel, parseGeo } from "../lib/geo";
-import { filterRange, monthLabel } from "../lib/rangeUtils";
+import { filterRange, monthLabel, monthsSince, RANGES } from "../lib/rangeUtils";
 import { fmt, fmtCompactCurrency } from "../lib/theme";
 
 const DEFAULT_GEO = { geo_level: "zip", geo_id: "70005" };
@@ -15,7 +15,8 @@ const DEFAULT_GEO = { geo_level: "zip", geo_id: "70005" };
 export default function Overview({ ctx }) {
   const { geos, theme, scorecard, navigate, url } = ctx;
   const geo = parseGeo(url.geo) || DEFAULT_GEO;
-  const [range, setRange] = useState(url.range || "2020");
+  // The range lives in the URL, so Back/Forward moves it too.
+  const range = RANGES.some((r) => r.id === url.range) ? url.range : "2020";
   const [trend, setTrend] = useState(null);
   const [error, setError] = useState(null);
   // While a new geography loads, the previous render is held at reduced opacity
@@ -53,8 +54,13 @@ export default function Overview({ ctx }) {
                 Latest readings · Redfin {fmt.monthYear(row.price_month)} · Zillow {fmt.monthYear(row.zhvi_month)}
               </div>
             </div>
-            <RangeToggle value={range} onChange={(r) => { setRange(r); navigate({ range: r }, { replace: true }); }} right={false} />
+            <RangeToggle value={range} onChange={(r) => navigate({ range: r }, { replace: true })} right={false} />
           </div>
+          {monthsSince(row.price_month) > 2 && (
+            <div className="stat-note" style={{ margin: "-6px 0 14px" }}>
+              {`Redfin's public release ends at ${fmt.monthYear(row.price_month)} — sale-price figures lag the market. Zillow is current through ${fmt.monthYear(row.zhvi_month)}.`}
+            </div>
+          )}
           <div className="stat-grid">
             <StatTile label="Median sale price" value={fmtCompactCurrency(row.median_sale_price)} delta={row.price_yoy_pct} spark={row.spark_price} accent />
             <StatTile label="Typical home value" value={fmtCompactCurrency(row.zhvi)} delta={row.zhvi_yoy_pct} spark={row.spark_zhvi} note="Zillow ZHVI" />

@@ -217,6 +217,7 @@ export default function Property({ ctx }) {
       )}
 
       <div className="search-row" ref={boxRef}>
+        <div className="search-box">
         <input
           className="search-input"
           value={address}
@@ -249,6 +250,7 @@ export default function Property({ ctx }) {
             ))}
           </div>
         )}
+        </div>
         <button className="btn-primary" onClick={() => search()} disabled={loading}>
           {loading ? "Searching…" : "Search"}
         </button>
@@ -658,7 +660,25 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
     getOwnershipCosts().then(setCosts);
   }, []);
   const z = p.zip_code && costs?.zips?.[p.zip_code];
-  if (!z) return null;
+  // The panel only appears for parcels placed in one of the covered ZIPs, because the tax and
+  // flood figures are by ZIP. While the ZIP tables load, show nothing; once loaded with no match,
+  // say why instead of silently dropping the panel.
+  if (!costs) return null;
+  if (!z)
+    return (
+      <div className="panel">
+        <div className="panel-head">
+          <div>
+            <h3 className="panel-title">Monthly cost to own</h3>
+            <div className="panel-subtitle">Tax rates and flood insurance costs are published by ZIP.</div>
+          </div>
+        </div>
+        <div className="stat-note">
+          Not shown for this address — it sits outside the 24 ZIPs this site covers, so there's no
+          ZIP tax rate or flood-cost figure to build it from.
+        </div>
+      </div>
+    );
 
   const wanted = floodGroup(p);
   const group = z.flood?.[wanted] ? wanted : "all";
