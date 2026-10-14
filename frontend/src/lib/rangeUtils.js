@@ -20,3 +20,15 @@ export const filterRange = (rows, id, key = "month") => {
 };
 
 export const monthLabel = (m) => (m ? String(m).slice(0, 7) : "");
+
+/**
+ * Whole months from a "YYYY-MM-DD" month to the current month; null when unknown.
+ * Used to flag stale source vintages (Redfin's public bucket can sit months behind).
+ */
+export function monthsSince(monthStr) {
+  if (!monthStr) return null;
+  const [y, m] = String(monthStr).split("-").map(Number);
+  if (!y || !m) return null;
+  const now = new Date();
+  return (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m);
+}
