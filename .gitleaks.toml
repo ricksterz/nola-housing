@@ -1,0 +1,9 @@
+# Secret scanning (.github/workflows/security.yml): gitleaks' default rules, plus one exception.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Market Overview chart settings: Redfin metric names after `key:`, not credentials"
+regexTarget = "match"
+regexes = ['''key: "redfin_[a-z0-9_]+"''']
