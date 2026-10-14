@@ -58,6 +58,10 @@ function readSaved() {
   }
 }
 
+// FRED ships the mortgage rate with full float precision (7.28000020980835); round it before
+// it reaches a number input or a sentence.
+const roundRate = (v) => (v == null ? v : Math.round(v * 1000) / 1000);
+
 /** Rate, down payment, homeowners premium, flood and homestead toggles, shared between views and kept
  * per-browser so the reader doesn't retype them. Rate follows FRED until the reader edits it. */
 export function useCostAssumptions(defaultRate) {
@@ -77,5 +81,5 @@ export function useCostAssumptions(defaultRate) {
     }
   }, [a]);
   const set = (patch) => setA((prev) => ({ ...prev, ...patch }));
-  return { ...a, rate: a.rate ?? defaultRate ?? 6.5, set };
+  return { ...a, rate: a.rate ?? roundRate(defaultRate) ?? 6.5, set };
 }

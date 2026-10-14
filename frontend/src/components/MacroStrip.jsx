@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { fmt, fmtCompactCurrency } from "../lib/theme";
+import { monthsSince } from "../lib/rangeUtils";
 import StatTile from "./StatTile";
 
 const SCOPES = [
@@ -44,10 +45,15 @@ export default function MacroStrip({ ctx }) {
         </div>
         <div className="stat-note" style={{ marginLeft: "auto" }}>
           30-yr mortgage:{" "}
-          <b style={{ color: "var(--text-bright)" }}>{mortgage?.value != null ? `${mortgage.value}%` : "—"}</b>
+          <b style={{ color: "var(--text-bright)" }}>{mortgage?.value != null ? fmt.pct(mortgage.value, 2) : "—"}</b>
           {mortgage?.date ? ` · Freddie Mac via FRED, ${mortgage.date}` : " · FRED refresh pending"}
         </div>
       </div>
+      {row && monthsSince(row.price_month) > 2 && (
+        <div className="stat-note" style={{ margin: "-6px 0 12px" }}>
+          {`Redfin's public release ends at ${fmt.monthYear(row.price_month)} — sale-price figures lag the market.`}
+        </div>
+      )}
       {loading && <div className="loading">Loading…</div>}
       {!loading && !row && <div className="empty">No market rows for this area yet.</div>}
       {row && (

@@ -189,13 +189,15 @@ a { color: var(--blue); }
 .geo-more:hover { color: var(--text); border-color: var(--text-dimmer); }
 
 /* ---------- Inputs ---------- */
-.search-row { display: flex; gap: 10px; margin-bottom: 20px; position: relative; }
+.search-row { display: flex; gap: 10px; margin-bottom: 20px; }
+.search-box { position: relative; flex: 1; min-width: 0; display: flex; }
+.search-box .search-input { flex: 1; }
 .search-input, .num-input { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-bright); font-size: 14px; padding: 10px 14px; font-family: var(--sans); font-weight: 500; outline: none; }
 .search-input { flex: 1; min-width: 0; }
 .num-input { width: 96px; padding: 6px 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
 .search-input:focus, .num-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 18%, transparent); }
 .search-input::placeholder { color: var(--text-dimmer); font-weight: 400; }
-.suggestions { position: absolute; top: calc(100% + 6px); left: 0; right: 0; max-width: 560px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); z-index: 10; overflow: hidden; box-shadow: var(--shadow); }
+.suggestions { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); z-index: 10; overflow: hidden; box-shadow: var(--shadow); }
 .suggestion { padding: 10px 14px; font-size: 13.5px; font-weight: 500; color: var(--text); cursor: pointer; border-bottom: 1px solid var(--border-alt); }
 .suggestion:last-child { border-bottom: none; }
 .suggestion:hover, .suggestion--active { background: var(--panel-alt); color: var(--text-bright); }
@@ -288,7 +290,9 @@ a { color: var(--blue); }
   .chart-box { height: 220px; }
   .search-row { flex-wrap: wrap; }
   .search-row .btn-primary { flex: 1; }
-  .search-input { flex-basis: 100%; }
+  .search-box { flex-basis: 100%; }
+  /* iOS Safari zooms any input under 16px on focus; keep inputs at 16px on phones. */
+  .search-input, .num-input { font-size: 16px; }
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .data-table { font-size: 12.5px; }
   .geo-group-label { min-width: 100%; }

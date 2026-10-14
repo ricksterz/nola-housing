@@ -6,7 +6,7 @@ import GeoPicker from "../components/GeoPicker";
 import RangeToggle from "../components/RangeToggle";
 import { Frame, currencyAxis, lineProps, yAxisProps } from "../components/charts";
 import { geoKey, geoLabel, parseGeo } from "../lib/geo";
-import { filterRange, monthLabel } from "../lib/rangeUtils";
+import { filterRange, monthLabel, RANGES } from "../lib/rangeUtils";
 import { fmt, fmtCompactCurrency, seriesColor } from "../lib/theme";
 
 const METRICS = [
@@ -27,7 +27,8 @@ export default function Compare({ ctx }) {
   const selected = useMemo(() => (url.geos ? url.geos.split(",") : DEFAULT).map(parseGeo).filter(Boolean), [url.geos]);
   const metric = METRICS.find((m) => m.key === url.metric) || METRICS[0];
   const indexed = url.indexed === "1";
-  const [range, setRange] = useState(url.range || "2020");
+  // The range lives in the URL, so Back/Forward moves it too.
+  const range = RANGES.some((r) => r.id === url.range) ? url.range : "2020";
   const [compare, setCompare] = useState(null);
   const [error, setError] = useState(null);
   // Slot assignment is sticky: a geo keeps its color while it stays selected.
@@ -111,7 +112,7 @@ export default function Compare({ ctx }) {
         <button className={`btn btn-sm${indexed ? " is-active" : ""}`} onClick={() => navigate({ indexed: indexed ? null : "1" })} aria-pressed={indexed} title="Rebase every series to 100 at the start of the range to compare growth, not level">
           Indexed = 100
         </button>
-        <RangeToggle value={range} onChange={(r) => { setRange(r); navigate({ range: r }, { replace: true }); }} />
+        <RangeToggle value={range} onChange={(r) => navigate({ range: r }, { replace: true })} />
       </div>
 
       <GeoPicker geos={geos} selected={selected} onToggle={toggle} multi colorOf={colorOf} max={MAX} />

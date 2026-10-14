@@ -220,7 +220,7 @@ function AffordabilityPanel({ rows, theme, macro }) {
       </div>
       <CostInputs a={a} />
       <div className="stat-note" style={{ margin: "8px 0 10px" }}>
-        {fredRate != null ? `Rate starts at the latest Freddie Mac average from FRED (${fredRate}%). ` : ""}
+        {fredRate != null ? `Rate starts at the latest Freddie Mac average from FRED (${fmt.pct(fredRate, 2)}). ` : ""}
         Homeowners insurance is your estimate for every ZIP (published 2026 Louisiana averages run {HOMEOWNERS_RANGE}).
         {missingTax ? " Some ZIPs have no published tax rate and show $0 tax." : ""}
       </div>
