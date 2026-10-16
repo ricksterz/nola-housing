@@ -150,15 +150,29 @@ def split_site_address(address: str | None) -> tuple[str | None, str | None]:
     return street or None, m.group(1) if m else None
 
 
+# An owner field that stops on a joining word ran out of room; the rest of the name starts the
+# mailing-address line ("HOUSING AUTHORITY OF" + "JEFFERSON PARISH 1718 BETTY ST"). The roll's
+# back-to-front names ("NEW ORLEANS,CITY OF") end on "OF" but are complete.
+_CONTINUES = re.compile(r"(?:&|%|\b(?:OF|THE|AND|FOR|OF THE))$", re.IGNORECASE)
+_COMPLETE_INVERTED = re.compile(
+    r"(?:,\s*|\s)(?:THE\s+)?(?:CITY|PARISH|STATE|TOWN|VILLAGE|COUNTY) OF$", re.IGNORECASE
+)
+
+
 def join_co_owner(owner: str | None, line: str | None) -> str | None:
-    """ "SMUCK,STEVEN M &" + "JANE D SMUCK 321 BONNABEL BLVD" -> "SMUCK,STEVEN M & JANE D SMUCK"."""
+    """ "SMUCK,STEVEN M &" + "JANE D SMUCK 321 BONNABEL BLVD" -> "SMUCK,STEVEN M & JANE D SMUCK";
+    "HOUSING AUTHORITY OF" + "JEFFERSON PARISH 1718 BETTY ST" -> "HOUSING AUTHORITY OF JEFFERSON
+    PARISH". Only the text before the address joins; the address itself is never kept."""
     owner = (owner or "").strip()
-    if not owner.endswith("&") or not (line or "").strip():
+    continues = _CONTINUES.search(owner) and not _COMPLETE_INVERTED.search(owner)
+    if not continues or not (line or "").strip():
         return owner or None
     padded = " " + line.strip()
     m = _ADDRESS_START.search(padded)
     co = (padded[: m.start()] if m else padded).strip()
-    if not co or co.upper().startswith("C/O"):  # no name before the address, or a care-of line
+    if not co or re.match(
+        r"(?:C/O|ATTN)\b", co, re.IGNORECASE
+    ):  # no name before the address, or a care-of line
         return owner
     return f"{owner} {co}"
 

@@ -169,6 +169,17 @@ def test_probe_candidates_order(fx, fake_http):
         ("SMUCK,STEVEN M &", "1506 AMES BLVD", "SMUCK,STEVEN M &"),  # no name on the line
         ("SMUCK,STEVEN M &", "C/O ACME LLC 1 MAIN ST", "SMUCK,STEVEN M &"),  # care-of, not an owner
         ("DOE,JANE", "1506 AMES BLVD", "DOE,JANE"),  # single owner: the line is only an address
+        # A name the owner field cut off on a joining word continues on the line.
+        ("HOUSING AUTHORITY OF", "JEFFERSON PARISH 1718 BETTY ST", "HOUSING AUTHORITY OF JEFFERSON PARISH"),
+        (
+            "ROMAN CATHOLIC CHURCH OF",
+            "THE ARCHDIOCESE OF NEW ORLEANS 7887 WALMSLEY AVE",
+            "ROMAN CATHOLIC CHURCH OF THE ARCHDIOCESE OF NEW ORLEANS",
+        ),
+        ("HOUSING AUTHORITY OF", "ATTN FINANCE 1718 BETTY ST", "HOUSING AUTHORITY OF"),  # a mailing note
+        # Back-to-front names end on "OF" but are complete: the line is a department or address.
+        ("NEW ORLEANS,CITY OF", "DEPT OF PROPERTY MGMT 1300 PERDIDO ST", "NEW ORLEANS,CITY OF"),
+        ("LOUISIANA STATE OF", "DIV OF ADMINISTRATION PO BOX 94095", "LOUISIANA STATE OF"),
         ("  ", None, None),
     ],
 )

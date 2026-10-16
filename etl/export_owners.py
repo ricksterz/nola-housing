@@ -26,7 +26,7 @@ from collections import Counter, defaultdict
 from backend import queries
 from backend.owners import owner_key, owner_kind
 
-TOP_OWNERS = 10
+TOP_OWNERS = 50  # per area and per owner type; the page shows 10 at a time
 # Name words too common to search by on their own; the search uses another word typed with them.
 INDEX_SKIP = {"LLC", "INC", "THE", "OF", "AND", "TRUST", "CO", "JR", "SR", "II", "III", "IV", "CORP", "LP"}
 CONCENTRATION_TOP_N = 10
@@ -50,6 +50,7 @@ _CAPS = {
     "PLLC",
     "CCC",
 }
+_CUT_OFF = re.compile(r"\b(?:OF|THE|AND|FOR)$")
 _SMALL = {"OF", "THE", "AND", "FOR", "AT", "IN", "ON", "TO", "A"}
 
 
@@ -64,8 +65,12 @@ def display_name(name: str) -> str:
             return w.lower()
         return "-".join(part if part in _CAPS else part[:1] + part[1:].lower() for part in w.split("-"))
 
-    words = owner_key(name).split(" ")
-    return " ".join(word(w, i == 0) for i, w in enumerate(words))
+    key = owner_key(name)
+    words = key.split(" ")
+    shown = " ".join(word(w, i == 0) for i, w in enumerate(words))
+    # A name still ending on a joining word was cut off by the roll's field length and had no
+    # continuation to join (see etl/assessor/bulk.py join_co_owner): say so.
+    return f"{shown}…" if _CUT_OFF.search(key) else shown
 
 
 def name_prefix(word: str) -> str:

@@ -51,11 +51,13 @@ function OwnershipStats({ ctx }) {
   const [error, setError] = useState(null);
   const [sort, setSort] = useState("org");
   const [ownerKind, setOwnerKind] = useState("all");
+  const [ownersShown, setOwnersShown] = useState(10);
   useEffect(() => {
     getOwnership().then(setStats, (e) => setError(e.message));
   }, []);
   const geo = parseGeo(url.geo) || METRO;
   const area = stats?.[geoKey(geo)];
+  const topOwners = !area ? [] : ownerKind === "all" ? area.top_owners : area.top_owners_by_kind?.[ownerKind] || [];
   const gold = typeof document !== "undefined" ? getComputedStyle(document.documentElement).getPropertyValue("--gold").trim() || "#d4953a" : "#d4953a";
 
   const zipRows = useMemo(() => {
@@ -132,14 +134,14 @@ function OwnershipStats({ ctx }) {
               <div className="stat-section-title" style={{ marginTop: 18 }}>Largest owners here</div>
               <div className="btn-row" role="tablist" aria-label="Owner type" style={{ marginBottom: 4 }}>
                 {[["all", "All"], ...KINDS.map(([k, label]) => [k, label])].map(([k, label]) => (
-                  <button key={k} type="button" role="tab" aria-selected={ownerKind === k} className={`btn btn-sm${ownerKind === k ? " is-active" : ""}`} onClick={() => setOwnerKind(k)}>
+                  <button key={k} type="button" role="tab" aria-selected={ownerKind === k} className={`btn btn-sm${ownerKind === k ? " is-active" : ""}`} onClick={() => { setOwnerKind(k); setOwnersShown(10); }}>
                     {label}
                   </button>
                 ))}
               </div>
               {ownerKind !== "all" && !(area.top_owners_by_kind?.[ownerKind] || []).length && <div className="stat-note">No owner of this type holds more than one property here.</div>}
               <ul className="nearby-list" style={{ marginTop: 0 }}>
-                {(ownerKind === "all" ? area.top_owners : area.top_owners_by_kind?.[ownerKind] || []).map(([slug, name, count, kind]) => (
+                {topOwners.slice(0, ownersShown).map(([slug, name, count, kind]) => (
                   <li key={slug || name}>
                     <button type="button" className="nearby-item" onClick={() => slug && navigate({ owner: slug })}>
                       <span className="nearby-street">{name}</span>
@@ -148,6 +150,11 @@ function OwnershipStats({ ctx }) {
                   </li>
                 ))}
               </ul>
+              {topOwners.length > ownersShown && (
+                <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setOwnersShown(ownersShown + 20)}>
+                  {`Show more (${topOwners.length - ownersShown} of the ${topOwners.length} largest)`}
+                </button>
+              )}
             </>
           )}
         </div>
