@@ -391,3 +391,18 @@ a { color: var(--blue); }
 .own-legend-item .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .own-legend-item b { color: var(--text-bright); font-weight: 650; font-variant-numeric: tabular-nums; }
 
+/* Pre-built page content (etl/prerender.py): what search engines and no-JavaScript visitors read;
+   the app replaces it as soon as it loads. */
+.prerender { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; color: var(--text); font-size: 14px; line-height: 1.6; }
+.prerender h1 { font-size: 26px; color: var(--text-bright); margin: 18px 0 10px; }
+.prerender h2 { font-size: 17px; color: var(--text-bright); margin: 22px 0 8px; }
+.prerender h3 { font-size: 13px; color: var(--text-dim); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.prerender a { color: var(--blue); }
+.prerender ul { padding-left: 18px; columns: 2 220px; }
+.prerender-nav { font-size: 13px; color: var(--text-dim); }
+.prerender-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; }
+.prerender-facts dt { color: var(--text-dim); }
+.prerender-facts dd { margin: 0; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+.prerender table { border-collapse: collapse; font-size: 13px; }
+.prerender td, .prerender th { padding: 4px 10px 4px 0; text-align: left; }
+

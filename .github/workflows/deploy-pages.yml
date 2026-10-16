@@ -53,12 +53,16 @@ jobs:
         working-directory: frontend
         env:
           VITE_STATIC_DATA: "true"
-          # Relative asset paths: the same build works at nolaatlas.com/ and at the github.io
-          # project path, so switching domains never serves a page whose assets 404.
-          VITE_BASE: "./"
+          # Root-relative asset paths: pages live at nested paths ("/ownership/70130/"), which
+          # relative paths would resolve under. The github.io project path redirects to the domain.
+          VITE_BASE: "/"
           # Google Analytics usage counts (frontend/src/lib/metrics.js); blank = off. The repo
           # variable GA_MEASUREMENT_ID holds the GA4 property's measurement ID (G-...).
           VITE_GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+      # A real HTML page per tab and area (title, numbers, links) for search engines, and the
+      # sitemap of them; the app takes over when it loads (etl/prerender.py).
+      - name: Pre-build pages for search engines
+        run: python -m etl.prerender
       - uses: actions/upload-pages-artifact@v5
         with:
           path: frontend/dist
