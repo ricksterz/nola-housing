@@ -48,6 +48,7 @@ etl/
   refresh_flood.py       monthly: FEMA flood zones, rebuild join
   load_address_points.py monthly: City address points -> lot, for addresses the roll files under another
   export_owners.py       owner pages, owner-name search and ownership stats
+  prerender.py           after the site build: a real HTML page per tab and area, and sitemap.xml
   probe_assessor_bulk.py report which official bulk options answer
 tests/                   fixture-backed tests for every loader, the assessor fallbacks and the join
 .github/workflows/       ci.yml, security.yml, refresh-market-data.yml, refresh-assessor.yml,
