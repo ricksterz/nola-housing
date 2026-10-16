@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
-import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, parcelQuery, suggestAddresses, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
+import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, markCutOff, parcelQuery, suggestAddresses, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
 import ChartPanel from "../components/ChartPanel";
 import { EVENTS, trackEvent } from "../lib/metrics";
 import AssessmentComparison from "../components/AssessmentComparison";
@@ -475,7 +475,7 @@ function highlightMatch(text, query) {
 // the record names a co-owner the Assessor didn't publish in the name field.
 function ownerName(raw) {
   const s = String(raw).replace(/\s*,\s*/g, ", ").replace(/\s*&\s*/g, " & ").trim();
-  return s.endsWith("&") ? `${s.slice(0, -1).trim()} & co-owner` : s;
+  return s.endsWith("&") ? `${s.slice(0, -1).trim()} & co-owner` : markCutOff(s);
 }
 
 // A clean link to this property (view + address only), copied for sharing. Falls back to a

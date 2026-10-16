@@ -340,11 +340,22 @@ function lookupMiss(street, nearby) {
 // Title case, keeping the abbreviations and generational suffixes on owner names in capitals.
 const OWNER_CAPS = new Set(["LLC", "LLP", "LP", "INC", "II", "III", "IV", "USA", "HUD", "NOLA"]);
 
+// An owner name that stops on a joining word ("PHAZES REALTY OF") was cut off by the roll's field
+// length; the roll's back-to-front names ("NEW ORLEANS,CITY OF") are complete. Same rule as
+// etl/export_owners.py display_name.
+export function markCutOff(name) {
+  const s = String(name || "").trim();
+  const cut = /\b(?:of|the|and|for)$/i.test(s) && !/(?:,\s*|\s)(?:the\s+)?(?:city|parish|state|town|village|county)\s+of$/i.test(s);
+  return cut ? `${s}…` : s;
+}
+
 export function unitRecordLabel(u) {
-  const owner = (u.owner || "")
-    .replace(/\s*,\s*/g, ", ")
-    .toLowerCase()
-    .replace(/\b\w+/g, (w) => (OWNER_CAPS.has(w.toUpperCase()) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)));
+  const owner = markCutOff(
+    (u.owner || "")
+      .replace(/\s*,\s*/g, ", ")
+      .toLowerCase()
+      .replace(/\b\w+/g, (w) => (OWNER_CAPS.has(w.toUpperCase()) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))),
+  );
   return [u.tax_bill ? `Tax bill ${u.tax_bill}` : `Parcel ${u.parcel_id}`, owner].filter(Boolean).join(" · ");
 }
 
