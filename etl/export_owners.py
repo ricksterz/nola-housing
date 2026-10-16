@@ -26,7 +26,7 @@ from collections import Counter, defaultdict
 from backend import queries
 from backend.owners import owner_key, owner_kind
 
-TOP_OWNERS = 8
+TOP_OWNERS = 10
 # Name words too common to search by on their own; the search uses another word typed with them.
 INDEX_SKIP = {"LLC", "INC", "THE", "OF", "AND", "TRUST", "CO", "JR", "SR", "II", "III", "IV", "CORP", "LP"}
 CONCENTRATION_TOP_N = 10
@@ -216,11 +216,18 @@ class Owners:
             holders[next(b for b, lo, hi in HOLDER_BUCKETS if n >= lo and (hi is None or n <= hi))] += 1
         here = Counter(owned)
         top_n = sum(n for _, n in here.most_common(CONCENTRATION_TOP_N))
-        largest = [
-            [self.slug.get(k), self.name[k], n, self.kind[k]]
-            for k, n in here.most_common(TOP_OWNERS)
-            if n >= 2
-        ]
+        largest = []
+        largest_by_kind: dict[str, list] = {"individual": [], "organization": [], "government": []}
+        for k, n in here.most_common():
+            if n < 2:
+                break
+            row = [self.slug.get(k), self.name[k], n, self.kind[k]]
+            if len(largest) < TOP_OWNERS:
+                largest.append(row)
+            if len(largest_by_kind[self.kind[k]]) < TOP_OWNERS:
+                largest_by_kind[self.kind[k]].append(row)
+            if len(largest) >= TOP_OWNERS and all(len(v) >= TOP_OWNERS for v in largest_by_kind.values()):
+                break
         # Homestead exemptions are only published by Jefferson; Orleans parcels carry no values.
         buildings = [p for p in parcels if (p.get("bld_val") or 0) > 0]
         homestead = sum(1 for p in buildings if (p.get("homestead_exempt_val") or 0) > 0)
@@ -232,6 +239,7 @@ class Owners:
             "by_holder_size": {b: holders.get(b, 0) for b, _, _ in HOLDER_BUCKETS},
             "top_owners_share": round(top_n / len(owned), 4) if owned else None,
             "top_owners": largest if self.enabled else [],
+            "top_owners_by_kind": largest_by_kind if self.enabled else {},
             "buildings": len(buildings),
             "homestead_share": round(homestead / len(buildings), 4) if buildings else None,
         }
