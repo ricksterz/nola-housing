@@ -50,6 +50,7 @@ function OwnershipStats({ ctx }) {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
   const [sort, setSort] = useState("org");
+  const [ownerKind, setOwnerKind] = useState("all");
   useEffect(() => {
     getOwnership().then(setStats, (e) => setError(e.message));
   }, []);
@@ -129,8 +130,16 @@ function OwnershipStats({ ctx }) {
           {area.top_owners.length > 0 && (
             <>
               <div className="stat-section-title" style={{ marginTop: 18 }}>Largest owners here</div>
+              <div className="btn-row" role="tablist" aria-label="Owner type" style={{ marginBottom: 4 }}>
+                {[["all", "All"], ...KINDS.map(([k, label]) => [k, label])].map(([k, label]) => (
+                  <button key={k} type="button" role="tab" aria-selected={ownerKind === k} className={`btn btn-sm${ownerKind === k ? " is-active" : ""}`} onClick={() => setOwnerKind(k)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {ownerKind !== "all" && !(area.top_owners_by_kind?.[ownerKind] || []).length && <div className="stat-note">No owner of this type holds more than one property here.</div>}
               <ul className="nearby-list" style={{ marginTop: 0 }}>
-                {area.top_owners.map(([slug, name, count, kind]) => (
+                {(ownerKind === "all" ? area.top_owners : area.top_owners_by_kind?.[ownerKind] || []).map(([slug, name, count, kind]) => (
                   <li key={slug || name}>
                     <button type="button" className="nearby-item" onClick={() => slug && navigate({ owner: slug })}>
                       <span className="nearby-street">{name}</span>
