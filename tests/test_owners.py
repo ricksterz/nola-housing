@@ -9,6 +9,8 @@ from etl import export_owners
     [
         ("NEW ORLEANS,CITY OF", "CITY OF NEW ORLEANS"),
         ("THE CITY OF NEW ORLEANS", "CITY OF NEW ORLEANS"),
+        ("LOUISIANA STATE OF", "STATE OF LOUISIANA"),  # back to front without the comma
+        ("HOUSING AUTHORITY OF", "HOUSING AUTHORITY OF"),  # cut off, not back to front
         ("BABIN,TODD J", "BABIN TODD J"),  # Jefferson's comma
         ("A&B PROPERTIES L.L.C.", "A & B PROPERTIES LLC"),
         ("DUPLESSY CLIFFORD J C/O CITY OF NO", "DUPLESSY CLIFFORD J"),  # a mailing note, not an owner
@@ -31,6 +33,7 @@ def test_owner_key(name, key):
         ("GREATER LIBERTY BAPTIST CHURCH", "organization"),
         ("DENISE B MERLONE SEPARATE PROPERTY TRUST", "organization"),  # trusts are organizations
         ("SOUTHERN SCRAP MATERIAL CO", "organization"),
+        ("CONGREGATION OF", "organization"),  # cut off; "OF" isn't a first name
         # People, including ones whose names hold an organization word.
         ("SEXTON GLORIA M", "individual"),
         ("CHURCH JOHN A", "individual"),
@@ -55,6 +58,8 @@ def test_display_name():
     assert export_owners.display_name("NEW ORLEANS,CITY OF") == "City of New Orleans"
     assert export_owners.display_name("STATE OF LOUISIANA-DOTD") == "State of Louisiana-DOTD"
     assert export_owners.display_name("MARY FUND PARC LLC") == "Mary Fund Parc LLC"
+    assert export_owners.display_name("PHAZES REALTY OF") == "Phazes Realty of…"  # cut off by the roll
+    assert export_owners.display_name("KENNER,CITY OF") == "City of Kenner"  # complete
 
 
 def _parcel(pid, owner, parish="orleans", zip_code="70130", **kw):

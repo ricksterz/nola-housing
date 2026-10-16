@@ -13,7 +13,9 @@ nonprofits) and individual, for the ownership statistics and labels. When in dou
 
 import re
 
-_SUFFIX_OF = re.compile(r"^(.+?)\s*,\s*(CITY|PARISH|STATE|TOWN|VILLAGE|COUNTY) OF$")
+# "NEW ORLEANS,CITY OF" and "LOUISIANA STATE OF": a place written back to front, with or without
+# the comma.
+_SUFFIX_OF = re.compile(r"^(.+?)(?:\s*,\s*|\s+)(CITY|PARISH|STATE|TOWN|VILLAGE|COUNTY) OF$")
 
 # A company form settles it first: "GARDEN DISTRICT PROPERTIES LLC" isn't a public body.
 # ("L P" is left out: "WILLIAMS L P" is as likely a person's initials.)
@@ -42,7 +44,7 @@ _ORGANIZATION = re.compile(
 )
 # What follows a surname on the roll: a first name, maybe an initial and a suffix. An organization
 # word in first place followed by just that is a surname ("HOMES JUSTIN H", "LODGE EARL E").
-_GIVEN_NAMES = re.compile(r"^[A-Z'-]{2,}(?: [A-Z])?(?: (?:JR|SR|II|III|IV))?$")
+_GIVEN_NAMES = re.compile(r"^(?!(?:OF|THE|AND|FOR|IN|AT)\b)[A-Z'-]{2,}(?: [A-Z])?(?: (?:JR|SR|II|III|IV))?$")
 # A person acting as trustee is still a person: "GARCIA TRUSTEE ROSA C".
 _PERSON_TRUSTEE = re.compile(r"^[A-Z'-]+ TRUSTEES? [A-Z'-]{2,}(?: [A-Z])?$")
 # "SMITH JOHN C/O CITY OF NO": the owner is before the care-of; the rest is a mailing note.
