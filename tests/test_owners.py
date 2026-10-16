@@ -137,6 +137,9 @@ def test_stats():
     assert metro["by_kind"] == {"individual": 4, "organization": 1, "government": 3}
     assert metro["by_holder_size"] == {"1": 3, "2-9": 5, "10+": 0}
     assert [t[1] for t in metro["top_owners"]] == ["City of New Orleans", "Sexton Gloria M"]
+    assert [t[1] for t in metro["top_owners_by_kind"]["individual"]] == ["Sexton Gloria M"]
+    assert [t[1] for t in metro["top_owners_by_kind"]["government"]] == ["City of New Orleans"]
+    assert metro["top_owners_by_kind"]["organization"] == []  # One Off LLC holds just one
     assert stats["county:22051"]["homestead_share"] == 0.5  # Doe claims it, Roe doesn't; no building on 3
     assert stats["county:22071"]["homestead_share"] is None  # Orleans publishes no values
     assert stats["zip:70130"]["records"] == 5

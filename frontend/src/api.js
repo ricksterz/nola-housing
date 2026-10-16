@@ -203,7 +203,7 @@ export async function suggestStreets(q, limit = 6) {
 // Owner-name search over the public rolls (etl/export_owners.py): each owner is filed under the
 // first four letters of every word of their name, so either name order finds them. Owners with
 // several records open an owner page; an owner with one record opens that property.
-const OWNER_KIND_LABEL = { government: "Public body", organization: "Organization", individual: "Owner" };
+const OWNER_KIND_LABEL = { government: "Public body", organization: "Organization", individual: "Individual" };
 export const ownerKindLabel = (kind) => OWNER_KIND_LABEL[kind] || "Owner";
 const OWNER_INDEX_SKIP = new Set(["LLC", "INC", "THE", "OF", "AND", "TRUST", "CO", "JR", "SR", "II", "III", "IV", "CORP", "LP"]);
 
