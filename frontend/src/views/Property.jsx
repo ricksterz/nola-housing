@@ -500,7 +500,7 @@ function CopyLinkButton({ address }) {
   }
 
   async function copy() {
-    const url = `${window.location.origin}${window.location.pathname}?view=property&q=${encodeURIComponent(address)}`;
+    const url = `${window.location.origin}/?view=property&q=${encodeURIComponent(address)}`;
     try {
       if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
       else legacyCopy(url);

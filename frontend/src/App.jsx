@@ -3,6 +3,7 @@ import { getMacroSnapshot, getMeta, getScorecard, IS_STATIC } from "./api";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { trackView } from "./lib/metrics";
 import { geoLabel, parseGeo } from "./lib/geo";
+import { paramsFromPath, pathFromParams } from "./lib/routes";
 import Footer from "./components/Footer";
 import MacroStrip from "./components/MacroStrip";
 import About from "./views/About";
@@ -23,12 +24,13 @@ const VIEWS = [
   ["about", "About"],
 ];
 
-const SITE = "https://nolaatlas.com/";
+const SITE = "https://nolaatlas.com";
 const DEFAULT_TITLE = "NOLA Atlas — Every address in New Orleans and Metairie, explained";
 
-// Title and canonical URL per view, so search engines index each tab and area as its own page.
-// Only view and area count: a searched address, street or owner (q, street, owner) never goes in
-// the canonical URL or the title, so property and owner pages fold into their tab's page.
+// Title and canonical URL per view, so search engines index each tab and area as its own page
+// (the paths etl/prerender.py builds). Only view and area count: a searched address, street or
+// owner (q, street, owner) never goes in the canonical URL or the title, so property and owner
+// pages fold into their tab's page.
 function pageMeta(view, url, geos) {
   const geo = parseGeo(url.geo);
   const area = geo ? geoLabel(geo, geos) : null;
@@ -41,16 +43,15 @@ function pageMeta(view, url, geos) {
     ownership: url.owner ? "Owner" : area ? `Who owns ${area}` : "Who owns New Orleans and Metairie",
     about: "About and methodology",
   };
-  const params = new URLSearchParams();
-  if (view !== "overview" || geo) params.set("view", view);
-  if (geo && (view === "overview" || (view === "ownership" && !url.owner))) params.set("geo", url.geo);
-  const qs = params.toString();
-  return { title: titles[view] ? `${titles[view]} · NOLA Atlas` : DEFAULT_TITLE, canonical: qs ? `${SITE}?${qs}` : SITE };
+  const canonicalGeo = view === "overview" || (view === "ownership" && !url.owner) ? url.geo : undefined;
+  const path = pathFromParams({ view, geo: canonicalGeo }) || pathFromParams({ view }) || "/";
+  return { title: titles[view] ? `${titles[view]} · NOLA Atlas` : DEFAULT_TITLE, canonical: `${SITE}${path}` };
 }
 
+// Navigation state: the path's view and area ("/ownership/70130/"), then the query on top.
 function readUrl() {
   const p = new URLSearchParams(window.location.search);
-  return Object.fromEntries(p.entries());
+  return { ...paramsFromPath(window.location.pathname), ...Object.fromEntries(p.entries()) };
 }
 
 export default function App() {
@@ -98,7 +99,7 @@ export default function App() {
     const next = { ...readUrl(), ...patch };
     for (const k of Object.keys(next)) if (next[k] == null || next[k] === "") delete next[k];
     const qs = new URLSearchParams(next).toString();
-    const href = qs ? `?${qs}` : window.location.pathname;
+    const href = pathFromParams(next) || (qs ? `/?${qs}` : "/");
     if (replace) history.replaceState(null, "", href);
     else history.pushState(null, "", href);
     setUrl(next);
@@ -108,7 +109,7 @@ export default function App() {
   function goHome(e) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let the browser open a new tab
     e.preventDefault();
-    history.pushState(null, "", window.location.pathname);
+    history.pushState(null, "", "/");
     setUrl({});
     window.scrollTo({ top: 0 });
   }
@@ -133,7 +134,7 @@ export default function App() {
               <ThemeToggle theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />
             </div>
             <h1 className="app-title">
-              <a className="app-title-link" href={window.location.pathname} onClick={goHome} title="Home">
+              <a className="app-title-link" href="/" onClick={goHome} title="Home">
                 NOLA Atlas<span className="accent">.</span>
               </a>
             </h1>
