@@ -500,7 +500,8 @@ function CopyLinkButton({ address }) {
   }
 
   async function copy() {
-    const url = `${window.location.origin}/?view=property&q=${encodeURIComponent(address)}`;
+    // Under /property/, where the link-preview Worker gives shared links this property's preview.
+    const url = `${window.location.origin}/property/?q=${encodeURIComponent(address)}`;
     try {
       if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
       else legacyCopy(url);

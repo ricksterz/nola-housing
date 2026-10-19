@@ -1,0 +1,15 @@
+# Link previews for property and owner lookups on nolaatlas.com (see src/index.js).
+# Deploy from this folder: `npx wrangler deploy` (after `npx wrangler login`).
+name = "nolaatlas-link-previews"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+
+# The two tabs whose pages carry lookups as queries ("/property/?q=...", "/ownership/?owner=...").
+# Route patterns match the whole URL and can't name a query, so the home path ("/?view=...")
+# can't be routed without also running the Worker for every asset and data file; the app puts
+# lookups under these paths instead. Everything else (assets, data, other pages) skips the Worker.
+routes = [
+  { pattern = "nolaatlas.com/property/*", zone_name = "nolaatlas.com" },
+  { pattern = "nolaatlas.com/ownership/*", zone_name = "nolaatlas.com" },
+]
