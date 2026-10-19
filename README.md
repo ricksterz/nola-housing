@@ -51,6 +51,7 @@ etl/
   prerender.py           after the site build: a real HTML page per tab and area, and sitemap.xml
   probe_assessor_bulk.py report which official bulk options answer
 tests/                   fixture-backed tests for every loader, the assessor fallbacks and the join
+cloudflare/link-previews/ Worker on nolaatlas.com/: link previews for property and owner lookups
 .github/workflows/       ci.yml, security.yml, refresh-market-data.yml, refresh-assessor.yml,
                          refresh-flood.yml, refresh-addresses.yml, deploy-pages.yml
 ```

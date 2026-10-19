@@ -1,0 +1,10 @@
+# Link previews for property and owner lookups on nolaatlas.com (see src/index.js).
+# Deploy from this folder: `npx wrangler deploy` (after `npx wrangler login`).
+name = "nolaatlas-link-previews"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+
+# The home path only: lookups are queries on it (route patterns ignore the query string). The
+# pre-built pages at other paths already carry their own previews.
+routes = [{ pattern = "nolaatlas.com/", zone_name = "nolaatlas.com" }]
