@@ -53,7 +53,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install duckdb requests
+      - run: pip install duckdb requests pillow
       - run: python -m etl.db_store pull
       - run: python -m etl.export_static
       - uses: actions/setup-node@v7
@@ -67,3 +67,5 @@ jobs:
         working-directory: frontend
         env:
           VITE_STATIC_DATA: "true"
+      # The same pre-built pages and preview images the deploy makes, so a PR that breaks them fails here.
+      - run: python -m etl.prerender

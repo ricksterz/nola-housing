@@ -14,6 +14,11 @@ SHELL = """<!doctype html>
     <meta property="og:title" content="x" />
     <meta property="og:description" content="x" />
     <meta property="og:url" content="https://nolaatlas.com/" />
+    <meta property="og:image" content="https://nolaatlas.com/og/default.png" />
+    <meta property="og:image:alt" content="x" />
+    <meta name="twitter:title" content="x" />
+    <meta name="twitter:description" content="x" />
+    <meta name="twitter:image" content="https://nolaatlas.com/og/default.png" />
   </head>
   <body>
     <div id="root"></div>
@@ -115,3 +120,27 @@ def test_a_changed_shell_fails_loudly(dist):
     )
     with pytest.raises(RuntimeError, match="canonical"):
         prerender.build(dist)
+
+
+def test_each_page_gets_its_own_preview_image(dist):
+    from PIL import Image
+
+    prerender.build(dist)
+    page = (dist / "market" / "70130" / "index.html").read_text()
+    assert '<meta property="og:image" content="https://nolaatlas.com/og/market-70130.png" />' in page
+    assert '<meta name="twitter:image" content="https://nolaatlas.com/og/market-70130.png" />' in page
+    assert (
+        '<meta name="twitter:title" content="70130 · French Quarter &lt;&amp; Lower Garden&gt; housing market'
+        in page
+    )
+    for name in ("market-70130.png", "ownership-orleans.png", "home.png", "about.png", "default.png"):
+        with Image.open(dist / "og" / name) as img:
+            assert img.size == (1200, 630), name
+    assert (dist / "og" / "default.png").read_bytes() == (dist / "og" / "home.png").read_bytes()
+
+
+def test_rebuilding_an_already_built_site_starts_from_the_plain_app(dist):
+    prerender.build(dist)
+    assert prerender.build(dist) == 15
+    assert (dist / "404.html").read_text() == SHELL
+    assert (dist / "index.html").read_text().count('class="prerender"') == 1
