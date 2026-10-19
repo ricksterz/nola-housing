@@ -1,11 +1,12 @@
 // What a shared lookup link's preview should say. Pure functions over the site's own static
 // data (/data/...), so they're testable without Cloudflare; index.js fetches and rewrites.
 //
-// Lookups live on the home page as queries, so link previewers (which don't run JavaScript) would
-// otherwise show the home page's card for every property:
-//   /?view=property&q=1 Poydras St, New Orleans, LA 70130   a property, by address
-//   /?view=property&q=Parcel 103109601                       a property or unit, by parcel/tax bill
-//   /?view=ownership&owner=housing-authority-of-new-orleans  an owner page
+// Lookups are queries on their tab's page, so link previewers (which don't run JavaScript) would
+// otherwise show the tab's card for every property:
+//   /property/?q=1 Poydras St, New Orleans, LA 70130          a property, by address
+//   /property/?q=Parcel 103109601                             a property or unit, by parcel/tax bill
+//   /ownership/?owner=housing-authority-of-new-orleans        an owner page (also /ownership/{area}/)
+// Older links put them on the home page ("/?view=property&q=..."); those are read the same way.
 // The lookup rules are the app's (frontend/src/api.js): keep them in step.
 
 export const SITE = "https://nolaatlas.com";
@@ -36,7 +37,8 @@ function areaImage(zip, zips) {
 
 /** Preview text for a property page document (a parcel or a condo building). */
 export function describeProperty(doc, zips) {
-  if (doc.building) {
+  // A building's page lists its units; a unit's page has its own record plus a link to the building.
+  if (doc.building && !doc.parcel) {
     const b = doc.building;
     const street = b.full.split(",")[0];
     return {
@@ -47,7 +49,9 @@ export function describeProperty(doc, zips) {
     };
   }
   const p = doc.parcel || {};
-  const place = p.full_address || (p.parcel_id ? `Parcel ${p.parcel_id}` : "A property");
+  let place = p.full_address || (p.parcel_id ? `Parcel ${p.parcel_id}` : "A property");
+  // A unit the roll doesn't number reads like its building: say which tax bill it is.
+  if (doc.building && p.full_address === doc.building.full && p.tax_bill_number) place += ` (tax bill ${p.tax_bill_number})`;
   const facts = [];
   if (p.flood_zone) facts.push(`Flood zone ${p.flood_zone}${p.flood_sfha ? " (high risk)" : ""}`);
   if (p.assessed_val) facts.push(`assessed at ${money(p.assessed_val)}`);
@@ -82,14 +86,15 @@ export function describeOwner(o) {
  */
 export async function previewFor(url, get) {
   const p = url.searchParams;
-  if (p.get("view") === "ownership" && p.get("owner")) {
+  const view = p.get("view") || (url.pathname.startsWith("/property/") ? "property" : url.pathname.startsWith("/ownership/") ? "ownership" : null);
+  if (view === "ownership" && p.get("owner")) {
     const slug = p.get("owner");
     if (!/^[a-z0-9-]{1,90}$/.test(slug)) return null;
     const owner = await get(`/data/owner/${slug}.json`);
     return owner ? describeOwner(owner) : null;
   }
   const q = p.get("q");
-  if (p.get("view") !== "property" || !q) return null;
+  if (view !== "property" || !q) return null;
   let doc = null;
   const pid = parcelQuery(q);
   if (pid) {

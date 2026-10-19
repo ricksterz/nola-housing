@@ -1,5 +1,5 @@
-// Cloudflare Worker on nolaatlas.com/ (the home path only; every other page is untouched): fills
-// the link-preview tags of property and owner lookups, which share the home page's HTML, with
+// Cloudflare Worker on nolaatlas.com/property/* and /ownership/* (wrangler.toml): fills the
+// link-preview tags of property and owner lookups, which share their tab's pre-built HTML, with
 // that property's or owner's details. See meta.js. Deploy: `npx wrangler deploy` in this folder.
 
 import { previewFor } from "./meta.js";
@@ -24,7 +24,7 @@ export default {
   async fetch(request) {
     const res = await fetch(request);
     const url = new URL(request.url);
-    if (request.method !== "GET" || url.pathname !== "/" || !(res.headers.get("content-type") || "").includes("text/html")) {
+    if (request.method !== "GET" || !url.search || !(res.headers.get("content-type") || "").includes("text/html")) {
       return res;
     }
     let preview = null;

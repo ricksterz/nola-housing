@@ -24,12 +24,15 @@ const DATA = {
   "/data/property/418-bonnabel-blvd.json": PARCEL,
   "/data/property/1-poydras-st.json": BUILDING,
   "/data/pid/1031096.json": [["103109601", "parcel-103109601", "1 Poydras St, New Orleans, LA 70130"]],
-  "/data/property/parcel-103109601.json": { parcel: { parcel_id: "103109601", full_address: "1 Poydras St, New Orleans, LA 70130", zip_code: "70130", flood_zone: "AE", flood_sfha: true } },
+  "/data/property/parcel-103109601.json": {
+    parcel: { parcel_id: "103109601", tax_bill_number: "103109601", full_address: "1 Poydras St, New Orleans, LA 70130", zip_code: "70130", flood_zone: "AE", flood_sfha: true },
+    building: { address: "1 POYDRAS ST", full: "1 Poydras St, New Orleans, LA 70130" },
+  },
   "/data/addr/600.json": [{ address: "600 PORT OF NEW ORLEANS PL", slug: "1-poydras-st", alias: "1 Poydras St, New Orleans, LA 70130" }],
   "/data/owner/housing-authority-of-new-orleans.json": { name: "Housing Authority of New Orleans", count: 1087, parishes: { orleans: 1087 } },
 };
 const get = async (path) => DATA[path] ?? null;
-const preview = (qs) => previewFor(new URL(`https://nolaatlas.com/?${qs}`), get);
+const preview = (qs, path = "/") => previewFor(new URL(`https://nolaatlas.com${path}?${qs}`), get);
 
 test("parses lookups the way the app does", () => {
   assert.equal(parcelQuery("Parcel 103109601"), "103109601");
@@ -47,7 +50,7 @@ test("a property link previews its address, flood zone and numbers, with its ZIP
 });
 
 test("units by tax bill, condo buildings and City address aliases resolve", async () => {
-  assert.equal((await preview("view=property&q=Parcel+103109601")).title, "1 Poydras St, New Orleans, LA 70130 · NOLA Atlas");
+  assert.equal((await preview("view=property&q=Parcel+103109601")).title, "1 Poydras St, New Orleans, LA 70130 (tax bill 103109601) · NOLA Atlas");
   const b = await preview("view=property&q=1+Poydras+St");
   assert.match(b.description, /^3 condo units on record at 1 Poydras St/);
   const alias = await preview("view=property&q=600+Port+of+New+Orleans+Pl");
@@ -69,4 +72,11 @@ test("an unknown ZIP falls back to the generic property image", () => {
   assert.equal(p.image, "https://nolaatlas.com/og/property.png");
   assert.equal(p.description, "Flood risk, the true monthly cost and the market around it, on NOLA Atlas.");
   assert.equal(describeOwner({ name: "X LLC", count: 2, parishes: { jefferson: 1, orleans: 1 } }).description.includes("Jefferson and Orleans Parish Assessor's rolls"), true);
+});
+
+test("lookups under their tab's path (the app's links) resolve like the older home-page ones", async () => {
+  assert.match((await preview("q=Parcel+103109601", "/property/")).title, /^1 Poydras St, New Orleans, LA 70130 \(tax bill 103109601\)/);
+  assert.match((await preview("owner=housing-authority-of-new-orleans", "/ownership/jefferson/")).title, /^Housing Authority of New Orleans/);
+  assert.equal(await preview("", "/property/"), null);
+  assert.equal(await preview("geo=zip%3A70130", "/ownership/"), null);
 });
