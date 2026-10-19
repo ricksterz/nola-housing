@@ -12,7 +12,17 @@
 export const SITE = "https://nolaatlas.com";
 const TAIL = "Flood risk, the true monthly cost and the market around it, on NOLA Atlas.";
 
-export const slugify = (s) => String(s).trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+// Same result as the app's slugify, with the ends trimmed by index rather than a /^-+|-+$/
+// pattern, which backtracks badly on a crafted run of dashes (the input here is the shared URL).
+export function slugify(text) {
+  const s = String(text).trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  let start = 0;
+  let end = s.length;
+  while (start < end && s[start] === "-") start++;
+  while (end > start && s[end - 1] === "-") end--;
+  return s.slice(start, end);
+}
+const MAX_QUERY = 200; // longer than any address or owner slug; anything longer isn't a lookup
 // etl/export_static.py shard_key and pid_key.
 const shardKey = (addr) => addr.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "_");
 const pidKey = (id) => slugify(id.slice(0, 7)) || "_";
@@ -94,7 +104,7 @@ export async function previewFor(url, get) {
     return owner ? describeOwner(owner) : null;
   }
   const q = p.get("q");
-  if (view !== "property" || !q) return null;
+  if (view !== "property" || !q || q.length > MAX_QUERY) return null;
   let doc = null;
   const pid = parcelQuery(q);
   if (pid) {

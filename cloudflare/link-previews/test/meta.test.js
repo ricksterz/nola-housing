@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { describeOwner, describeProperty, parcelQuery, previewFor, streetOf } from "../src/meta.js";
+import { describeOwner, describeProperty, parcelQuery, previewFor, slugify, streetOf } from "../src/meta.js";
 
 const META = { geos: [{ geo_level: "zip", geo_id: "70130" }, { geo_level: "zip", geo_id: "70005" }] };
 const PARCEL = {
@@ -79,4 +79,13 @@ test("lookups under their tab's path (the app's links) resolve like the older ho
   assert.match((await preview("owner=housing-authority-of-new-orleans", "/ownership/jefferson/")).title, /^Housing Authority of New Orleans/);
   assert.equal(await preview("", "/property/"), null);
   assert.equal(await preview("geo=zip%3A70130", "/ownership/"), null);
+});
+
+test("slugs match the app's, and hostile input stays cheap", async () => {
+  assert.equal(slugify("  1 Poydras St, New Orleans "), "1-poydras-st-new-orleans");
+  assert.equal(slugify("--a--b--"), "a-b");
+  const t = Date.now();
+  slugify("-".repeat(100000) + "x" + "-".repeat(100000));
+  assert.ok(Date.now() - t < 200);
+  assert.equal(await preview(`q=${"-".repeat(5000)}`, "/property/"), null); // too long to be a lookup
 });
