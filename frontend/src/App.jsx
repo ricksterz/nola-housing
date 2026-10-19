@@ -44,7 +44,7 @@ function pageMeta(view, url, geos) {
     about: "About and methodology",
   };
   const canonicalGeo = view === "overview" || (view === "ownership" && !url.owner) ? url.geo : undefined;
-  const path = pathFromParams({ view, geo: canonicalGeo }) || pathFromParams({ view }) || "/";
+  const path = pathFromParams({ view, geo: canonicalGeo }) || pathFromParams({ view }) || "/"; // no query: just the tab or area
   return { title: titles[view] ? `${titles[view]} · NOLA Atlas` : DEFAULT_TITLE, canonical: `${SITE}${path}` };
 }
 
@@ -153,7 +153,7 @@ export default function App() {
             <button
               key={id}
               className={`btn${view === id ? " is-active" : ""}`}
-              onClick={() => navigate({ view: id, owner: null })}
+              onClick={() => navigate({ view: id, owner: null, ...(id === "property" ? {} : { q: null, street: null }) })}
               aria-current={view === id ? "page" : undefined}
             >
               {label}
