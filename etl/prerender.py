@@ -10,7 +10,7 @@ different canonical"). This writes a real page per tab and area at the paths the
   /ownership/            who owns the metro        /ownership/{zip|parish}/
 
 Each page is the built index.html with its own title, description, canonical and link-preview
-tags, and readable content in place of the empty app root: a heading, the area's numbers from
+tags (and a preview image, etl/og_images.py, at /og/{page}.png), and readable content in place of the empty app root: a heading, the area's numbers from
 the exported data, and links to the related pages. The app replaces that content when it loads,
 so visitors see the same app as before. 404.html is the plain app shell, so any other path still
 opens the app. sitemap.xml lists every page here.
@@ -27,7 +27,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import config
+from . import config, og_images
 
 SITE = "https://nolaatlas.com"
 DIST = config.ETL_DIR.parent / "frontend" / "dist"
@@ -81,7 +81,17 @@ class Area:
 
 
 class Page:
-    def __init__(self, path: str, title: str, description: str, body: str, jsonld: dict | None = None):
+    """A pre-built page. ``card`` is its link-preview image: (kicker, headline, [(label, value)])."""
+
+    def __init__(
+        self,
+        path: str,
+        title: str,
+        description: str,
+        body: str,
+        jsonld: dict | None = None,
+        card: tuple[str, str, list] | None = None,
+    ):
         self.path, self.title, self.description, self.body, self.jsonld = (
             path,
             title,
@@ -89,6 +99,12 @@ class Page:
             body,
             jsonld,
         )
+        self.card = card or ("", title.removesuffix(" · NOLA Atlas"), [])
+
+    @property
+    def image(self) -> str:
+        """Its preview image's file name under /og/."""
+        return (self.path.strip("/").replace("/", "-") or "home") + ".png"
 
 
 def nav() -> str:
@@ -188,6 +204,29 @@ def ownership_facts(s: dict | None) -> str:
     return facts(rows) + (f"<h2>Largest organization and public owners</h2><ul>{lst}</ul>" if lst else "")
 
 
+def market_card(row: dict | None) -> list[tuple[str, str | None]]:
+    if not row:
+        return []
+    return [
+        ("Median sale price", money(row.get("median_sale_price"))),
+        ("Year over year", pct(row.get("price_yoy_pct"), signed=True)),
+        ("Typical rent", f"{money(row['zori'])}/mo" if row.get("zori") else None),
+    ]
+
+
+def ownership_card(s: dict | None) -> list[tuple[str, str | None]]:
+    if not s or not s.get("with_owner"):
+        return []
+    n = s["with_owner"]
+    org = (s["by_kind"].get("organization", 0) + s["by_kind"].get("government", 0)) / n * 100
+    multi = (s["by_holder_size"].get("2-9", 0) + s["by_holder_size"].get("10+", 0)) / n * 100
+    return [
+        ("Properties", f"{s['records']:,}"),
+        ("Organizations, public", f"{org:.0f}%"),
+        ("Owner holds 2+", f"{multi:.0f}%"),
+    ]
+
+
 def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
     areas = [Area(g) for g in meta["geos"]]
     metro = next(a for a in areas if a.level == "metro")
@@ -220,6 +259,15 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
                 "description": DEFAULT_DESCRIPTION,
                 "inLanguage": "en-US",
             },
+            card=(
+                "Free property and housing data",
+                "Look up any address in New Orleans and Metairie",
+                [
+                    ("Parcels and condo units", f"{meta.get('property_count', 0):,}"),
+                    ("Metro median sale price", money((rows.get(metro.key) or {}).get("median_sale_price"))),
+                    ("ZIP codes", f"{sum(a.level == 'zip' for a in areas)}"),
+                ],
+            ),
         )
     ]
     for a in areas:
@@ -236,6 +284,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
                 f"<h1>{esc(a.label)} housing market</h1>{market_facts(row)}"
                 f'<p><a href="{a.ownership_path}">Who owns {esc(a.label)}</a> · '
                 f'<a href="/scorecard/">Compare every ZIP</a></p>{market_index}',
+                card=("Housing market", a.label, market_card(row)),
             )
         )
     pages.append(
@@ -245,6 +294,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
             "Who owns property in Jefferson and Orleans Parish: individuals, organizations and public bodies, "
             "how many owners hold several properties, and the largest owners, from the Assessors' rolls.",
             f"<h1>Who owns New Orleans and Metairie</h1>{ownership_facts(ownership.get(metro.key))}{owner_index}",
+            card=("Who owns", "New Orleans and Metairie", ownership_card(ownership.get(metro.key))),
         )
     )
     for a in areas:
@@ -268,6 +318,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
                 f"<h1>Who owns {esc(a.label)}</h1>{ownership_facts(s)}"
                 f'<p><a href="{a.market_path}">{esc(a.label)} housing market</a> · '
                 f'<a href="/ownership/">All areas</a></p>{owner_index}',
+                card=("Who owns", a.label, ownership_card(s)),
             )
         )
     table_rows = "".join(
@@ -289,6 +340,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
             "<h1>ZIP Scorecard: New Orleans and Metairie ZIP codes side by side</h1>"
             "<table><thead><tr><th>ZIP</th><th>Median sale price</th><th>Year over year</th><th>Home value (ZHVI)"
             f"</th><th>Rent (ZORI)</th><th>Days on market</th></tr></thead><tbody>{table_rows}</tbody></table>",
+            card=("ZIP Scorecard", "New Orleans and Metairie ZIP codes side by side", []),
         ),
         Page(
             "/compare/",
@@ -315,6 +367,11 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
             "its assessment compares with similar homes nearby, its owner and the homes around it on a map. Condo "
             f"buildings list every unit.</p><p>{meta.get('property_count', 0):,} parcels and condo units are on "
             "record.</p>" + market_index,
+            card=(
+                "Property lookup",
+                "Flood zone, monthly cost, assessment and owner for any address",
+                [("Parcels and condo units", f"{meta.get('property_count', 0):,}")],
+            ),
         ),
         Page(
             "/about/",
@@ -333,6 +390,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
 
 def render(shell: str, page: Page) -> str:
     url = f"{SITE}{page.path}"
+    image = f"{SITE}/og/{page.image}"
     out = shell
     swaps = [
         (r"<title>.*?</title>", f"<title>{esc(page.title)}</title>"),
@@ -350,6 +408,26 @@ def render(shell: str, page: Page) -> str:
             f'<meta property="og:description" content="{esc(page.description)}" />',
         ),
         (r'<meta property="og:url" content="[^"]*"\s*/?>', f'<meta property="og:url" content="{url}" />'),
+        (
+            r'<meta property="og:image" content="[^"]*"\s*/?>',
+            f'<meta property="og:image" content="{image}" />',
+        ),
+        (
+            r'<meta property="og:image:alt" content="[^"]*"\s*/?>',
+            f'<meta property="og:image:alt" content="{esc(page.card[1])}, on NOLA Atlas" />',
+        ),
+        (
+            r'<meta name="twitter:title" content="[^"]*"\s*/?>',
+            f'<meta name="twitter:title" content="{esc(page.title)}" />',
+        ),
+        (
+            r'<meta name="twitter:description" content="[^"]*"\s*/?>',
+            f'<meta name="twitter:description" content="{esc(page.description)}" />',
+        ),
+        (
+            r'<meta name="twitter:image" content="[^"]*"\s*/?>',
+            f'<meta name="twitter:image" content="{image}" />',
+        ),
     ]
     for pattern, replacement in swaps:
         out, n = re.subn(pattern, lambda _m, r=replacement: r, out, count=1, flags=re.S)
@@ -377,6 +455,10 @@ def write_sitemap(pages: list[Page], path: Path) -> None:
 
 def build(dist: Path = DIST) -> int:
     shell = (dist / "index.html").read_text()
+    if '<div id="root"></div>' not in shell and (dist / "404.html").exists():
+        shell = (dist / "404.html").read_text()  # already pre-built: start again from the plain app
+    if '<div id="root"></div>' not in shell:
+        raise RuntimeError(f"{dist} has no plain app shell (index.html or 404.html with an empty root)")
     data = dist / "data"
     meta = json.loads((data / "meta.json").read_text())
     scorecard = json.loads((data / "scorecard.json").read_text())
@@ -385,6 +467,10 @@ def build(dist: Path = DIST) -> int:
     )
     pages = build_pages(meta, scorecard, ownership)
     (dist / "404.html").write_text(shell)  # any other path still opens the app
+    for page in pages:
+        og_images.card(dist / "og" / page.image, page.card[1], page.card[0], page.card[2], page.description)
+    # The default image (the shell's own tags: lookups and any other link) is the home page's.
+    (dist / "og" / "default.png").write_bytes((dist / "og" / "home.png").read_bytes())
     for page in pages:
         target = dist / page.path.strip("/") / "index.html" if page.path != "/" else dist / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
