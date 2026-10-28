@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getMacroSnapshot, getMeta, getScorecard, IS_STATIC } from "./api";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { trackView } from "./lib/metrics";
+import { EVENTS, trackEvent, trackView } from "./lib/metrics";
+import { SCHOOLS_URL } from "./lib/links";
 import { geoLabel, parseGeo } from "./lib/geo";
 import { paramsFromPath, pathFromParams } from "./lib/routes";
 import Footer from "./components/Footer";
@@ -159,6 +160,9 @@ export default function App() {
               {label}
             </button>
           ))}
+          <a className="btn" href={SCHOOLS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
+            Schools ↗
+          </a>
         </nav>
 
         {error && <div className="error">Could not load market data: {error}</div>}

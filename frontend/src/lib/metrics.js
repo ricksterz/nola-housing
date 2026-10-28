@@ -25,6 +25,7 @@ export const EVENTS = {
   costCalculator: "use_cost_calculator",
   ownershipArea: "ownership_change_area",
   ownershipSort: "ownership_sort_zips",
+  openSchools: "open_schools",
 };
 const ALLOWED = new Set(Object.values(EVENTS));
 
