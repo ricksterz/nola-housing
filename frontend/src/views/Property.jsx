@@ -3,6 +3,7 @@ import { Line, LineChart } from "recharts";
 import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, markCutOff, parcelQuery, suggestAddresses, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
 import ChartPanel from "../components/ChartPanel";
 import { EVENTS, trackEvent } from "../lib/metrics";
+import { SCHOOLS_URL } from "../lib/links";
 import AssessmentComparison from "../components/AssessmentComparison";
 import { CostInputs } from "../components/MonthlyCost";
 import NearbyMap from "../components/NearbyMap";
@@ -824,6 +825,16 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
       [
         { label: "Median home value", value: p.zhvi ? fmtCompactCurrency(p.zhvi) : null },
         { label: "Median sale price", value: p.redfin_median_sale_price ? fmtCompactCurrency(p.redfin_median_sale_price) : null },
+        {
+          label: "Schools",
+          // NOLA Open Seats, opened on this ZIP: public and private schools, new seats, chances and tuition.
+          value: p.zip_code ? (
+            <a href={`${SCHOOLS_URL}?zip=${encodeURIComponent(p.zip_code)}`} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
+              {`Schools near ${p.zip_code} ↗`}
+            </a>
+          ) : null,
+          note: "Seats, chances of getting in and tuition, on NOLA Open Seats",
+        },
       ],
     ],
   ]
