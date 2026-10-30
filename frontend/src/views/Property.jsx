@@ -827,13 +827,13 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
         { label: "Median sale price", value: p.redfin_median_sale_price ? fmtCompactCurrency(p.redfin_median_sale_price) : null },
         {
           label: "Schools",
-          // NOLA Open Seats, opened on this ZIP: public and private schools, new seats, chances and tuition.
+          // NOLA School Finder, opened on this ZIP: public and private schools, new seats, chances and tuition.
           value: p.zip_code ? (
             <a href={`${SCHOOLS_URL}?zip=${encodeURIComponent(p.zip_code)}`} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
               {`Schools near ${p.zip_code} ↗`}
             </a>
           ) : null,
-          note: "Seats, chances of getting in and tuition, on NOLA Open Seats",
+          note: "Seats, chances of getting in and tuition, on NOLA School Finder",
         },
       ],
     ],
