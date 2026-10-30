@@ -17,10 +17,14 @@ on:
     - cron: "0 6 1-20 8 *"   # Orleans window closes Aug 15 (+5 days for final values)
     - cron: "0 6 15-31 8 *"  # Jefferson inspection period opens Aug 15
     - cron: "0 6 1-30 9 *"   # Jefferson certification
-    # Orleans, weekly all year: the City's ParcelSearch layer (owners, tax bills, condo units) has
-    # been down since late Sep 2026. Until it answers, Orleans stays on the data.nola.gov land map;
-    # the first run after it recovers replaces that with the full records, with nobody watching.
+    # Orleans, all year: the City's ParcelSearch layer (owners, tax bills, condo units). It's slow
+    # (about a minute per query, against a 60 s gateway) and sometimes down for days; a pull that
+    # can't get through keeps the previous load.
     - cron: "0 7 * * 1"      # Mondays 07:00 UTC
+    # A second weekly try, so a Monday the City's server is down doesn't leave the data a week
+    # older. While the data is recent, a run that finds the source down only warns (see
+    # etl/refresh_assessor.py STALE_AFTER_DAYS).
+    - cron: "0 7 * * 4"      # Thursdays 07:00 UTC
   workflow_dispatch:
     inputs:
       parish:
@@ -97,7 +101,7 @@ jobs:
           MAX_RECORDS: ${{ github.event.inputs.max_records }}
         run: |
           ARGS=""
-          if [ "$EVENT" = "schedule" ] && [ "$SCHEDULE" = "0 7 * * 1" ]; then
+          if [ "$EVENT" = "schedule" ] && { [ "$SCHEDULE" = "0 7 * * 1" ] || [ "$SCHEDULE" = "0 7 * * 4" ]; }; then
             ARGS="--parish orleans"
           elif [ "$EVENT" = "schedule" ]; then
             ARGS="--auto"
@@ -111,7 +115,7 @@ jobs:
       - name: Publish the database if it changed
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PARISH: ${{ github.event.schedule == '0 7 * * 1' && 'orleans weekly' || github.event_name == 'schedule' && 'scheduled' || github.event.inputs.parish }}
+          PARISH: ${{ (github.event.schedule == '0 7 * * 1' || github.event.schedule == '0 7 * * 4') && 'orleans weekly' || github.event_name == 'schedule' && 'scheduled' || github.event.inputs.parish }}
         run: python -m etl.db_store publish --before "$RUNNER_TEMP/before.duckdb" --notes "Assessor refresh ($PARISH)"
 
       - name: Save raw landing zone (also when the pull ran out of time)
@@ -127,7 +131,7 @@ jobs:
         if: failure() && steps.refresh.outcome == 'failure' && fromJSON(github.event.inputs.continuation || '0') < 2
         env:
           GH_TOKEN: ${{ github.token }}
-          PARISH: ${{ github.event.schedule == '0 7 * * 1' && 'orleans' || github.event.inputs.parish || 'both' }}
+          PARISH: ${{ (github.event.schedule == '0 7 * * 1' || github.event.schedule == '0 7 * * 4') && 'orleans' || github.event.inputs.parish || 'both' }}
           CONTINUATION: ${{ github.event.inputs.continuation || '0' }}
         run: |
           # Only a pull that was getting somewhere: pages landed during this run.

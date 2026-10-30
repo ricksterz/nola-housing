@@ -10,7 +10,7 @@ Cadence (see .github/workflows/refresh-assessor.yml):
 """
 
 import argparse
-from datetime import date
+from datetime import date, datetime, timezone
 
 import duckdb
 
@@ -26,6 +26,11 @@ def parishes_in_window(today: date | None = None) -> list[str]:
         if start <= today <= end:
             out.append(parish)
     return out
+
+
+# How old a parish's data may get while its source is down before the refresh fails loudly. The
+# Orleans pull runs Monday and Thursday, so three weeks is several missed attempts in a row.
+STALE_AFTER_DAYS = 21
 
 
 def main(argv=None):
@@ -45,13 +50,23 @@ def main(argv=None):
 
     con = duckdb.connect(args.db)
     print(f"Refreshing assessor data for: {', '.join(parishes)}")
-    load_assessor.load(
-        con,
-        parishes=tuple(parishes),
-        tax_year=args.tax_year,
-        force_search_ui=args.force_search_ui,
-        max_records=args.max_records,
-    )
+    try:
+        load_assessor.load(
+            con,
+            parishes=tuple(parishes),
+            tax_year=args.tax_year,
+            force_search_ui=args.force_search_ui,
+            max_records=args.max_records,
+        )
+    except load_assessor.SourceUnavailable as e:
+        # The source being down isn't news while the data it last gave is recent: say so and let
+        # the next scheduled run try again. Fail (and email) once the data is getting stale.
+        last = load_assessor.last_bulk_pull(con, e.parish)
+        age = (datetime.now(timezone.utc).replace(tzinfo=None) - last).days if last else None
+        if age is None or age > STALE_AFTER_DAYS:
+            raise
+        print(f"::warning::{e} The data is from {last:%Y-%m-%d} ({age} days old); the next run retries.")
+        return
     print("Rebuilding join...")
     load_flood.carry_over_by_lot(con)  # re-keyed records keep their lot's flood zone
     build_join.build(con)
