@@ -70,6 +70,23 @@ def ensure_tables(con: duckdb.DuckDBPyConnection) -> None:
     )
 
 
+class SourceUnavailable(RuntimeError):
+    """Every bulk source for a parish failed (down, timing out); its previous load is kept."""
+
+    def __init__(self, parish: str, message: str):
+        super().__init__(message)
+        self.parish = parish
+
+
+def last_bulk_pull(con, parish: str) -> datetime | None:
+    """When the parish's current bulk records were fetched."""
+    row = con.execute(
+        "SELECT max(fetched_at) FROM assessor_parcels_raw WHERE parish = ? AND source_kind LIKE 'bulk:%'",
+        [parish],
+    ).fetchone()
+    return row[0] if row else None
+
+
 def _insert(con, rec: ParcelRecord, source_kind: str, source_url: str, fetched_at: datetime) -> None:
     payload = json.dumps(rec.extra, default=str)
     row = rec.as_row() + (source_kind, source_url, fetched_at, payload)
@@ -212,8 +229,8 @@ def load_parish(
             print(f"  [{parish}] loaded {len(records)} parcels from {probe.kind}")
             return summary
         if failures:
-            raise RuntimeError(
-                f"[{parish}] every bulk pull failed; keeping the previous load: {'; '.join(failures)}"
+            raise SourceUnavailable(
+                parish, f"[{parish}] every bulk pull failed; keeping the previous load: {'; '.join(failures)}"
             )
 
     # 2) Fallback: rate-limited batch pull of the public search UI, where the parish allows it.
