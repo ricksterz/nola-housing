@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import duckdb
 import pytest
 
 from etl import config, load_redfin
@@ -11,6 +12,7 @@ _MISSING_SOURCES = {
     "metro": str(FX / "does-not-exist.tsv"),
     "zip": str(FX / "does-not-exist.tsv"),
 }
+
 
 def test_redfin_all_levels(con, redfin_fixtures):
     n = load_redfin.load(con)
@@ -102,5 +104,5 @@ def test_redfin_failure_keeps_previous(con, redfin_fixtures, monkeypatch):
 def test_redfin_failure_without_previous_raises(con, monkeypatch):
     # Fresh database, no previous table: a dead feed must still fail hard.
     monkeypatch.setattr(config, "REDFIN_SOURCES", dict(_MISSING_SOURCES))
-    with pytest.raises(Exception):
+    with pytest.raises(duckdb.IOException):
         load_redfin.load(con)
