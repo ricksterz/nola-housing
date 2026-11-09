@@ -75,20 +75,22 @@ def dist(tmp_path):
 
 
 def test_builds_a_page_per_tab_and_area_and_lists_them(dist):
-    assert prerender.build(dist) == 1 + 4 + 1 + 4 + 5  # home, markets, ownership + areas, other tabs
+    assert prerender.build(dist) == 1 + 1 + 4 + 1 + 4 + 6  # hub, markets, ownership + areas, tabs
     for path in (
+        "market",
         "market/70130",
         "market/jefferson",
         "ownership/70005",
         "ownership/orleans",
         "scorecard",
+        "power",
         "about",
     ):
         assert (dist / path / "index.html").exists(), path
     assert (dist / "404.html").read_text() == SHELL  # any other path opens the plain app
     sitemap = (dist / "sitemap.xml").read_text()
     assert "<loc>https://nolaatlas.com/ownership/70130/</loc>" in sitemap
-    assert sitemap.count("<url>") == 15
+    assert sitemap.count("<url>") == 17
 
 
 def test_page_has_its_own_title_canonical_and_readable_content(dist):
@@ -112,6 +114,18 @@ def test_home_names_the_site_for_search(dist):
     ld = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', home).group(1))
     assert ld["@type"] == "WebSite" and ld["name"] == "NOLA Atlas" and ld["url"] == "https://nolaatlas.com/"
     assert "<h1>NOLA Atlas</h1>" in home
+    for link in ('href="/market/"', 'href="/power/"', "schools.nolaatlas.com", "nola-floodlens.onrender.com"):
+        assert link in home, link  # the hub links every topic
+
+
+def test_metro_market_moves_to_market_and_power_page_lists_its_sources(dist):
+    prerender.build(dist)
+    market = (dist / "market" / "index.html").read_text()
+    assert '<link rel="canonical" href="https://nolaatlas.com/market/" />' in market
+    assert "<h1>New Orleans-Metairie, LA housing market</h1>" in market and "$355,000" in market
+    power = (dist / "power" / "index.html").read_text()
+    assert "<h1>Data center power in Louisiana</h1>" in power
+    assert "Louisiana Public Service Commission" in power and 'href="https://www.wwno.org/' in power
 
 
 def test_a_changed_shell_fails_loudly(dist):
@@ -141,6 +155,6 @@ def test_each_page_gets_its_own_preview_image(dist):
 
 def test_rebuilding_an_already_built_site_starts_from_the_plain_app(dist):
     prerender.build(dist)
-    assert prerender.build(dist) == 15
+    assert prerender.build(dist) == 17
     assert (dist / "404.html").read_text() == SHELL
     assert (dist / "index.html").read_text().count('class="prerender"') == 1

@@ -3,7 +3,7 @@ import { Line, LineChart } from "recharts";
 import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, markCutOff, parcelQuery, suggestAddresses, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
 import ChartPanel from "../components/ChartPanel";
 import { EVENTS, trackEvent } from "../lib/metrics";
-import { SCHOOLS_URL } from "../lib/links";
+import { floodLensLink, SCHOOLS_URL } from "../lib/links";
 import AssessmentComparison from "../components/AssessmentComparison";
 import { CostInputs } from "../components/MonthlyCost";
 import NearbyMap from "../components/NearbyMap";
@@ -617,6 +617,14 @@ function FloodZone({ p, floodlens, floodlensSummary }) {
         Placed by the lot's center point. A map zone, not an elevation certificate or an insurance quote.
       </div>
       {/^A/i.test(p.flood_zone || "") && <FloodLensNote flag={floodlens} summary={floodlensSummary} />}
+      {p.full_address && (
+        <div className="method-note" style={{ marginTop: 6 }}>
+          Drainage, levees and storm surge for this address:{" "}
+          <a href={floodLensLink(p.full_address)} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
+            open it in FloodLens ↗
+          </a>
+        </div>
+      )}
     </div>
   );
 }

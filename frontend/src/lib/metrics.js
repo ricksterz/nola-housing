@@ -26,6 +26,8 @@ export const EVENTS = {
   ownershipArea: "ownership_change_area",
   ownershipSort: "ownership_sort_zips",
   openSchools: "open_schools",
+  openFloodLens: "open_floodlens",
+  hubSearch: "hub_search",
 };
 const ALLOWED = new Set(Object.values(EVENTS));
 
