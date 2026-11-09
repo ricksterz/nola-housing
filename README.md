@@ -102,11 +102,13 @@ wider feature set:
 
 | View | What it shows |
 |---|---|
-| Market Overview | One area at a time (metro, parish or any of 24 ZIPs): KPI tiles with YoY deltas and sparklines, then home value vs. sale price, rent, DOM, listings pipeline, inventory, months of supply, $/sqft and negotiation charts. Every chart has a table twin. |
+| Home (`/`) | The hub: an address search and one card per topic: Housing (this app's market tabs), Schools ([School Finder](https://schools.nolaatlas.com/)), Flood ([FloodLens](https://nola-floodlens.onrender.com/)) and Data center power. |
+| Market Overview (`/market/`) | One area at a time (metro, parish or any of 24 ZIPs): KPI tiles with YoY deltas and sparklines, then home value vs. sale price, rent, DOM, listings pipeline, inventory, months of supply, $/sqft and negotiation charts. Every chart has a table twin. |
 | ZIP Scorecard | All ZIPs side by side: latest reading, YoY, heat-shaded cells (one-hue ramp for magnitude, blue/red for change), 24-month sparkline; sortable, filter by parish; click through to the overview. Plus gross rent yield (rent vs. buy) and monthly payment on the median sale at an adjustable rate. |
 | Compare | Overlay up to six areas on one metric, optionally indexed to 100, with small multiples. Colors are bound to the area, not its rank. |
 | Macro | Metro vs. parish ZHVI/ZORI indexed; with FRED loaded: 30-yr mortgage rate, FHFA HPI (metro, Jefferson, Orleans) and realtor.com listing series. |
 | Property Lookup | Assessor parcel record, value history, indicative value from the ZIP's $/sqft, ZIP market context. |
+| Data Center Power (`/power/`) | A hand-kept, sourced tracker of data centers and the power plants built for them in Louisiana, who regulates Orleans and Jefferson rates, and both sides of the bill question. Edit `frontend/src/data/power.json` (the app and `etl/prerender.py` both read it) and update its `checked` date. |
 
 Charts follow the dataviz rules in this repo's tooling: no dual axes, a fixed
 8-slot categorical palette validated for color-vision deficiency in both themes,

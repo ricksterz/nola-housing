@@ -1,4 +1,5 @@
-// Page addresses. Tabs and areas have real paths ("/ownership/70130/", "/market/jefferson/"),
+// Page addresses. "/" is the hub (Housing, Schools, Flood, Data center power). Tabs and areas have
+// real paths ("/ownership/70130/", "/market/jefferson/", the metro market at "/market/"),
 // which the deploy pre-builds as HTML for search engines (etl/prerender.py, which uses the same
 // paths: keep the two in step). Anything else rides as a query on its tab's path: a property
 // lookup is "/property/?q=...", an owner page "/ownership/?owner=...". Those paths are also where
@@ -6,7 +7,7 @@
 
 const PARISH_SLUG = { 22051: "jefferson", 22071: "orleans" };
 const SLUG_PARISH = { jefferson: "22051", orleans: "22071" };
-const TAB_PATHS = new Set(["scorecard", "compare", "macro", "property", "ownership", "about"]);
+const TAB_PATHS = new Set(["scorecard", "compare", "macro", "property", "ownership", "power", "about"]);
 // Tabs that show one area; elsewhere the area isn't part of the page, so it's left off.
 const AREA_VIEWS = new Set(["overview", "ownership"]);
 
@@ -25,10 +26,11 @@ function slugFromArea(geo) {
   return undefined;
 }
 
-/** { view, geo } a path stands for; {} for "/" or a path the app doesn't know. */
+/** { view, geo } a path stands for; {} for "/" (the hub) or a path the app doesn't know. */
 export function paramsFromPath(pathname) {
   const [first, second] = (pathname || "/").split("/").filter(Boolean);
   if (!first) return {};
+  if (first === "market" && !second) return { view: "overview" };
   if ((first === "market" || first === "ownership") && second) {
     const geo = areaFromSlug(second);
     return geo ? { view: first === "market" ? "overview" : "ownership", geo } : {};
@@ -39,13 +41,14 @@ export function paramsFromPath(pathname) {
 /** The URL for a page's parameters: its path, plus any other parameters as a query. Null for a
  * view or area that has no path (the caller falls back to "/?view=..."). */
 export function pathFromParams(params) {
-  const view = params.view || "overview";
+  const view = params.view || "home";
   const extra = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (k !== "view" && k !== "geo" && v != null && v !== "") extra.set(k, v);
   const query = extra.toString() ? `?${extra}` : "";
+  if (view === "home") return `/${query}`;
   if (!AREA_VIEWS.has(view)) return TAB_PATHS.has(view) ? `/${view}/${query}` : null;
   const slug = params.geo ? slugFromArea(params.geo) : null;
   if (slug === undefined) return null;
-  if (view === "overview") return `${slug ? `/market/${slug}/` : "/"}${query}`;
+  if (view === "overview") return `${slug ? `/market/${slug}/` : "/market/"}${query}`;
   return `${slug ? `/ownership/${slug}/` : "/ownership/"}${query}`;
 }
