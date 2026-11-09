@@ -5,8 +5,8 @@ index.html: Google saw the tabs and areas as copies of the home page ("Duplicate
 different canonical"). This writes a real page per tab and area at the paths the app uses
 (frontend/src/lib/routes.js; keep the two in step):
 
-  /                      home                      /market/{zip|parish}/   market overview
-  /scorecard/  /compare/  /macro/  /property/  /about/
+  /                      the hub                   /market/  /market/{zip|parish}/   market overview
+  /scorecard/  /compare/  /macro/  /property/  /power/  /about/
   /ownership/            who owns the metro        /ownership/{zip|parish}/
 
 Each page is the built index.html with its own title, description, canonical and link-preview
@@ -15,7 +15,8 @@ the exported data, and links to the related pages. The app replaces that content
 so visitors see the same app as before. 404.html is the plain app shell, so any other path still
 opens the app. sitemap.xml lists every page here.
 
-Owner lists name organizations and public bodies only; property and owner pages aren't built.
+Owner lists name organizations and public bodies only; property and owner pages aren't built. The
+data center power page is built from the same hand-kept file the app shows (src/data/power.json).
 
     python -m etl.prerender [--dist frontend/dist]
 """
@@ -32,9 +33,12 @@ from . import config, og_images
 SITE = "https://nolaatlas.com"
 DIST = config.ETL_DIR.parent / "frontend" / "dist"
 DEFAULT_DESCRIPTION = (
-    "Flood risk, the true monthly cost, how an assessment compares, and the market around it, for every "
-    "parcel in Jefferson and Orleans Parish. Free, independent, and built on public records."
+    "Housing, schools, flood risk and data center power for every address in New Orleans and Metairie: "
+    "look up any parcel in Jefferson and Orleans Parish. Free, independent, and built on public records."
 )
+POWER = config.ETL_DIR.parent / "frontend" / "src" / "data" / "power.json"
+SCHOOLS_URL = "https://schools.nolaatlas.com/"
+FLOODLENS_URL = "https://nola-floodlens.onrender.com/"
 PARISH_SLUG = {"22051": "jefferson", "22071": "orleans"}
 
 
@@ -73,7 +77,7 @@ class Area:
 
     @property
     def market_path(self) -> str:
-        return f"/market/{self.slug}/" if self.slug else "/"
+        return f"/market/{self.slug}/" if self.slug else "/market/"
 
     @property
     def ownership_path(self) -> str:
@@ -109,13 +113,17 @@ class Page:
 
 def nav() -> str:
     links = [
-        ("/", "Market Overview"),
+        ("/", "Home"),
+        ("/market/", "Market Overview"),
         ("/scorecard/", "ZIP Scorecard"),
         ("/compare/", "Compare"),
         ("/macro/", "Macro"),
         ("/property/", "Property Lookup"),
         ("/ownership/", "Ownership"),
+        ("/power/", "Data Center Power"),
         ("/about/", "About"),
+        (SCHOOLS_URL, "Schools"),
+        (FLOODLENS_URL, "Flood"),
     ]
     return (
         '<nav class="prerender-nav">' + " · ".join(f'<a href="{p}">{esc(t)}</a>' for p, t in links) + "</nav>"
@@ -227,7 +235,49 @@ def ownership_card(s: dict | None) -> list[tuple[str, str | None]]:
     ]
 
 
-def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
+def power_page(power: dict) -> Page:
+    utilities = "".join(
+        f"<li><strong>{esc(u['parish'])}</strong>: {esc(u['utility'])}, regulated by the {esc(u['regulator'])}. "
+        f"{esc(u['note'])}</li>"
+        for u in power["utilities"]
+    )
+    projects = "".join(
+        f"<h3>{esc(p['name'])}</h3><p>{esc(p['where'])}. {esc(p['power'])}.</p><p>{esc(p['status'])}</p><p>Sources: "
+        + " · ".join(f'<a href="{esc(href)}">{esc(label)}</a>' for label, href in p["sources"])
+        + "</p>"
+        for p in power["projects"]
+    )
+    timeline = "".join(
+        f'<li>{esc(t["date"])}, {esc(t["who"])}: {esc(t["what"])} <a href="{esc(t["source"])}">Source</a></li>'
+        for t in power["timeline"]
+    )
+    bills = "".join(f"<li><strong>{esc(b['side'])}</strong>: {esc(b['text'])}</li>" for b in power["bills"])
+    return Page(
+        "/power/",
+        "Data center power in Louisiana · NOLA Atlas",
+        "Data centers and the power plants being built for them in Louisiana: Meta's Richland Parish campus, "
+        "the LPSC's decisions, New Orleans' pause on data centers, and what it could mean for Entergy bills in "
+        "New Orleans and Metairie.",
+        f"<h1>Data center power in Louisiana</h1><p>{esc(power['intro'])}</p>"
+        f"<h2>Who sets your power rates</h2><ul>{utilities}</ul>"
+        f"<h2>Projects</h2>{projects}<h2>Decisions so far</h2><ol>{timeline}</ol>"
+        f"<p><strong>Next:</strong> {esc(power['next'])}</p>"
+        f"<h2>What it could mean for your bill</h2><ul>{bills}</ul>"
+        f"<p>Compiled by hand from news reports, company releases and public filings; last checked "
+        f"{esc(power['checked'])}.</p>",
+        card=(
+            "Data center power",
+            "Who pays to power Louisiana's data centers?",
+            [
+                ("Gas plants approved for Meta", "3"),
+                ("More proposed", "7"),
+                ("Last checked", power["checked"]),
+            ],
+        ),
+    )
+
+
+def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> list[Page]:
     areas = [Area(g) for g in meta["geos"]]
     metro = next(a for a in areas if a.level == "metro")
     rows = {f"{r['geo_level']}:{r['geo_id']}": r for r in scorecard.get("rows", [])}
@@ -238,18 +288,28 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
         [a for a in areas if a.level != "metro"], lambda a: a.ownership_path, "Who owns each area"
     )
     tagline = "Every address in New Orleans and Metairie, explained."
+    metro_row = rows.get(metro.key) or {}
     pages = [
         Page(
             "/",
             "NOLA Atlas — Every address in New Orleans and Metairie, explained",
             DEFAULT_DESCRIPTION,
             f"<h1>NOLA Atlas</h1><p><strong>{esc(tagline)}</strong></p>"
-            "<p>NOLA Atlas looks up any parcel in Jefferson and Orleans Parish, by address, street, owner name or "
-            "parcel number, and explains it: the FEMA flood zone, the true monthly cost to own with tax and "
-            "insurance, how its assessment compares with similar homes nearby, who owns it, and the housing "
-            "market around it. Free, independent, and built on public records.</p>"
-            f"<h2>{esc(metro.name)} housing market</h2>{market_facts(rows.get(metro.key))}"
-            f"{market_index}{owner_index}",
+            "<p>Start with an address: NOLA Atlas looks up any parcel in Jefferson and Orleans Parish, by "
+            "address, street, owner name or parcel number, and explains it: the FEMA flood zone, the true monthly "
+            "cost to own with tax and insurance, how its assessment compares with similar homes nearby, who owns "
+            "it, and the housing market around it. Free, independent, and built on public records.</p>"
+            "<h2>Housing</h2><p>Sale prices, home values, rent and inventory for every ZIP. "
+            f"Metro median sale price: {esc(money(metro_row.get('median_sale_price')) or 'not published')}. "
+            '<a href="/market/">Market overview</a> · <a href="/scorecard/">ZIP Scorecard</a> · '
+            '<a href="/property/">Property lookup</a> · <a href="/ownership/">Who owns</a></p>'
+            f"<h2>Schools</h2><p>Every public and private school in Jefferson and Orleans: open seats, chances of "
+            f'getting in, tuition and key dates, on <a href="{SCHOOLS_URL}">NOLA Atlas School Finder</a>.</p>'
+            f"<h2>Flood</h2><p>Flood risk for any address, with drainage, levee and storm-surge views and past "
+            f'insurance claims nearby, on <a href="{FLOODLENS_URL}">FloodLens</a>.</p>'
+            f"<h2>Data center power</h2><p>{esc(power['intro'])} "
+            '<a href="/power/">Follow the tracker</a>.</p>'
+            f"{market_index}",
             {
                 "@context": "https://schema.org",
                 "@type": "WebSite",
@@ -260,15 +320,25 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
                 "inLanguage": "en-US",
             },
             card=(
-                "Free property and housing data",
-                "Look up any address in New Orleans and Metairie",
+                "Free local data for New Orleans and Metairie",
+                "Housing, schools, flood and data center power",
                 [
                     ("Parcels and condo units", f"{meta.get('property_count', 0):,}"),
-                    ("Metro median sale price", money((rows.get(metro.key) or {}).get("median_sale_price"))),
+                    ("Metro median sale price", money(metro_row.get("median_sale_price"))),
                     ("ZIP codes", f"{sum(a.level == 'zip' for a in areas)}"),
                 ],
             ),
-        )
+        ),
+        Page(
+            metro.market_path,
+            "Housing market · NOLA Atlas",
+            f"The {metro.name} housing market: median sale price, home values, rent, days on market, inventory "
+            "and months of supply, from Redfin and Zillow, updated monthly.",
+            f"<h1>{esc(metro.name)} housing market</h1>{market_facts(metro_row or None)}"
+            f'<p><a href="/ownership/">Who owns New Orleans and Metairie</a> · '
+            f'<a href="/scorecard/">Compare every ZIP</a></p>{market_index}{owner_index}',
+            card=("Housing market", "New Orleans and Metairie", market_card(metro_row or None)),
+        ),
     ]
     for a in areas:
         if a.level == "metro":
@@ -373,6 +443,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict) -> list[Page]:
                 [("Parcels and condo units", f"{meta.get('property_count', 0):,}")],
             ),
         ),
+        power_page(power),
         Page(
             "/about/",
             "About and methodology · NOLA Atlas",
@@ -465,7 +536,7 @@ def build(dist: Path = DIST) -> int:
     ownership = (
         json.loads((data / "ownership.json").read_text()) if (data / "ownership.json").exists() else {}
     )
-    pages = build_pages(meta, scorecard, ownership)
+    pages = build_pages(meta, scorecard, ownership, json.loads(POWER.read_text()))
     (dist / "404.html").write_text(shell)  # any other path still opens the app
     for page in pages:
         og_images.card(dist / "og" / page.image, page.card[1], page.card[0], page.card[2], page.description)

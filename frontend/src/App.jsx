@@ -2,28 +2,34 @@ import { useEffect, useMemo, useState } from "react";
 import { getMacroSnapshot, getMeta, getScorecard, IS_STATIC } from "./api";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { EVENTS, trackEvent, trackView } from "./lib/metrics";
-import { SCHOOLS_URL } from "./lib/links";
+import { FLOODLENS_URL, SCHOOLS_URL } from "./lib/links";
 import { geoLabel, parseGeo } from "./lib/geo";
 import { paramsFromPath, pathFromParams } from "./lib/routes";
 import Footer from "./components/Footer";
 import MacroStrip from "./components/MacroStrip";
 import About from "./views/About";
 import Compare from "./views/Compare";
+import Home from "./views/Home";
 import Macro from "./views/Macro";
 import Overview from "./views/Overview";
 import Ownership from "./views/Ownership";
+import Power from "./views/Power";
 import Property from "./views/Property";
 import Scorecard from "./views/Scorecard";
 
 const VIEWS = [
+  ["home", "Home"],
   ["overview", "Market Overview"],
   ["scorecard", "ZIP Scorecard"],
   ["compare", "Compare"],
   ["macro", "Macro"],
   ["property", "Property Lookup"],
   ["ownership", "Ownership"],
+  ["power", "Data Center Power"],
   ["about", "About"],
 ];
+// The housing snapshot strip belongs to the housing tabs, not the hub or the power tracker.
+const NO_STRIP = new Set(["home", "power"]);
 
 const SITE = "https://nolaatlas.com";
 const DEFAULT_TITLE = "NOLA Atlas — Every address in New Orleans and Metairie, explained";
@@ -36,12 +42,14 @@ function pageMeta(view, url, geos) {
   const geo = parseGeo(url.geo);
   const area = geo ? geoLabel(geo, geos) : null;
   const titles = {
-    overview: area ? `${area} housing market` : null,
+    home: null,
+    overview: area ? `${area} housing market` : "Housing market",
     scorecard: "ZIP Scorecard",
     compare: "Compare areas",
     macro: "Macro trends",
     property: "Property Lookup",
     ownership: url.owner ? "Owner" : area ? `Who owns ${area}` : "Who owns New Orleans and Metairie",
+    power: "Data center power in Louisiana",
     about: "About and methodology",
   };
   const canonicalGeo = view === "overview" || (view === "ownership" && !url.owner) ? url.geo : undefined;
@@ -57,7 +65,8 @@ function readUrl() {
 
 export default function App() {
   const [url, setUrl] = useState(readUrl);
-  const view = VIEWS.some(([v]) => v === url.view) ? url.view : "overview";
+  // No view is the hub; an old home-page link with only an area ("/?geo=zip:70130") is a market page.
+  const view = VIEWS.some(([v]) => v === url.view) ? url.view : url.geo ? "overview" : "home";
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || "dark");
   const [meta, setMeta] = useState(null);
   const [macro, setMacro] = useState(null);
@@ -141,13 +150,13 @@ export default function App() {
             </h1>
             <p className="app-tagline">Every address in New Orleans and Metairie, explained.</p>
             <p className="app-subtitle">
-              Flood risk, the true monthly cost, how an assessment compares and the market around it, for every parcel
-              in <b>Jefferson</b> and <b>Orleans</b> Parish, from public records.
+              Housing, schools, flood risk and the power behind the new data centers, for every address in{" "}
+              <b>Jefferson</b> and <b>Orleans</b> Parish, from public records.
             </p>
           </div>
         </header>
 
-        <MacroStrip ctx={ctx} />
+        {!NO_STRIP.has(view) && <MacroStrip ctx={ctx} />}
 
         <nav className="btn-row" aria-label="Main navigation">
           {VIEWS.map(([id, label]) => (
@@ -163,16 +172,21 @@ export default function App() {
           <a className="btn" href={SCHOOLS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
             Schools ↗
           </a>
+          <a className="btn" href={FLOODLENS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
+            Flood ↗
+          </a>
         </nav>
 
         {error && <div className="error">Could not load market data: {error}</div>}
         <ErrorBoundary resetKey={`${view}|${url.q || ""}`}>
+          {view === "home" && <Home ctx={ctx} />}
           {view === "overview" && <Overview ctx={ctx} />}
           {view === "scorecard" && <Scorecard ctx={ctx} />}
           {view === "compare" && <Compare ctx={ctx} />}
           {view === "macro" && <Macro ctx={ctx} />}
           {view === "property" && <Property ctx={ctx} />}
           {view === "ownership" && <Ownership ctx={ctx} />}
+          {view === "power" && <Power />}
           {view === "about" && <About ctx={ctx} />}
         </ErrorBoundary>
       </div>
