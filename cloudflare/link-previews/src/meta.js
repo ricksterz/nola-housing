@@ -26,6 +26,19 @@ const MAX_QUERY = 200; // longer than any address or owner slug; anything longer
 // etl/export_static.py shard_key and pid_key.
 const shardKey = (addr) => addr.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "_");
 const pidKey = (id) => slugify(id.slice(0, 7)) || "_";
+// Property and owner pages are bundled {key: page} files; etl/export_static.py BUNDLES and
+// bundle_key (and the app's frontend/src/lib/bundles.js).
+const BUNDLES = { props: 8192, owners: 512 };
+export function bundleKey(key, n) {
+  const bytes = new TextEncoder().encode(key);
+  let h = 0x811c9dc5;
+  for (const b of bytes) h = Math.imul(h ^ b, 0x01000193) >>> 0;
+  return (h % n).toString(16).padStart((n - 1).toString(16).length, "0");
+}
+async function getRecord(get, dir, key) {
+  const bundle = await get(`/data/${dir}/${bundleKey(key, BUNDLES[dir])}.json`);
+  return bundle && Object.hasOwn(bundle, key) ? bundle[key] : null;
+}
 
 /** "Parcel 103109601", "103109601", "0820008042a" -> the ID; null for an address. */
 export function parcelQuery(q) {
@@ -100,7 +113,7 @@ export async function previewFor(url, get) {
   if (view === "ownership" && p.get("owner")) {
     const slug = p.get("owner");
     if (!/^[a-z0-9-]{1,90}$/.test(slug)) return null;
-    const owner = await get(`/data/owner/${slug}.json`);
+    const owner = await getRecord(get, "owners", slug);
     return owner ? describeOwner(owner) : null;
   }
   const q = p.get("q");
@@ -109,14 +122,14 @@ export async function previewFor(url, get) {
   const pid = parcelQuery(q);
   if (pid) {
     const hit = ((await get(`/data/pid/${pidKey(pid)}.json`)) || []).find((r) => r[0] === pid);
-    if (hit) doc = await get(`/data/property/${hit[1]}.json`);
+    if (hit) doc = await getRecord(get, "props", hit[1]);
   } else {
     const street = streetOf(q);
     if (!street) return null;
-    doc = await get(`/data/property/${slugify(street)}.json`);
+    doc = await getRecord(get, "props", slugify(street));
     if (!doc) {
       const hit = ((await get(`/data/addr/${shardKey(street)}.json`)) || []).find((a) => a.address === street && !a.parcel);
-      if (hit) doc = await get(`/data/property/${hit.slug}.json`);
+      if (hit) doc = await getRecord(get, "props", hit.slug);
     }
   }
   if (!doc) return null;
