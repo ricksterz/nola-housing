@@ -458,6 +458,15 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
     return pages
 
 
+# On every pre-built page, under its content: the short form of the app's footer disclaimer.
+NOTICE = (
+    '<p class="prerender-notice"><small>For general information only, not financial, legal, tax or insurance '
+    "advice, an appraisal or proof of ownership. Owner names and parcel records are shown as published in public "
+    "records and aren't verified. NOLA Atlas is independent and not affiliated with the Assessors, the City, FEMA "
+    'or any data provider. <a href="/about/">Sources and methods</a>.</small></p>'
+)
+
+
 def render(shell: str, page: Page) -> str:
     url = f"{SITE}{page.path}"
     image = f"{SITE}/og/{page.image}"
@@ -506,7 +515,7 @@ def render(shell: str, page: Page) -> str:
     if page.jsonld:
         ld = json.dumps(page.jsonld, ensure_ascii=False).replace("</", "<\\/")
         out = out.replace("</head>", f'  <script type="application/ld+json">{ld}</script>\n  </head>', 1)
-    body = f'<main class="prerender">{nav()}{page.body}</main>'
+    body = f'<main class="prerender">{nav()}{page.body}{NOTICE}</main>'
     out, n = re.subn(r'<div id="root"></div>', lambda _m: f'<div id="root">{body}</div>', out, count=1)
     if n != 1:
         raise RuntimeError('index.html has no empty <div id="root"></div>')

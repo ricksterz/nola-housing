@@ -694,7 +694,7 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
       <div className="panel-head">
         <div>
           <h3 className="panel-title">Monthly cost to own</h3>
-          <div className="panel-subtitle">Loan, property tax and insurance at a purchase price you set. HOA dues and mortgage insurance aren't included.</div>
+          <div className="panel-subtitle">Loan, property tax and insurance at a purchase price you set: an estimate, not a loan offer, tax bill or insurance quote. HOA dues and mortgage insurance aren't included.</div>
         </div>
       </div>
       <CostInputs a={a}>
@@ -737,14 +737,15 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
 // feed has no year built, living area or sale history, for instance).
 // Where a card's record comes from. Orleans comes from the City's parcel layer, which carries the
 // Assessor's owner, address and tax bill but no values.
+const OWNER_CAVEAT = "The owner is the name on the roll, not verified and not proof of ownership.";
 function sourceNote(p) {
   const pulled = p.fetched_at ? ` · pulled ${p.fetched_at.slice(0, 10)}` : "";
   if (p.parish === "orleans" && p.source_kind === "bulk:socrata")
     return `Source: City of New Orleans open-data parcels (data.nola.gov): parcel number, address and lot${pulled}. Owners and tax bill numbers will be added from the City's parcel search layer, which is down right now. Assessed values aren't published, so none are shown for Orleans yet.`;
   if (p.parish === "orleans")
-    return `Source: City of New Orleans parcel layer: owner, address and tax bill from the Assessor's roll${pulled}. The City doesn't publish assessed values, so none are shown for Orleans yet.`;
+    return `Source: City of New Orleans parcel layer: owner, address and tax bill from the Assessor's roll${pulled}. The City doesn't publish assessed values, so none are shown for Orleans yet. ${OWNER_CAVEAT}`;
   const placed = p.zip_code ? " City and ZIP are placed from the parcel's location." : "";
-  return `Source: Jefferson Parish Assessor, as published${pulled}.${placed} Assessed value is the tax value, not a market price.`;
+  return `Source: Jefferson Parish Assessor, as published${pulled}.${placed} Assessed value is the tax value, not a market price. ${OWNER_CAVEAT}`;
 }
 
 function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, floodlensSummary }) {

@@ -308,7 +308,7 @@ function OwnerPage({ ctx, slug }) {
         )}
       </div>
       <div className="method-note">
-        <span>Records are listed under this owner when the name on the roll matches once punctuation and word order are set aside. A name written another way, or an affiliated company, isn't included.</span>
+        <span>Records are listed under this owner when the name on the roll matches once punctuation and word order are set aside, so different people or businesses with the same name can share this page, and a name written another way, or an affiliated company, isn't included. Names are shown as published on the Assessors' rolls, which lag sales and transfers and aren't verified here; this isn't a title search or proof of ownership. Corrections go to the Assessor's office.</span>
       </div>
     </div>
   );
