@@ -295,11 +295,10 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             "NOLA Atlas — Every address in New Orleans and Metairie, explained",
             DEFAULT_DESCRIPTION,
             f"<h1>NOLA Atlas</h1><p><strong>{esc(tagline)}</strong></p>"
-            "<p>Start with an address: NOLA Atlas looks up any parcel in Jefferson and Orleans Parish, by "
-            "address, street, owner name or parcel number, and explains it: the FEMA flood zone, the true monthly "
-            "cost to own with tax and insurance, how its assessment compares with similar homes nearby, who owns "
-            "it, and the housing market around it. Free, independent, and built on public records.</p>"
-            "<h2>Housing</h2><p>Sale prices, home values, rent and inventory for every ZIP. "
+            "<p>Four guides to living in New Orleans and Metairie, built on public records: housing, schools, "
+            "flood risk, and AI data centers and the power grid. Free and independent.</p>"
+            "<h2>Housing</h2><p>Sale prices, home values, rent and inventory for every ZIP, and a report on any "
+            "address: its owner, assessed value, flood zone and the true monthly cost to own. "
             f"Metro median sale price: {esc(money(metro_row.get('median_sale_price')) or 'not published')}. "
             '<a href="/market/">Market overview</a> · <a href="/scorecard/">ZIP Scorecard</a> · '
             '<a href="/property/">Property lookup</a> · <a href="/ownership/">Who owns</a></p>'

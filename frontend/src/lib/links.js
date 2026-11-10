@@ -13,8 +13,3 @@ export function floodLensLink(address, lens) {
   if (lens) q.set("lens", lens);
   return `${FLOODLENS_URL}?${q}`;
 }
-
-/** School Finder opened on a ZIP. */
-export function schoolsLink(zip) {
-  return zip ? `${SCHOOLS_URL}?zip=${encodeURIComponent(zip)}` : SCHOOLS_URL;
-}
