@@ -3,17 +3,17 @@ import { FLOODLENS_URL, SCHOOLS_URL } from "../lib/links";
 import { EVENTS, trackEvent } from "../lib/metrics";
 
 // The home page is a landing spot with four paths: a large picture, a short description and one
-// way in for each. Housing and AI & Power are tabs of this app; School Finder and FloodLens are
+// way in for each. Homes and AI & Power are tabs of this app; School Finder and FloodLens are
 // sister sites opened in a new tab. Nothing else competes with the four choices.
 const PATHS = [
   {
     id: "housing",
     view: "overview",
     href: "/market/",
-    kicker: "Housing",
+    kicker: "Homes",
     title: "What homes cost, and who owns them",
     text: "Prices, rents and sales for every ZIP, plus a report on any address: its owner, assessed value, flood zone and the true monthly cost to own.",
-    cta: "Explore housing",
+    cta: "Explore homes",
     Scene: HousingScene,
   },
   {
