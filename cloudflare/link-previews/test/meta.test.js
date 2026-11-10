@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { describeOwner, describeProperty, parcelQuery, previewFor, slugify, streetOf } from "../src/meta.js";
+import { bundleKey, describeOwner, describeProperty, parcelQuery, previewFor, slugify, streetOf } from "../src/meta.js";
 
 const META = { geos: [{ geo_level: "zip", geo_id: "70130" }, { geo_level: "zip", geo_id: "70005" }] };
 const PARCEL = {
@@ -21,18 +21,31 @@ const PARCEL = {
 const BUILDING = { building: { full: "1 Poydras St, New Orleans, LA 70130", units: [{}, {}, {}] } };
 const DATA = {
   "/data/meta.json": META,
-  "/data/property/418-bonnabel-blvd.json": PARCEL,
-  "/data/property/1-poydras-st.json": BUILDING,
   "/data/pid/1031096.json": [["103109601", "parcel-103109601", "1 Poydras St, New Orleans, LA 70130"]],
-  "/data/property/parcel-103109601.json": {
-    parcel: { parcel_id: "103109601", tax_bill_number: "103109601", full_address: "1 Poydras St, New Orleans, LA 70130", zip_code: "70130", flood_zone: "AE", flood_sfha: true },
-    building: { address: "1 POYDRAS ST", full: "1 Poydras St, New Orleans, LA 70130" },
-  },
   "/data/addr/600.json": [{ address: "600 PORT OF NEW ORLEANS PL", slug: "1-poydras-st", alias: "1 Poydras St, New Orleans, LA 70130" }],
-  "/data/owner/housing-authority-of-new-orleans.json": { name: "Housing Authority of New Orleans", count: 1087, parishes: { orleans: 1087 } },
 };
+// Pages go into their bundle file, as etl/export_static.py writes them.
+function bundle(dir, n, key, page) {
+  const path = `/data/${dir}/${bundleKey(key, n)}.json`;
+  DATA[path] = { ...DATA[path], [key]: page };
+}
+bundle("props", 8192, "418-bonnabel-blvd", PARCEL);
+bundle("props", 8192, "1-poydras-st", BUILDING);
+bundle("props", 8192, "parcel-103109601", {
+  parcel: { parcel_id: "103109601", tax_bill_number: "103109601", full_address: "1 Poydras St, New Orleans, LA 70130", zip_code: "70130", flood_zone: "AE", flood_sfha: true },
+  building: { address: "1 POYDRAS ST", full: "1 Poydras St, New Orleans, LA 70130" },
+});
+bundle("owners", 512, "housing-authority-of-new-orleans", { name: "Housing Authority of New Orleans", count: 1087, parishes: { orleans: 1087 } });
 const get = async (path) => DATA[path] ?? null;
 const preview = (qs, path = "/") => previewFor(new URL(`https://nolaatlas.com${path}?${qs}`), get);
+
+test("bundle file names match etl/export_static.py bundle_key", () => {
+  // The same cases as tests/test_export_static.py.
+  assert.equal(bundleKey("1-poydras-st", 8192), "18ad");
+  assert.equal(bundleKey("parcel-103109601", 8192), "0e2e");
+  assert.equal(bundleKey("housing-authority-of-new-orleans", 512), "0d6");
+  assert.equal(bundleKey("SEXT", 2048), "669");
+});
 
 test("parses lookups the way the app does", () => {
   assert.equal(parcelQuery("Parcel 103109601"), "103109601");
