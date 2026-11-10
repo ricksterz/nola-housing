@@ -7,6 +7,18 @@ import { Frame, lineProps, yAxisProps } from "../components/charts";
 import { filterRange, monthLabel } from "../lib/rangeUtils";
 import { fmt, seriesColor } from "../lib/theme";
 
+// FRED series shown here, cited as FRED asks: the source, the series and its ID. The Freddie Mac
+// and realtor.com series are copyrighted with citation required (etl/config.py FRED_SERIES).
+const FRED_CITES = [
+  ["Freddie Mac", "30-Year Fixed Rate Mortgage Average in the United States", "MORTGAGE30US"],
+  ["U.S. Federal Housing Finance Agency", "All-Transactions House Price Index for New Orleans–Metairie, LA (MSA)", "ATNHPIUS35380Q"],
+  ["U.S. Federal Housing Finance Agency", "All-Transactions House Price Index for Jefferson Parish, LA", "ATNHPIUS22051A"],
+  ["U.S. Federal Housing Finance Agency", "All-Transactions House Price Index for Orleans Parish, LA", "ATNHPIUS22071A"],
+  ["Realtor.com", "Housing Inventory: Active Listing Count in New Orleans–Metairie, LA (CBSA)", "ACTLISCOU35380"],
+  ["Realtor.com", "Housing Inventory: Median Days on Market in New Orleans–Metairie, LA (CBSA)", "MEDDAYONMAR35380"],
+  ["Realtor.com", "Housing Inventory: Median Listing Price in New Orleans–Metairie, LA (CBSA)", "MEDLISPRI35380"],
+];
+
 const AREAS = [
   { id: "35380", label: "New Orleans–Metairie metro" },
   { id: "22051", label: "Jefferson Parish" },
@@ -137,6 +149,21 @@ export default function Macro({ ctx }) {
           </>
         )}
       </div>
+      {hasFred && (
+        <div className="method-note" style={{ marginTop: 16 }}>
+          <span>
+            Sources, retrieved from FRED, Federal Reserve Bank of St. Louis
+            {meta?.sources?.fred?.fetched_at ? ` on ${meta.sources.fred.fetched_at.slice(0, 10)}` : ""}:{" "}
+            {FRED_CITES.map(([source, title, id], i) => (
+              <span key={id}>
+                {i ? "; " : ""}
+                {source}, {title} [<a href={`https://fred.stlouisfed.org/series/${id}`} target="_blank" rel="noreferrer">{id}</a>]
+              </span>
+            ))}
+            . This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.
+          </span>
+        </div>
+      )}
     </div>
   );
 }

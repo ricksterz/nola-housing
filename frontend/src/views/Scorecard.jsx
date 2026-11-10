@@ -214,7 +214,7 @@ function AffordabilityPanel({ rows, theme, macro }) {
           <div className="panel-subtitle">
             Each ZIP's median sale price with a 30-year fixed loan, plus property tax at the ZIP's rate
             ({a.homestead ? "with the homestead exemption for a home you live in" : "on the full price, as a rental or second home"}),
-            your homeowners estimate and the ZIP's median flood policy. HOA dues and mortgage insurance aren't included.
+            your homeowners estimate and the ZIP's median flood policy. An estimate, not a loan offer or insurance quote; HOA dues and mortgage insurance aren't included.
           </div>
         </div>
       </div>

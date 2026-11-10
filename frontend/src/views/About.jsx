@@ -37,11 +37,14 @@ export default function About({ ctx }) {
       <div className="panel">
         <h3 className="panel-title">What each view shows</h3>
         <ul className="text-list">
+          <li><strong>Home</strong> — four ways in: Homes (this site's market and property tabs), Schools (<a href="https://schools.nolaatlas.com/" target="_blank" rel="noreferrer">School Finder</a>), Flood (<a href="https://nola-floodlens.onrender.com/" target="_blank" rel="noreferrer">FloodLens</a>) and AI &amp; Power. School Finder and FloodLens are separate sites by the same builder, with their own sources and methods.</li>
           <li><strong>Market Overview</strong> — one area at a time: home value (Zillow ZHVI) vs. median sale price (Redfin), rent (ZORI), days on market, listings pipeline, inventory, months of supply, $/sqft and negotiation metrics. Every chart has a table view.</li>
           <li><strong>ZIP Scorecard</strong> — all 24 ZIPs side by side with the latest reading, year-over-year change and a 24-month price sparkline. Cell shading is a single blue ramp for magnitude and blue/red for change. Below it: gross rent yield (rent vs. buy) and the true monthly cost of the median sale: loan, property tax, homeowners and flood insurance.</li>
           <li><strong>Compare</strong> — overlay up to six areas on one metric, optionally indexed to 100 so growth can be compared across very different price levels, with small multiples underneath.</li>
           <li><strong>Macro</strong> — metro vs. parish indexes, the 30-year mortgage rate, FHFA house price indexes and realtor.com listing series for the MSA.</li>
           <li><strong>Property Lookup</strong> — parcel records from the parish assessor (owner, assessed value, exemptions, value history, legal description), the FEMA flood zone, a map of the homes around it, the ZIP's market context and a monthly cost to own at a price you set. Copy link shares the page for that address.{orleansParcels ? " Orleans parcels have no assessed values yet — see Methodology." : " Currently Jefferson Parish only — see Methodology."}</li>
+          <li><strong>Ownership</strong> — who owns each ZIP and parish by owner type (individuals, organizations, public bodies), the largest owners, and an owner page for anyone with two or more records. Names are matched as written on the rolls; see "Is the owner shown correct?" below.</li>
+          <li><strong>AI &amp; Power</strong> — a hand-kept tracker of AI data centers in Louisiana, the power plants proposed to serve them, the Public Service Commission decisions and what they could mean for bills. Every item links its source; where the two sides of the bill question disagree, both are given, attributed. Pending cases change, so check the linked filings.</li>
         </ul>
       </div>
 
@@ -63,6 +66,7 @@ export default function About({ ctx }) {
           <li><strong>OpenFEMA NFIP policies</strong> — flood insurance policies in force by ZIP, used for typical flood insurance cost. Monthly.</li>
           <li><strong>OpenStreetMap</strong> — the base map on a property page (© OpenStreetMap contributors). The dots on it are Assessor parcels, placed by each lot's center point.</li>
           <li><strong>FloodLens</strong> — which census tracts fall in FloodLens's top fifth inside FEMA high-risk zones, from its claims backtest{fl?.generated ? ` (updated ${fl.generated})` : ""}; see Methodology.</li>
+          <li><strong>AI &amp; Power tracker</strong> — news reports, company releases and Louisiana Public Service Commission dockets, compiled and checked by hand; each figure links its source.</li>
           <li><strong>FEMA National Flood Hazard Layer</strong> — effective flood zones, placed on each parcel. Monthly.{flooded ? ` ${n(flooded)} parcels${floodPulled ? `, last pulled ${floodPulled}` : ""}.` : ""}</li>
         </ul>
       </div>

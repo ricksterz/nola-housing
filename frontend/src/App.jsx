@@ -188,7 +188,7 @@ export default function App() {
           {view === "about" && <About ctx={ctx} />}
         </ErrorBoundary>
       </div>
-      <Footer generated={meta?.generated} />
+      <Footer generated={meta?.generated} sources={meta?.sources} />
     </div>
   );
 }
