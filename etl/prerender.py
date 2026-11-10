@@ -120,7 +120,7 @@ def nav() -> str:
         ("/macro/", "Macro"),
         ("/property/", "Property Lookup"),
         ("/ownership/", "Ownership"),
-        ("/power/", "Data Center Power"),
+        ("/power/", "AI & Power"),
         ("/about/", "About"),
         (SCHOOLS_URL, "Schools"),
         (FLOODLENS_URL, "Flood"),
@@ -254,11 +254,11 @@ def power_page(power: dict) -> Page:
     bills = "".join(f"<li><strong>{esc(b['side'])}</strong>: {esc(b['text'])}</li>" for b in power["bills"])
     return Page(
         "/power/",
-        "Data center power in Louisiana · NOLA Atlas",
-        "Data centers and the power plants being built for them in Louisiana: Meta's Richland Parish campus, "
+        "AI data centers and power in Louisiana · NOLA Atlas",
+        "AI data centers and the gas plants being built for them in Louisiana: Meta's Richland Parish campus, "
         "the LPSC's decisions, New Orleans' pause on data centers, and what it could mean for Entergy bills in "
         "New Orleans and Metairie.",
-        f"<h1>Data center power in Louisiana</h1><p>{esc(power['intro'])}</p>"
+        f"<h1>AI data centers and Louisiana's power grid</h1><p>{esc(power['intro'])}</p>"
         f"<h2>Who sets your power rates</h2><ul>{utilities}</ul>"
         f"<h2>Projects</h2>{projects}<h2>Decisions so far</h2><ol>{timeline}</ol>"
         f"<p><strong>Next:</strong> {esc(power['next'])}</p>"

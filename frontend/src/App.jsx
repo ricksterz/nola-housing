@@ -25,7 +25,7 @@ const VIEWS = [
   ["macro", "Macro"],
   ["property", "Property Lookup"],
   ["ownership", "Ownership"],
-  ["power", "Data Center Power"],
+  ["power", "AI & Power"],
   ["about", "About"],
 ];
 // The housing snapshot strip belongs to the housing tabs, not the hub or the power tracker.
@@ -49,7 +49,7 @@ function pageMeta(view, url, geos) {
     macro: "Macro trends",
     property: "Property Lookup",
     ownership: url.owner ? "Owner" : area ? `Who owns ${area}` : "Who owns New Orleans and Metairie",
-    power: "Data center power in Louisiana",
+    power: "AI data centers and power in Louisiana",
     about: "About and methodology",
   };
   const canonicalGeo = view === "overview" || (view === "ownership" && !url.owner) ? url.geo : undefined;
@@ -186,7 +186,7 @@ export default function App() {
           {view === "macro" && <Macro ctx={ctx} />}
           {view === "property" && <Property ctx={ctx} />}
           {view === "ownership" && <Ownership ctx={ctx} />}
-          {view === "power" && <Power />}
+          {view === "power" && <Power theme={theme} />}
           {view === "about" && <About ctx={ctx} />}
         </ErrorBoundary>
       </div>

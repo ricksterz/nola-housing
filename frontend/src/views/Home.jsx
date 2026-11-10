@@ -86,7 +86,7 @@ export default function Home({ ctx }) {
         <HubCard
           kicker="Data center power"
           title="Who pays to power the data centers?"
-          text={`New gas plants for Meta's Richland Parish data center: ${plants.power.split(";")[0]}, with more proposed. New Orleans has paused data centers while it writes rules.`}
+          text={`New gas plants for Meta's Richland Parish AI data center: ${plants.power.split(";")[0]}, with more proposed. New Orleans has paused data centers while it writes rules.`}
           links={[{ label: "Follow the tracker", onClick: () => navigate({ view: "power" }) }]}
           note={`Checked ${fmt.monthYear(power.checked)}`}
         />
