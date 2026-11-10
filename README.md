@@ -108,7 +108,7 @@ wider feature set:
 | Compare | Overlay up to six areas on one metric, optionally indexed to 100, with small multiples. Colors are bound to the area, not its rank. |
 | Macro | Metro vs. parish ZHVI/ZORI indexed; with FRED loaded: 30-yr mortgage rate, FHFA HPI (metro, Jefferson, Orleans) and realtor.com listing series. |
 | Property Lookup | Assessor parcel record, value history, indicative value from the ZIP's $/sqft, ZIP market context. |
-| Data Center Power (`/power/`) | A hand-kept, sourced tracker of data centers and the power plants built for them in Louisiana, who regulates Orleans and Jefferson rates, and both sides of the bill question. Edit `frontend/src/data/power.json` (the app and `etl/prerender.py` both read it) and update its `checked` date. |
+| AI & Power (`/power/`) | A hand-kept, sourced tracker of AI data centers and the gas plants built for them in Louisiana: headline megawatts, a map of the sites, who regulates Orleans and Jefferson rates, a filterable decision log with a countdown to the next vote, and both sides of the bill question. Edit `frontend/src/data/power.json` (the app and `etl/prerender.py` both read it) and update its `checked` date (and `nextVote` once a vote is set or held). |
 
 Charts follow the dataviz rules in this repo's tooling: no dual axes, a fixed
 8-slot categorical palette validated for color-vision deficiency in both themes,
