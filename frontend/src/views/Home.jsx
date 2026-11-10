@@ -159,7 +159,6 @@ function AddressSearch({ navigate, meta }) {
     >
       <div className="home-eyebrow">
         <WaterMeter />
-        <span>Where y'at?</span>
       </div>
       <label className="home-search-label" htmlFor="home-q">
         Look up any address in New Orleans and Metairie.

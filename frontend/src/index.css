@@ -460,8 +460,8 @@ a { color: var(--blue); }
    tiles (cobalt on cream in both themes, like the real ones), cast-iron gallery lace, and
    neighborhood shortcuts. Decoration only; every ornament is aria-hidden. */
 :root { --tile-blue: #1f4c9e; --tile-cream: #f3ede0; --iron: color-mix(in srgb, var(--gold) 55%, var(--text-dimmer)); }
-.home-eyebrow { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-family: var(--serif); font-style: italic; font-weight: 700; font-size: clamp(18px, 2.6vw, 21px); color: var(--gold); }
-.nola-meter { width: 46px; height: 46px; flex: none; }
+.home-eyebrow { display: flex; margin-bottom: 10px; }
+.nola-meter { width: 34px; height: 34px; flex: none; opacity: 0.9; }
 .nola-meter-ring { fill: none; stroke: var(--gold); stroke-width: 2; }
 .nola-meter-ring--in { stroke-width: 1; opacity: 0.6; }
 .nola-meter-star, .nola-meter-moon { fill: var(--gold); }
