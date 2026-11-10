@@ -1,6 +1,7 @@
 // In static mode (GitHub Pages / previews) the app reads pre-exported JSON from
 // ./data instead of calling the FastAPI backend. Regenerate with:
 //   python -m etl.export_static
+import { BUNDLES, bundleKey } from "./lib/bundles";
 import { cellsAround } from "./lib/nearby";
 
 export const IS_STATIC = import.meta.env.VITE_STATIC_DATA === "true";
@@ -45,6 +46,13 @@ async function getStatic(file, missingMessage) {
   cache.set(file, p);
   p.catch(() => cache.delete(file));
   return p;
+}
+
+/** One record from a bundled directory (lib/bundles.js); rejects with `missingMessage` if absent. */
+async function getRecord(dir, key, missingMessage) {
+  const bundle = await getStatic(`${dir}/${bundleKey(key, BUNDLES[dir])}.json`, missingMessage);
+  if (!Object.hasOwn(bundle, key)) throw new Error(missingMessage || "Not found.");
+  return bundle[key];
 }
 
 export function getMeta() {
@@ -219,7 +227,7 @@ export async function suggestOwners(q, limit = 5) {
   const words = (q || "").toUpperCase().replace(/[^A-Z0-9& ]/g, " ").split(/\s+/).filter(Boolean);
   const keyWord = words.filter((w) => w.length >= 2 && !OWNER_INDEX_SKIP.has(w)).sort((a, b) => b.length - a.length)[0];
   if (!IS_STATIC || !keyWord) return [];
-  const shard = await getStatic(`ownidx/${ownerPrefix(keyWord)}.json`).catch(() => []);
+  const shard = await getRecord("ownnames", ownerPrefix(keyWord)).catch(() => []);
   const out = [];
   for (const [slug, name, count, kind, page, label] of shard) {
     const parts = name.toUpperCase().split(/[\s,-]+/);
@@ -235,7 +243,7 @@ export async function suggestOwners(q, limit = 5) {
 }
 
 export function getOwner(slug) {
-  return getStatic(`owner/${slug}.json`, "That owner isn't on record. Owner pages are kept for owners with two or more properties; search the name to find a single property.");
+  return getRecord("owners", slug, "That owner isn't on record. Owner pages are kept for owners with two or more properties; search the name to find a single property.");
 }
 
 /** Ownership breakdown per area, keyed "metro:35380", "county:22071", "zip:70130". */
@@ -391,18 +399,18 @@ export async function getPropertyLookup(address) {
   if (pid) {
     if (!IS_STATIC) return get(`/api/property/lookup?address=${encodeURIComponent(pid)}`);
     const hit = (await getPidShard(pid)).find(([id]) => id === pid);
-    if (hit) return getStatic(`property/${hit[1]}.json`);
+    if (hit) return getRecord("props", hit[1]);
     throw new Error(`No parcel or tax bill numbered ${pid}. Jefferson parcel numbers are 10 digits; Orleans tax bills are 9.`);
   }
   const { street: needle, unit } = parseAddress(address);
   if (IS_STATIC) {
-    let doc = await getStatic(`property/${slugify(needle)}.json`).catch(() => null);
+    let doc = await getRecord("props", slugify(needle)).catch(() => null);
     let filedAs = null;
     if (!doc) {
       const shard = await getAddressShard(needle);
       const usable = shard.filter((a) => !a.parcel);
       const match = usable.find((a) => a.address === needle) || usable.find((a) => a.address.startsWith(needle)) || usable.find((a) => a.address.includes(needle));
-      if (match) doc = await getStatic(`property/${match.slug}.json`);
+      if (match) doc = await getRecord("props", match.slug);
       // An address the City knows on a lot the roll files under another address.
       if (doc && match.alias) filedAs = aliasNotice(match);
     }
