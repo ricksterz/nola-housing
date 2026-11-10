@@ -79,40 +79,27 @@ a { color: var(--blue); }
 .recharts-tooltip-cursor { stroke: var(--text-dimmer); }
 
 .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
-.container { width: 100%; max-width: 1180px; margin: 0 auto; padding: clamp(20px, 4vw, 40px) clamp(16px, 3vw, 24px) 0; }
+.container { width: 100%; max-width: 1180px; margin: 0 auto; padding: clamp(14px, 2.4vw, 22px) clamp(16px, 3vw, 24px) 0; }
 .app-main { flex: 1; }
 
-/* ---------- Header ---------- */
-.hero {
-  position: relative;
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  margin-bottom: 20px;
-  box-shadow: var(--shadow);
-  background:
-    radial-gradient(1200px 300px at 10% -20%, color-mix(in srgb, var(--gold) 22%, transparent), transparent 60%),
-    radial-gradient(900px 260px at 90% 120%, color-mix(in srgb, var(--blue) 22%, transparent), transparent 60%),
-    var(--panel);
-}
-.hero-skyline {
-  position: absolute; inset: auto 0 0 0; height: 46%; opacity: 0.18; pointer-events: none;
-  color: var(--text-bright);
-}
-.hero-content {
-  position: relative; display: flex; flex-direction: column;
-  min-height: clamp(150px, 22vw, 210px);
-  padding: clamp(16px, 3vw, 26px);
-}
-.hero-content .header-tools { margin-bottom: auto; }
-.app-title { margin: 0; font-size: clamp(24px, 5vw, 34px); font-weight: 700; font-family: var(--serif); letter-spacing: -0.01em; line-height: 1.15; color: var(--text-bright); }
-.app-title .accent { color: var(--gold); }
-.app-title-link { color: inherit; text-decoration: none; }
-.app-title-link:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.app-title-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
-.app-tagline { margin: 6px 0 0; font-family: var(--serif); font-size: clamp(16px, 3.2vw, 19px); font-weight: 700; color: var(--gold); line-height: 1.3; }
-.app-subtitle { margin: 8px 0 0; color: var(--text-dim); font-size: clamp(13px, 2.5vw, 14px); max-width: 720px; line-height: 1.6; }
-.header-tools { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+/* ---------- Header ----------
+   A slim bar that stays at the top while scrolling: the name (the way home), the tagline on wide
+   screens, and on the data tabs their source dates. The tab row sits under it on every page but
+   home, as one line that scrolls sideways on phones instead of wrapping. */
+.topbar { position: sticky; top: 0; z-index: 1100; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--border-alt); }
+.topbar-inner { max-width: 1180px; margin: 0 auto; padding: 10px clamp(16px, 3vw, 24px); display: flex; align-items: center; gap: 14px; min-height: 56px; }
+.brand { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; line-height: 1; color: var(--text-bright); white-space: nowrap; }
+.brand .accent { color: var(--gold); }
+.brand-link { color: inherit; text-decoration: none; }
+.brand-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
+.brand-tag { font-size: 13px; color: var(--text-dimmer); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding-left: 14px; border-left: 1px solid var(--border); }
+.topbar-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
+.btn-row.nav-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * clamp(16px, 3vw, 24px)) 18px; padding: 2px clamp(16px, 3vw, 24px); -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 24px), transparent); }
+.nav-tabs::-webkit-scrollbar { display: none; }
+.nav-tabs .btn { flex: none; }
+@media (max-width: 1080px) { .topbar-tools .source-chips { display: none; } }
+@media (max-width: 760px) { .brand-tag { display: none; } }
+@media (max-width: 480px) { .snapshot-badge { display: none; } }
 .snapshot-badge { font-size: 11px; font-weight: 500; color: var(--text-dim); border: 1px solid var(--border); background: var(--panel); border-radius: 999px; padding: 4px 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .theme-toggle { appearance: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); color: var(--text-dim); cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
 .theme-toggle:hover { border-color: var(--text-dimmer); color: var(--text); }
@@ -451,20 +438,30 @@ a { color: var(--blue); }
   .paths { grid-template-columns: 1fr; }
 }
 
-/* Scene motion: rain, drifting water, power along the lines, server lights, a plume, the pennant. */
-.scene-rain { animation: scene-rain 0.7s linear infinite; }
-.scene-water { animation: scene-water 7s linear infinite; }
+/* Scene motion: a streetcar rolling by, drifting clouds, the flag waving, rain, rising water, power
+   along the lines, server lights and a plume. All of it stops under prefers-reduced-motion. */
+.scene-car { animation: scene-car 13s linear infinite; }
+.scene-clouds { animation: scene-clouds 11s ease-in-out infinite alternate; }
+.scene-clouds--fast { animation-duration: 6s; }
+.scene-flag-slice { animation: scene-flag-wave 1.3s ease-in-out infinite alternate; }
+.scene-flag-shade { opacity: 0; animation: scene-flag-shade 1.3s ease-in-out infinite alternate; }
+.scene-rain { animation: scene-rain 1.1s linear infinite; }
+.scene-water { animation: scene-water 4s linear infinite; }
+.scene-water-level { animation: scene-water-level 3.2s ease-in-out infinite alternate; }
 .scene-pulse { stroke-dasharray: 14 320; animation: scene-pulse 3.2s linear infinite; }
 .scene-pulse--late { animation-delay: 1.6s; }
 .scene-led { animation: scene-led 2.4s steps(2, jump-none) infinite; }
 .scene-plume { animation: scene-plume 5s ease-in-out infinite alternate; }
-.scene-flag { transform-box: fill-box; transform-origin: left center; animation: scene-flag 2.6s ease-in-out infinite alternate; }
-@keyframes scene-rain { from { transform: translate(0, 0); } to { transform: translate(-5px, 14px); } }
+@keyframes scene-car { from { transform: translateX(0); } to { transform: translateX(780px); } }
+@keyframes scene-clouds { from { transform: translateX(0); } to { transform: translateX(36px); } }
+@keyframes scene-flag-wave { from { transform: translateY(calc(-1 * var(--amp))); } to { transform: translateY(var(--amp)); } }
+@keyframes scene-flag-shade { from { opacity: 0; } to { opacity: 0.2; } }
+@keyframes scene-rain { from { transform: translate(0, 0); } to { transform: translate(-120px, 320px); } }
 @keyframes scene-water { from { transform: translateX(0); } to { transform: translateX(-80px); } }
+@keyframes scene-water-level { from { transform: translateY(0); } to { transform: translateY(-5px); } }
 @keyframes scene-pulse { from { stroke-dashoffset: 334; } to { stroke-dashoffset: 0; } }
 @keyframes scene-led { 0% { opacity: 1; } 100% { opacity: 0.3; } }
 @keyframes scene-plume { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-8px); opacity: 0.6; } }
-@keyframes scene-flag { from { transform: skewY(0deg) scaleX(1); } to { transform: skewY(-3deg) scaleX(0.96); } }
 @media (prefers-reduced-motion: reduce) {
   .scene *, .path, .path-art .scene, .path-arrow { animation: none !important; transition: none !important; }
   .path:hover, .path:hover .path-art .scene { transform: none; }
