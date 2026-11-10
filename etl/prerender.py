@@ -33,7 +33,7 @@ from . import config, og_images
 SITE = "https://nolaatlas.com"
 DIST = config.ETL_DIR.parent / "frontend" / "dist"
 DEFAULT_DESCRIPTION = (
-    "Housing, schools, flood risk and data center power for every address in New Orleans and Metairie: "
+    "Homes, schools, flood risk and data center power for every address in New Orleans and Metairie: "
     "look up any parcel in Jefferson and Orleans Parish. Free, independent, and built on public records."
 )
 POWER = config.ETL_DIR.parent / "frontend" / "src" / "data" / "power.json"
@@ -295,9 +295,9 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             "NOLA Atlas — Every address in New Orleans and Metairie, explained",
             DEFAULT_DESCRIPTION,
             f"<h1>NOLA Atlas</h1><p><strong>{esc(tagline)}</strong></p>"
-            "<p>Four guides to living in New Orleans and Metairie, built on public records: housing, schools, "
+            "<p>Four guides to living in New Orleans and Metairie, built on public records: homes, schools, "
             "flood risk, and AI data centers and the power grid. Free and independent.</p>"
-            "<h2>Housing</h2><p>Sale prices, home values, rent and inventory for every ZIP, and a report on any "
+            "<h2>Homes</h2><p>Sale prices, home values, rent and inventory for every ZIP, and a report on any "
             "address: its owner, assessed value, flood zone and the true monthly cost to own. "
             f"Metro median sale price: {esc(money(metro_row.get('median_sale_price')) or 'not published')}. "
             '<a href="/market/">Market overview</a> · <a href="/scorecard/">ZIP Scorecard</a> · '
@@ -320,7 +320,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             },
             card=(
                 "Free local data for New Orleans and Metairie",
-                "Housing, schools, flood and data center power",
+                "Homes, schools, flood and data center power",
                 [
                     ("Parcels and condo units", f"{meta.get('property_count', 0):,}"),
                     ("Metro median sale price", money(metro_row.get("median_sale_price"))),
