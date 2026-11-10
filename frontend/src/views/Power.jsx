@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import PowerMap from "../components/PowerMap";
 import power from "../data/power.json";
+import { daysUntil } from "../lib/power";
 
 // AI data centers and the power behind them: a hand-kept, sourced tracker (src/data/power.json,
 // also read by etl/prerender.py) laid out as a control room. Facts and votes only, each with its
@@ -28,12 +29,6 @@ function parseDay(iso) {
 }
 const day = (iso) => parseDay(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const mw = (n) => `${n.toLocaleString("en-US")} MW`;
-
-function daysUntil(iso) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.round((parseDay(iso) - today) / 86400000);
-}
 
 /** Counts from 0 up to `target` once, on mount. Jumps straight there under reduced motion. */
 function useCountUp(target, ms = 1100) {

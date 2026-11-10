@@ -137,8 +137,9 @@ export default function App() {
           <Skyline />
           <div className="hero-content">
             <div className="header-tools">
-              <SourceChips meta={meta} />
-              {IS_STATIC && meta?.generated && (
+              {/* Data-source dates belong to the data tabs; the address-first home page stays quiet. */}
+              {view !== "home" && <SourceChips meta={meta} />}
+              {view !== "home" && IS_STATIC && meta?.generated && (
                 <span className="snapshot-badge">Snapshot · {meta.generated.slice(0, 10)}</span>
               )}
               <ThemeToggle theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />
