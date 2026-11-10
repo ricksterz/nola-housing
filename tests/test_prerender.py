@@ -124,7 +124,7 @@ def test_metro_market_moves_to_market_and_power_page_lists_its_sources(dist):
     assert '<link rel="canonical" href="https://nolaatlas.com/market/" />' in market
     assert "<h1>New Orleans-Metairie, LA housing market</h1>" in market and "$355,000" in market
     power = (dist / "power" / "index.html").read_text()
-    assert "<h1>Data center power in Louisiana</h1>" in power
+    assert "<h1>AI data centers and Louisiana's power grid</h1>" in power
     assert "Louisiana Public Service Commission" in power and 'href="https://www.wwno.org/' in power
 
 

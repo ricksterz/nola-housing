@@ -1,6 +1,6 @@
 {
   "checked": "2026-11-09",
-  "intro": "Data centers use a lot of electricity, and in Louisiana new power plants are being built to supply them. This page tracks what is proposed, who decides, and what it could mean for power bills in New Orleans and Metairie. It is checked by hand against news reports and public filings.",
+  "intro": "AI data centers use enormous amounts of electricity, and in Louisiana new gas power plants are being built to supply them. This page tracks what is proposed, who decides, and what it could mean for power bills in New Orleans and Metairie. It is checked by hand against news reports and public filings.",
   "utilities": [
     {
       "parish": "Orleans Parish (New Orleans)",
@@ -15,6 +15,104 @@
       "note": "The same utility building the power plants for Meta's data center, so the LPSC's decisions on those plants can affect its customers' rates."
     }
   ],
+  "capacity": [
+    {
+      "project": "Meta Hyperion",
+      "measure": "New gas generation Entergy Louisiana is building for it",
+      "rows": [
+        {
+          "label": "Approved",
+          "detail": "3 plants, Aug 2025",
+          "mw": 2262,
+          "plants": 3,
+          "stage": "approved"
+        },
+        {
+          "label": "Proposed",
+          "detail": "7 plants, LPSC vote due Dec 2026",
+          "mw": 5278,
+          "plants": 7,
+          "stage": "proposed"
+        }
+      ]
+    },
+    {
+      "project": "Hut 8 River Bend",
+      "measure": "Power contracted from Entergy Louisiana",
+      "rows": [
+        {
+          "label": "Contracted",
+          "detail": "first lease",
+          "mw": 330,
+          "stage": "approved"
+        },
+        {
+          "label": "Room to grow",
+          "detail": "optional expansion",
+          "mw": 1000,
+          "stage": "proposed"
+        }
+      ]
+    }
+  ],
+  "sites": [
+    {
+      "name": "Meta Hyperion data center",
+      "kind": "datacenter",
+      "stage": "building",
+      "lat": 32.475,
+      "lng": -91.655,
+      "note": "Holly Ridge, Richland Parish"
+    },
+    {
+      "name": "Richland Parish gas plants",
+      "kind": "plant",
+      "stage": "approved",
+      "lat": 32.39,
+      "lng": -91.74,
+      "note": "2 approved (late 2028), 4 more proposed"
+    },
+    {
+      "name": "Waterford gas plant",
+      "kind": "plant",
+      "stage": "approved",
+      "lat": 29.997,
+      "lng": -90.471,
+      "note": "Entergy's Waterford site, St. Charles Parish (by the end of 2029)"
+    },
+    {
+      "name": "Pointe Coupee gas plants",
+      "kind": "plant",
+      "stage": "proposed",
+      "lat": 30.7,
+      "lng": -91.58,
+      "note": "3 proposed; shown at the parish, site not mapped"
+    },
+    {
+      "name": "Hut 8 River Bend campus",
+      "kind": "datacenter",
+      "stage": "building",
+      "lat": 30.755,
+      "lng": -91.34,
+      "note": "West Feliciana Parish, near St. Francisville"
+    },
+    {
+      "name": "New Orleans East proposal",
+      "kind": "datacenter",
+      "stage": "withdrawn",
+      "lat": 30.035,
+      "lng": -89.97,
+      "note": "Withdrawn in January 2026"
+    },
+    {
+      "name": "New Orleans & Metairie",
+      "kind": "city",
+      "stage": "city",
+      "lat": 29.965,
+      "lng": -90.11,
+      "note": "Entergy New Orleans (City Council) and Entergy Louisiana (LPSC)"
+    }
+  ],
   "projects": [
     {
       "name": "Meta Hyperion data center",
@@ -22,10 +120,21 @@
       "power": "3 gas plants, about 2,262 MW, approved in 2025; 7 more, about 5,278 MW, proposed in 2026",
       "status": "Phase 1 plants under construction: two in Richland Parish (late 2028) and one at Entergy's Waterford site in St. Charles Parish (by the end of 2029). The 7-plant expansion (4 in Richland, 3 in Pointe Coupee Parish), with batteries and new transmission lines, is in LPSC docket U-37882, with a vote expected in December 2026.",
       "sources": [
-        ["The Lens (UCS analysis), Aug 2026", "https://thelensnola.org/2026/08/18/meta-louisiana-data-center-ratepayer-costs/"],
-        ["Fox 8, Apr 2026", "https://www.fox8live.com/2026/04/15/seven-new-power-plants-meta-data-center-northern-louisiana-fast-tracked/"],
-        ["WWNO, Nov 2026", "https://www.wwno.org/economy/2026-11-09/entergy-wants-their-land-for-metas-power-lines-theyre-suing-the-regulators-approving-them"]
-      ]
+        [
+          "The Lens (UCS analysis), Aug 2026",
+          "https://thelensnola.org/2026/08/18/meta-louisiana-data-center-ratepayer-costs/"
+        ],
+        [
+          "Fox 8, Apr 2026",
+          "https://www.fox8live.com/2026/04/15/seven-new-power-plants-meta-data-center-northern-louisiana-fast-tracked/"
+        ],
+        [
+          "WWNO, Nov 2026",
+          "https://www.wwno.org/economy/2026-11-09/entergy-wants-their-land-for-metas-power-lines-theyre-suing-the-regulators-approving-them"
+        ]
+      ],
+      "stage": "Building · expansion pending",
+      "tone": "active"
     },
     {
       "name": "Hut 8 River Bend campus",
@@ -33,9 +142,17 @@
       "power": "330 MW from Entergy Louisiana for the first lease, with room for up to 1,000 MW more",
       "status": "Under construction. A 15-year, 245 MW lease to Fluidstack, backed by Google; later reporting describes the capacity as built for Anthropic. First data hall due in the second quarter of 2027.",
       "sources": [
-        ["Hut 8 press release, Dec 2025", "https://www.prnewswire.com/news-releases/hut-8-signs-15-year-245-mw-ai-data-center-lease-at-river-bend-campus-with-total-contract-value-of-7-0-billion-302644600.html"],
-        ["DCD", "https://www.datacenterdynamics.com/en/news/hut-8-signs-245mw-capacity-deal-with-fluidstack-as-part-of-multi-gigawatt-partnership-with-anthropic/"]
-      ]
+        [
+          "Hut 8 press release, Dec 2025",
+          "https://www.prnewswire.com/news-releases/hut-8-signs-15-year-245-mw-ai-data-center-lease-at-river-bend-campus-with-total-contract-value-of-7-0-billion-302644600.html"
+        ],
+        [
+          "DCD",
+          "https://www.datacenterdynamics.com/en/news/hut-8-signs-245mw-capacity-deal-with-fluidstack-as-part-of-multi-gigawatt-partnership-with-anthropic/"
+        ]
+      ],
+      "stage": "Building",
+      "tone": "active"
     },
     {
       "name": "New Orleans East proposal",
@@ -43,8 +160,13 @@
       "power": "Not disclosed",
       "status": "Withdrawn. The developer pulled its zoning permit hours after the City Council's January 28, 2026 vote to pause data centers.",
       "sources": [
-        ["WWNO, Jan 2026", "https://www.wwno.org/economy/2026-01-29/new-orleans-city-council-bans-data-center-development-for-a-year-heres-why"]
-      ]
+        [
+          "WWNO, Jan 2026",
+          "https://www.wwno.org/economy/2026-01-29/new-orleans-city-council-bans-data-center-development-for-a-year-heres-why"
+        ]
+      ],
+      "stage": "Withdrawn",
+      "tone": "muted"
     }
   ],
   "timeline": [
@@ -52,58 +174,72 @@
       "date": "2025-08-20",
       "who": "LPSC",
       "what": "Approves Entergy Louisiana's three gas plants, about 2,262 MW, to power Meta's Richland Parish data center.",
-      "source": "https://www.datacenterdynamics.com/en/news/entergy-obtains-approval-to-construct-three-gas-facilities-to-serve-metas-2gw-data-center-in-louisiana/"
+      "source": "https://www.datacenterdynamics.com/en/news/entergy-obtains-approval-to-construct-three-gas-facilities-to-serve-metas-2gw-data-center-in-louisiana/",
+      "group": "lpsc"
     },
     {
       "date": "2025-12-17",
       "who": "LPSC",
       "what": "Adopts the \"Lightning\" directive, 4-1: power plants for very large customers can skip competitive bidding, with a decision due within about eight months.",
-      "source": "https://www.eenews.net/articles/louisiana-adopts-lightning-speed-process-to-power-data-centers"
+      "source": "https://www.eenews.net/articles/louisiana-adopts-lightning-speed-process-to-power-data-centers",
+      "group": "lpsc"
     },
     {
       "date": "2026-01-28",
       "who": "New Orleans City Council",
       "what": "Votes 6-0 to pause data centers (and crypto mining) citywide for a year while the City Planning Commission writes zoning rules.",
-      "source": "https://council.nola.gov/news/january-2026/new-orleans-city-council-approves-motions-to-study/"
+      "source": "https://council.nola.gov/news/january-2026/new-orleans-city-council-approves-motions-to-study/",
+      "group": "nola"
     },
     {
       "date": "2026-04-15",
       "who": "LPSC",
       "what": "Votes 4-1 to fast-track Entergy Louisiana's application for seven more gas plants for Meta.",
-      "source": "https://www.fox8live.com/2026/04/15/seven-new-power-plants-meta-data-center-northern-louisiana-fast-tracked/"
+      "source": "https://www.fox8live.com/2026/04/15/seven-new-power-plants-meta-data-center-northern-louisiana-fast-tracked/",
+      "group": "lpsc"
     },
     {
       "date": "2026-06-01",
       "who": "St. Charles Parish Council",
       "what": "Adopts its first data center zoning: industrial districts only, a 300-foot buffer from homes and schools, and a noise cap. In April it had rejected an eight-month moratorium, 5-3.",
-      "source": "https://www.heraldguide.com/news/parish-council-unanimously-approves-first-data-center-regulations/"
+      "source": "https://www.heraldguide.com/news/parish-council-unanimously-approves-first-data-center-regulations/",
+      "group": "parish"
     },
     {
       "date": "2026-07-22",
       "who": "New Orleans planning staff",
       "what": "Recommend banning the largest data centers (over 100,000 sq ft and 20 MW) citywide and allowing smaller ones in some districts, subject to review by Entergy New Orleans and the Sewerage and Water Board.",
-      "source": "https://www.yahoo.com/news/us/articles/orleans-planning-staff-recommends-ban-152200200.html"
+      "source": "https://www.yahoo.com/news/us/articles/orleans-planning-staff-recommends-ban-152200200.html",
+      "group": "nola"
     },
     {
       "date": "2026-08-12",
       "who": "LPSC",
       "what": "Votes 3-1 to overturn a judge's order that Meta provide its job and power-demand figures in the expansion case.",
-      "source": "https://thelensnola.org/2026/08/18/meta-louisiana-data-center-ratepayer-costs/"
+      "source": "https://thelensnola.org/2026/08/18/meta-louisiana-data-center-ratepayer-costs/",
+      "group": "lpsc"
     },
     {
       "date": "2026-10-13",
       "who": "New Orleans City Planning Commission",
       "what": "Votes 5-2 against the staff recommendation and extends the suspension, asking for more information and community input.",
-      "source": "https://www.yahoo.com/news/us/articles/city-planning-commission-denies-data-215834557.html"
+      "source": "https://www.yahoo.com/news/us/articles/city-planning-commission-denies-data-215834557.html",
+      "group": "nola"
     },
     {
       "date": "2026-11-09",
       "who": "Landowner groups",
       "what": "Sue the LPSC in state court, arguing the Lightning directive was adopted without proper public notice.",
-      "source": "https://www.wwno.org/economy/2026-11-09/entergy-wants-their-land-for-metas-power-lines-theyre-suing-the-regulators-approving-them"
+      "source": "https://www.wwno.org/economy/2026-11-09/entergy-wants-their-land-for-metas-power-lines-theyre-suing-the-regulators-approving-them",
+      "group": "court"
     }
   ],
   "next": "December 2026: the LPSC is expected to vote on the seven-plant expansion for Meta (reports give December 10 or 16; check docket U-37882).",
+  "nextVote": {
+    "date": "2026-12-10",
+    "what": "LPSC vote on the seven-plant expansion for Meta",
+    "window": "December 10 or 16"
+  },
   "bills": [
     {
       "side": "Entergy Louisiana says",
