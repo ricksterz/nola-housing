@@ -108,6 +108,14 @@ def test_page_has_its_own_title_canonical_and_readable_content(dist):
     assert "$525,000" in market and "+3.2%" in market
 
 
+def test_every_page_carries_the_disclaimer(dist):
+    prerender.build(dist)
+    for page in dist.rglob("index.html"):
+        root = re.search(r'<div id="root">(.*)</div>', page.read_text(), re.S).group(1)
+        assert "not financial, legal, tax or insurance advice" in root, page
+        assert "proof of ownership" in root and 'href="/about/"' in root, page
+
+
 def test_home_names_the_site_for_search(dist):
     prerender.build(dist)
     home = (dist / "index.html").read_text()
