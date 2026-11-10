@@ -124,6 +124,8 @@ export default function App() {
     window.scrollTo({ top: 0 });
   }
 
+  // The site name is the page's h1 except on home, whose h1 is its own question.
+  const Brand = view === "home" ? "div" : "h1";
   const geos = meta?.geos || null;
   const ctx = useMemo(
     () => ({ theme, meta, geos, macro, scorecard, navigate, url }),
@@ -132,51 +134,46 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <div className="container app-main">
-        <header className="hero">
-          <Skyline />
-          <div className="hero-content">
-            <div className="header-tools">
-              {/* Data-source dates belong to the data tabs; the address-first home page stays quiet. */}
-              {view !== "home" && <SourceChips meta={meta} />}
-              {view !== "home" && IS_STATIC && meta?.generated && (
-                <span className="snapshot-badge">Snapshot · {meta.generated.slice(0, 10)}</span>
-              )}
-              <ThemeToggle theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />
-            </div>
-            <h1 className="app-title">
-              <a className="app-title-link" href="/" onClick={goHome} title="Home">
-                NOLA Atlas<span className="accent">.</span>
-              </a>
-            </h1>
-            <p className="app-tagline">Every address in New Orleans and Metairie, explained.</p>
-            <p className="app-subtitle">
-              Housing, schools, flood risk and the power behind the new data centers, for every address in{" "}
-              <b>Jefferson</b> and <b>Orleans</b> Parish, from public records.
-            </p>
+      {/* A slim bar on every page: the name (the way home), and on the data tabs their sources. */}
+      <header className="topbar">
+        <div className="topbar-inner">
+          <Brand className="brand">
+            <a className="brand-link" href="/" onClick={goHome} title="Home">
+              NOLA Atlas<span className="accent">.</span>
+            </a>
+          </Brand>
+          <span className="brand-tag">Every address in New Orleans and Metairie, explained.</span>
+          <div className="topbar-tools">
+            {view !== "home" && <SourceChips meta={meta} />}
+            {view !== "home" && IS_STATIC && meta?.generated && (
+              <span className="snapshot-badge">Snapshot · {meta.generated.slice(0, 10)}</span>
+            )}
+            <ThemeToggle theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} />
           </div>
-        </header>
-
+        </div>
+      </header>
+      <div className="container app-main">
+        {view !== "home" && (
+          <nav className="btn-row nav-tabs" aria-label="Main navigation">
+            {VIEWS.map(([id, label]) => (
+              <button
+                key={id}
+                className={`btn${view === id ? " is-active" : ""}`}
+                onClick={() => navigate({ view: id, owner: null, ...(id === "property" ? {} : { q: null, street: null }) })}
+                aria-current={view === id ? "page" : undefined}
+              >
+                {label}
+              </button>
+            ))}
+            <a className="btn" href={SCHOOLS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
+              Schools ↗
+            </a>
+            <a className="btn" href={FLOODLENS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
+              Flood ↗
+            </a>
+          </nav>
+        )}
         {!NO_STRIP.has(view) && <MacroStrip ctx={ctx} />}
-
-        <nav className="btn-row" aria-label="Main navigation">
-          {VIEWS.map(([id, label]) => (
-            <button
-              key={id}
-              className={`btn${view === id ? " is-active" : ""}`}
-              onClick={() => navigate({ view: id, owner: null, ...(id === "property" ? {} : { q: null, street: null }) })}
-              aria-current={view === id ? "page" : undefined}
-            >
-              {label}
-            </button>
-          ))}
-          <a className="btn" href={SCHOOLS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
-            Schools ↗
-          </a>
-          <a className="btn" href={FLOODLENS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
-            Flood ↗
-          </a>
-        </nav>
 
         {error && <div className="error">Could not load market data: {error}</div>}
         <ErrorBoundary resetKey={`${view}|${url.q || ""}`}>
@@ -215,42 +212,6 @@ function SourceChips({ meta }) {
         </span>
       ))}
     </div>
-  );
-}
-
-function Skyline() {
-  // A quiet, abstract Jackson Square — St. Louis Cathedral's triple spires
-  // flanked by the Cabildo and Presbytère, garden trees, a carriage and a
-  // flag — decoration only, so it stays a pure silhouette (no people, no
-  // traffic to draw).
-  return (
-    <svg className="hero-skyline" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
-      <path
-        d="M0 120
-           L0 108 L15 108 L15 96 L30 96 L30 110 L48 110 L48 98 L66 98 L66 112 L84 112 L84 100 L102 100 L102 114 L120 114 L120 104 L140 104 L140 116 L160 116 L160 106 L190 106
-           L190 96 L200 96
-           L200 65 L280 65 L280 42 L310 42 L310 65 L380 65
-           L380 100 L540 100
-           L550 80 L570 80 L590 32 L610 80 L650 80 L670 8 L690 80 L730 80 L750 32 L770 80 L790 80
-           L800 100 L815 100
-           L815 65 L895 65 L895 42 L925 42 L925 65 L995 65
-           L995 96 L1005 96
-           L1015 96 L1015 15 L1035 22 L1015 29 L1015 106
-           L1030 106 L1030 116 L1050 116 L1050 104 L1068 104 L1068 114 L1086 114 L1086 100 L1104 100 L1104 112 L1122 112 L1122 98 L1140 98 L1140 110 L1160 110 L1160 108 L1200 108
-           L1200 120 Z"
-        fill="currentColor"
-      />
-      {/* Carriage sits in the open gap left of the cathedral, clear of the building silhouettes. */}
-      <g fill="currentColor">
-        <circle cx="410" cy="108" r="9" />
-        <circle cx="457" cy="108" r="9" />
-        <rect x="400" y="88" width="68" height="14" rx="2" />
-        <path d="M400 88 L406 74 L462 74 L468 88 Z" opacity="0.7" />
-        <rect x="474" y="96" width="4" height="12" />
-        <path d="M478 100 L498 100 L498 108 L504 108 L504 92 L508 92 L508 108 L514 108 L514 82 L496 82 L496 92 L478 92 Z" />
-        <circle cx="512" cy="76" r="6" />
-      </g>
-    </svg>
   );
 }
 

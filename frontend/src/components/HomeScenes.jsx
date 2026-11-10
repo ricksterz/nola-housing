@@ -57,6 +57,27 @@ function House({ x, body, shutter, roof }) {
   );
 }
 
+// A green streetcar with red trim, its trolley pole on the overhead wire. Drawn with its wheels at
+// y=0 and its front at x=0, facing right.
+function Streetcar() {
+  return (
+    <g>
+      <path d="M-4 -46L22 -70" stroke="#2f2a33" strokeWidth="1.6" />
+      <rect x="-128" y="-46" width="124" height="6" rx="3" fill="#24503a" />
+      <rect x="-108" y="-50" width="84" height="5" rx="2" fill="#1d4230" />
+      <rect x="-130" y="-41" width="128" height="32" rx="5" fill="#2f6b47" />
+      {Array.from({ length: 10 }, (_, i) => (
+        <rect key={i} x={-122 + i * 12} y="-37" width="8" height="13" rx="1" fill="#f6e4b8" />
+      ))}
+      <rect x="-130" y="-21" width="128" height="3" fill="#b5392c" />
+      <rect x="-130" y="-12" width="128" height="4" fill="#24503a" />
+      <circle cx="-108" cy="-5" r="5" fill="#2a2427" />
+      <circle cx="-26" cy="-5" r="5" fill="#2a2427" />
+      <circle cx="-3" cy="-30" r="2" fill="#fff3c4" />
+    </g>
+  );
+}
+
 export function HousingScene() {
   return (
     <svg className="scene scene--housing" viewBox="0 0 640 320" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
@@ -89,7 +110,13 @@ export function HousingScene() {
       <rect x="0" y="262" width="640" height="14" fill="#e8d9c3" />
       <rect x="0" y="276" width="640" height="2" fill="#bba88f" />
       <rect x="0" y="278" width="640" height="42" fill="#7a6a62" />
-      <path d="M0 296H640M0 306H640" stroke="#a69488" strokeWidth="2" />
+      <path d="M0 304H640M0 312H640" stroke="#a69488" strokeWidth="2" />
+      <path d="M0 238H640" stroke="#3a3236" strokeWidth="0.9" opacity="0.7" />
+      <g transform="translate(0 308)">
+        <g className="scene-car">
+          <Streetcar />
+        </g>
+      </g>
     </svg>
   );
 }
@@ -105,6 +132,67 @@ const MOSS = [
   [232, 146, 24],
 ];
 
+const FLAG_W = 46;
+const FLAG_H = 26;
+const FLAG_SLICE = 2;
+
+// The US flag: 13 stripes and a blue canton with rows of stars (dots at this size).
+function FlagArt() {
+  const stripe = FLAG_H / 13;
+  const cantonW = FLAG_W * 0.4;
+  const cantonH = stripe * 7;
+  const stars = [];
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 6; c++) stars.push([1.8 + c * 3.1 + (r % 2) * 1.5, 1.6 + r * 2.7]);
+  return (
+    <g>
+      {Array.from({ length: 13 }, (_, i) => (
+        <rect key={i} x="0" y={i * stripe} width={FLAG_W} height={stripe + 0.05} fill={i % 2 ? "#ffffff" : "#bf2f38"} />
+      ))}
+      <rect x="0" y="0" width={cantonW} height={cantonH} fill="#2c3f7a" />
+      {stars
+        .filter(([sx]) => sx < cantonW - 1)
+        .map(([sx, sy]) => (
+          <circle key={`${sx}-${sy}`} cx={sx} cy={sy} r="0.55" fill="#fff" />
+        ))}
+    </g>
+  );
+}
+
+function UsFlag({ x, y }) {
+  const n = FLAG_W / FLAG_SLICE;
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <defs>
+        <g id="us-flag">
+          <FlagArt />
+        </g>
+      </defs>
+      {Array.from({ length: n }, (_, i) => (
+        <g key={i} className="scene-flag-slice" style={{ "--amp": `${0.4 + i * 0.13}px`, animationDelay: `${-i * 0.07}s` }}>
+          <svg
+            x={i * FLAG_SLICE}
+            y="0"
+            width={FLAG_SLICE + 0.15}
+            height={FLAG_H}
+            viewBox={`${i * FLAG_SLICE} 0 ${FLAG_SLICE + 0.15} ${FLAG_H}`}
+          >
+            <use href="#us-flag" />
+          </svg>
+          <rect
+            className="scene-flag-shade"
+            x={i * FLAG_SLICE}
+            y="0"
+            width={FLAG_SLICE + 0.15}
+            height={FLAG_H}
+            fill="#000"
+            style={{ animationDelay: `${-i * 0.07}s` }}
+          />
+        </g>
+      ))}
+    </g>
+  );
+}
+
 export function SchoolsScene() {
   const windows = [270, 300, 330, 474, 506, 538];
   return (
@@ -119,7 +207,7 @@ export function SchoolsScene() {
         </pattern>
       </defs>
       <rect width="640" height="320" fill="url(#ss-sky)" />
-      <g fill="#fff" opacity="0.9">
+      <g className="scene-clouds" fill="#fff" opacity="0.9">
         <ellipse cx="330" cy="54" rx="46" ry="12" />
         <ellipse cx="356" cy="46" rx="26" ry="12" />
         <ellipse cx="540" cy="76" rx="38" ry="9" />
@@ -141,7 +229,16 @@ export function SchoolsScene() {
       <polygon points="356,152 410,110 464,152" fill="#f3eee4" />
       <polygon points="368,147 410,118 452,147" fill="none" stroke="#d8cfbd" strokeWidth="1.5" />
       <rect x="356" y="150" width="108" height="11" fill="#f3eee4" />
-      <text x="410" y="158.5" textAnchor="middle" fontSize="7" fontWeight="700" letterSpacing="2.5" fill="#8a6f55" fontFamily="Georgia, serif">
+      <text
+        x="410"
+        y="158.5"
+        textAnchor="middle"
+        fontSize="7"
+        fontWeight="700"
+        letterSpacing="2.5"
+        fill="#8a6f55"
+        fontFamily="Georgia, serif"
+      >
         SCHOOL
       </text>
       <rect x="360" y="161" width="100" height="87" fill="#a65039" />
@@ -157,13 +254,11 @@ export function SchoolsScene() {
       <path d="M407 104q3-7 6 0z" fill="#d4a63a" />
       <path d="M395 93Q410 70 425 93Z" fill="#6f8f8a" />
       <path d="M410 76V62" stroke="#6f8f8a" strokeWidth="2" />
-      {/* Flagpole with a purple, green and gold pennant. */}
-      <path d="M602 104V256" stroke="#9aa3ab" strokeWidth="3" />
-      <g className="scene-flag">
-        <rect x="604" y="106" width="34" height="8" fill="#6b3fa0" />
-        <rect x="604" y="114" width="34" height="8" fill="#2f8f4e" />
-        <rect x="604" y="122" width="34" height="8" fill="#e2b33c" />
-      </g>
+      {/* Flagpole and a US flag, waving: the flag is cut into thin vertical slices that rise and
+          fall a step apart, more the farther they are from the pole. */}
+      <path d="M586 98V256" stroke="#9aa3ab" strokeWidth="3" />
+      <circle cx="586" cy="97" r="2.6" fill="#c9b27a" />
+      <UsFlag x={588} y={102} />
       {/* Lawn, path and hedges. */}
       <rect x="0" y="256" width="640" height="64" fill="#8fbf6d" />
       <rect x="0" y="256" width="640" height="5" fill="#7aa95b" />
@@ -172,8 +267,17 @@ export function SchoolsScene() {
         <ellipse key={bx} cx={bx} cy="256" rx="18" ry="9" fill="#5e8f47" />
       ))}
       {/* A live oak with Spanish moss. */}
-      <path d="M118 262C122 230 116 214 124 192C130 176 128 166 132 150L146 152C142 170 146 182 142 196C138 214 146 236 142 262Z" fill="#5a4636" />
-      <path d="M128 182C100 172 70 168 30 152M136 176C164 164 200 160 244 140M130 168C120 150 108 140 90 128" stroke="#5a4636" strokeWidth="9" strokeLinecap="round" fill="none" />
+      <path
+        d="M118 262C122 230 116 214 124 192C130 176 128 166 132 150L146 152C142 170 146 182 142 196C138 214 146 236 142 262Z"
+        fill="#5a4636"
+      />
+      <path
+        d="M128 182C100 172 70 168 30 152M136 176C164 164 200 160 244 140M130 168C120 150 108 140 90 128"
+        stroke="#5a4636"
+        strokeWidth="9"
+        strokeLinecap="round"
+        fill="none"
+      />
       <g fill="#4f7f3b">
         <circle cx="40" cy="128" r="34" />
         <circle cx="96" cy="104" r="42" />
@@ -201,7 +305,8 @@ export function SchoolsScene() {
 }
 
 // Rain streaks on a fixed grid so the scene renders the same every time.
-const RAIN = Array.from({ length: 48 }, (_, i) => [(i * 53) % 660, (i * 37) % 300]);
+// Two stacked copies (one a screen above the other) so the fall loops without a jump.
+const RAIN = Array.from({ length: 56 }, (_, i) => [(i * 53) % 780, (i * 37) % 320]);
 
 export function FloodScene() {
   return (
@@ -217,7 +322,7 @@ export function FloodScene() {
         </linearGradient>
       </defs>
       <rect width="640" height="320" fill="url(#fs-sky)" />
-      <g fill="#3f5c7c" opacity="0.55">
+      <g className="scene-clouds scene-clouds--fast" fill="#3f5c7c" opacity="0.55">
         <ellipse cx="120" cy="58" rx="110" ry="26" />
         <ellipse cx="420" cy="44" rx="150" ry="28" />
         <ellipse cx="610" cy="70" rx="90" ry="22" />
@@ -264,14 +369,24 @@ export function FloodScene() {
       </g>
       {/* Standing water in the street, drifting. */}
       <rect x="0" y="262" width="640" height="58" fill="#7d8c96" />
-      <g className="scene-water">
-        <path d="M0 256q20-6 40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0V320H0Z" fill="#3e77a0" opacity="0.85" />
-        <path d="M0 262q20 5 40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0" fill="none" stroke="#a9d0e8" strokeWidth="2" opacity="0.6" />
+      <g className="scene-water-level">
+        <g className="scene-water">
+          <path
+            d="M0 256q20-6 40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0V320H0Z"
+            fill="#3e77a0"
+            opacity="0.85"
+          />
+          <path
+            d="M0 262q20 5 40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0"
+            fill="none"
+            stroke="#a9d0e8"
+            strokeWidth="2"
+            opacity="0.6"
+          />
+        </g>
       </g>
-      <g className="scene-rain" stroke="#e6f0f7" strokeWidth="1.3" opacity="0.45" strokeLinecap="round">
-        {RAIN.map(([rx, ry]) => (
-          <path key={`${rx}-${ry}`} d={`M${rx} ${ry - 20}l-6 16`} />
-        ))}
+      <g className="scene-rain" stroke="#e6f0f7" strokeWidth="1.3" opacity="0.5" strokeLinecap="round">
+        {[0, -320].flatMap((dy) => RAIN.map(([rx, ry]) => <path key={`${dy}-${rx}-${ry}`} d={`M${rx} ${ry + dy - 20}l-6 16`} />))}
       </g>
     </svg>
   );
