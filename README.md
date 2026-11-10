@@ -102,7 +102,7 @@ wider feature set:
 
 | View | What it shows |
 |---|---|
-| Home (`/`) | Address-first: one search (with suggestions), a live sample report for a Metairie and a New Orleans address (flood zone, schools, electric utility and regulator, home values), neighborhood shortcuts to ZIP market pages, then a quiet row of topics: Housing, Schools ([School Finder](https://schools.nolaatlas.com/)), Flood ([FloodLens](https://nola-floodlens.onrender.com/)) and AI & Power. |
+| Home (`/`) | A landing page with four paths, each a large illustration, a short description and one way in: Housing (the market overview), Schools ([School Finder](https://schools.nolaatlas.com/)), Flood ([FloodLens](https://nola-floodlens.onrender.com/)) and AI & Power. The illustrations are inline SVG in `frontend/src/components/HomeScenes.jsx`. |
 | Market Overview (`/market/`) | One area at a time (metro, parish or any of 24 ZIPs): KPI tiles with YoY deltas and sparklines, then home value vs. sale price, rent, DOM, listings pipeline, inventory, months of supply, $/sqft and negotiation charts. Every chart has a table twin. |
 | ZIP Scorecard | All ZIPs side by side: latest reading, YoY, heat-shaded cells (one-hue ramp for magnitude, blue/red for change), 24-month sparkline; sortable, filter by parish; click through to the overview. Plus gross rent yield (rent vs. buy) and monthly payment on the median sale at an adjustable rate. |
 | Compare | Overlay up to six areas on one metric, optionally indexed to 100, with small multiples. Colors are bound to the area, not its rank. |
