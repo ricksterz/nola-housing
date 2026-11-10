@@ -19,6 +19,79 @@ const SAMPLES = [
 ];
 const SUGGEST_DEBOUNCE_MS = 150;
 
+// Neighborhood shortcuts to their ZIP's market page. A ZIP is only roughly a neighborhood, so
+// the ZIP is shown next to the name.
+const HOODS = [
+  ["French Quarter", "70116"],
+  ["Uptown", "70115"],
+  ["Mid-City", "70119"],
+  ["Bywater", "70117"],
+  ["Lakeview", "70124"],
+  ["Gentilly", "70122"],
+  ["Algiers", "70114"],
+  ["Old Metairie", "70005"],
+];
+
+// The city's cast-iron water meter lid: a crescent moon and stars inside a ring. Decoration only.
+function WaterMeter() {
+  const stars = Array.from({ length: 13 }, (_, i) => {
+    const a = (i / 13) * Math.PI * 2 - Math.PI / 2;
+    return [32 + Math.cos(a) * 22, 32 + Math.sin(a) * 22];
+  });
+  return (
+    <svg className="nola-meter" viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="32" cy="32" r="30" className="nola-meter-ring" />
+      <circle cx="32" cy="32" r="26.5" className="nola-meter-ring nola-meter-ring--in" />
+      {stars.map(([x, y]) => (
+        <path
+          key={`${x.toFixed(1)}-${y.toFixed(1)}`}
+          transform={`translate(${x} ${y}) scale(0.16)`}
+          d="M0 -10 L2.9 -4 L9.5 -3.1 L4.7 1.5 L5.9 8.1 L0 5 L-5.9 8.1 L-4.7 1.5 L-9.5 -3.1 L-2.9 -4 Z"
+          className="nola-meter-star"
+        />
+      ))}
+      <path d="M38 19 A14 14 0 1 0 38 45 A11 11 0 1 1 38 19 Z" className="nola-meter-moon" />
+    </svg>
+  );
+}
+
+// A street name set in the blue-and-white sidewalk tiles found at New Orleans corners.
+function StreetTiles({ address }) {
+  const street = (address || "").split(",")[0].replace(/^\d+[A-Z]?\s+/i, "").toUpperCase();
+  if (!street) return null;
+  return (
+    <div className="nola-tiles" aria-hidden="true">
+      {street.split(" ").map((word, w) => (
+        <span className="nola-tiles-word" key={`${word}-${w}`}>
+          {[...word].map((ch, i) => (
+            <span className="nola-tile" key={i}>
+              {ch}
+            </span>
+          ))}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Cast-iron gallery railing, as a band along the top of the sample report. Decoration only.
+function IronLace() {
+  return (
+    <svg className="nola-lace" aria-hidden="true" preserveAspectRatio="none">
+      <defs>
+        <pattern id="nola-lace" width="40" height="44" patternUnits="userSpaceOnUse">
+          <path className="nola-lace-rail" d="M0 3H40M0 41H40" />
+          <path d="M0 3V41" />
+          <circle cx="20" cy="22" r="5.5" />
+          <path d="M20 3C13 8 13 14 20 16.5C27 14 27 8 20 3ZM20 41C13 36 13 30 20 27.5C27 30 27 36 20 41Z" />
+          <path d="M0 13C8 13 10.5 17 10.5 22C10.5 27 8 31 0 31M40 13C32 13 29.5 17 29.5 22C29.5 27 32 31 40 31" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#nola-lace)" />
+    </svg>
+  );
+}
+
 function AddressSearch({ navigate, meta }) {
   const [q, setQ] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -84,8 +157,12 @@ function AddressSearch({ navigate, meta }) {
         go(q);
       }}
     >
+      <div className="home-eyebrow">
+        <WaterMeter />
+        <span>Where y'at?</span>
+      </div>
       <label className="home-search-label" htmlFor="home-q">
-        Look up any address
+        Look up any address in New Orleans and Metairie.
       </label>
       <div className="home-search-row">
         <div className="search-box">
@@ -176,9 +253,11 @@ function SampleReport({ navigate }) {
 
   return (
     <section className="report" aria-labelledby="report-title">
+      <IronLace />
       <div className="report-head">
         <div>
           <div className="report-kicker">What every address gets · sample</div>
+          <StreetTiles address={p?.full_address || sample.label} />
           <h2 className="report-title" id="report-title">
             {p?.full_address || sample.label}
           </h2>
@@ -252,7 +331,9 @@ function SampleReport({ navigate }) {
       )}
 
       <div className="report-foot">
-        <span>Plus the owner, assessed value, monthly cost, sales and the homes nearby.</span>
+        <span>
+          <b className="nola-lagniappe">Lagniappe:</b> the owner, assessed value, monthly cost, sales and the homes nearby.
+        </span>
         <button type="button" className="btn report-open" onClick={() => navigate({ view: "property", q: sample.q, street: null, owner: null })}>
           Open the full report →
         </button>
@@ -274,6 +355,23 @@ export default function Home({ ctx }) {
     <div className="home">
       <AddressSearch navigate={navigate} meta={meta} />
       <SampleReport navigate={navigate} />
+
+      <nav className="home-hoods" aria-label="Neighborhoods">
+        <span className="home-explore-k">Wander a neighborhood</span>
+        {HOODS.map(([name, zip]) => (
+          <a
+            key={zip}
+            className="home-hood"
+            href={`/market/${zip}/`}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate({ view: "overview", geo: `zip:${zip}` });
+            }}
+          >
+            {name} <span className="home-hood-zip">{zip}</span>
+          </a>
+        ))}
+      </nav>
 
       <nav className="home-explore" aria-label="Explore by topic">
         <span className="home-explore-k">Or explore</span>

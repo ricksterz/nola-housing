@@ -456,6 +456,32 @@ a { color: var(--blue); }
   .report-action { margin-top: 6px; }
 }
 
+/* NOLA touches on the home page: the water meter lid (crescent and stars), street-name sidewalk
+   tiles (cobalt on cream in both themes, like the real ones), cast-iron gallery lace, and
+   neighborhood shortcuts. Decoration only; every ornament is aria-hidden. */
+:root { --tile-blue: #1f4c9e; --tile-cream: #f3ede0; --iron: color-mix(in srgb, var(--gold) 55%, var(--text-dimmer)); }
+.home-eyebrow { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-family: var(--serif); font-style: italic; font-weight: 700; font-size: clamp(18px, 2.6vw, 21px); color: var(--gold); }
+.nola-meter { width: 46px; height: 46px; flex: none; }
+.nola-meter-ring { fill: none; stroke: var(--gold); stroke-width: 2; }
+.nola-meter-ring--in { stroke-width: 1; opacity: 0.6; }
+.nola-meter-star, .nola-meter-moon { fill: var(--gold); }
+.home .home-search-label { font-size: clamp(26px, 4.8vw, 38px); line-height: 1.15; max-width: 640px; }
+
+.report { position: relative; overflow: hidden; padding-top: 0; }
+.nola-lace { display: block; width: calc(100% + 2 * clamp(18px, 3.4vw, 28px)); height: 44px; margin: 0 calc(-1 * clamp(18px, 3.4vw, 28px)) 18px; color: var(--iron); opacity: 0.8; }
+.nola-lace path, .nola-lace circle { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.nola-lace .nola-lace-rail { stroke-width: 3; }
+.nola-tiles { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 6px 0 10px; }
+.nola-tiles-word { display: inline-flex; padding: 3px; gap: 2px; background: var(--tile-blue); border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25); }
+.nola-tile { width: clamp(20px, 3.4vw, 26px); height: clamp(24px, 4vw, 31px); display: grid; place-items: center; background: var(--tile-cream); color: var(--tile-blue); font: 800 clamp(14px, 2.4vw, 18px)/1 var(--sans); letter-spacing: 0; box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12); }
+.nola-lagniappe { font-family: var(--serif); font-style: italic; color: var(--gold); font-weight: 700; }
+
+.home-hoods { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 2px 2px 16px; }
+.home-hood { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); color: var(--text-bright); text-decoration: none; font-size: 13.5px; font-weight: 550; transition: border-color 0.15s ease, background 0.15s ease; }
+.home-hood:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--panel)); }
+.home-hood-zip { font-size: 11px; color: var(--text-dimmer); font-variant-numeric: tabular-nums; }
+.home-hoods .home-explore-k { margin-right: 4px; }
+
 /* AI & power tracker (views/Power.jsx, components/PowerMap.jsx): a control-room look. The hero is a
    dark console in both themes; the panels below follow the theme. Accent colors carry meaning:
    cyan = AI data centers, gold = gas plants (solid approved, striped proposed), and one color per
