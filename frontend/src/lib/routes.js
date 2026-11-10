@@ -1,4 +1,4 @@
-// Page addresses. "/" is the hub (Housing, Schools, Flood, Data center power). Tabs and areas have
+// Page addresses. "/" is the hub (Homes, Schools, Flood, Data center power). Tabs and areas have
 // real paths ("/ownership/70130/", "/market/jefferson/", the metro market at "/market/"),
 // which the deploy pre-builds as HTML for search engines (etl/prerender.py, which uses the same
 // paths: keep the two in step). Anything else rides as a query on its tab's path: a property
