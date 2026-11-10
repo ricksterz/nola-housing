@@ -8,10 +8,11 @@ Writes to frontend/public/data/:
     scorecard.json               one row per geography: latest metrics, YoY, sparklines
     compare.json                 every geography's monthly series (compare charts)
     trend_<level>_<id>.json      one geography's monthly series
-    addr/<key>.json + property/  one JSON per parcel (empty until the assessor leg has run) —
-                                  addr/ is sharded by the first 3 chars of the address (see
-                                  shard_key below) so the client fetches a few KB per keystroke
-                                  instead of the entire address list
+    addr/<key>.json + props/     the address index and one record per parcel or building
+                                  (empty until the assessor leg has run) — addr/ is sharded by the
+                                  first 3 chars of the address (see shard_key below) so the client
+                                  fetches a few KB per keystroke instead of the entire address list;
+                                  props/ bundles the per-address pages (see BUNDLES below)
 
     python -m etl.export_static
 """
@@ -19,6 +20,7 @@ Writes to frontend/public/data/:
 import json
 import math
 import re
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -103,6 +105,56 @@ def _implied_valuation(parcel: dict, zip_stats: dict) -> dict | None:
     }
 
 
+# Per-record pages are bundled into a fixed number of files, keyed by a hash of the record's slug
+# ({slug: page} per file). GitHub Pages copies every file of a deploy one by one and gives up after
+# 10 minutes, which ~360,000 separate files exceeded; bundled, the site has ~30,000. The client and
+# the link-preview Worker find a record's file with the same hash (frontend/src/lib/bundles.js,
+# cloudflare/link-previews/src/meta.js): the directory names and counts here must match theirs.
+BUNDLES = {
+    "props": 8192,  # property pages (parcels, condo units, buildings) by slug; ~45 KB each
+    "owners": 512,  # owner pages by owner slug
+    "ownnames": 2048,  # owner-name search: the name_prefix of a word -> owners
+}
+# Directories the bundles replace, removed so a local export doesn't keep serving stale pages.
+UNBUNDLED = ("property", "owner", "ownidx")
+
+
+def bundle_key(key: str, n: int) -> str:
+    """The bundle file holding ``key``: FNV-1a (32-bit) of its UTF-8 bytes, mod ``n``, in hex,
+    zero-padded to the width of ``n - 1``. Must match frontend/src/lib/bundles.js bundleKey()."""
+    h = 0x811C9DC5
+    for b in key.encode():
+        h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
+    return format(h % n, f"0{len(format(n - 1, 'x'))}x")
+
+
+class Bundles:
+    """Records to write as bundle files: each is serialized when added (compact JSON, as
+    write_json writes it) so the full set of parcel pages is held as text, not as objects."""
+
+    def __init__(self, name: str):
+        self.name, self.n = name, BUNDLES[name]
+        self.files: dict[str, list[str]] = {}
+
+    def add(self, key: str, data) -> None:
+        text = json.dumps(key) + ":" + json.dumps(data, separators=(",", ":"))
+        self.files.setdefault(bundle_key(key, self.n), []).append(text)
+
+    def write(self, out_dir: Path) -> None:
+        """Write every bundle as {key: record} and delete any file left over from an earlier export
+        (a bundle that's now empty)."""
+        directory = out_dir / self.name
+        directory.mkdir(parents=True, exist_ok=True)
+        for stale in directory.glob("*.json"):
+            if stale.stem not in self.files:
+                stale.unlink()
+        for stem, entries in self.files.items():
+            # Same data as write_json (see the note there): public assessor records.
+            (directory / f"{stem}.json").write_text(  # lgtm[py/clear-text-storage-sensitive-data]
+                "{" + ",".join(entries) + "}"
+            )
+
+
 def shard_key(addr: str) -> str:
     """Must match frontend/src/api.js's shardKey() exactly — same input, same output, or the
     client fetches a shard file that was never written."""
@@ -125,11 +177,10 @@ def near_key(lat: float, lng: float) -> str:
 
 
 def export_properties(con) -> int:
-    prop_dir = OUT_DIR / "property"
+    pages = Bundles("props")
     addr_dir = OUT_DIR / "addr"
     near_dir = OUT_DIR / "near"
     street_dir = OUT_DIR / "street"
-    prop_dir.mkdir(parents=True, exist_ok=True)
     addr_dir.mkdir(parents=True, exist_ok=True)
     if not queries._table_exists(con, "parcel_market"):
         return 0
@@ -234,7 +285,7 @@ def export_properties(con) -> int:
         owner_ref = owners.ref(parcel)
         if owner_ref:
             data["owner"] = owner_ref
-        write_json(prop_dir / f"{slug}.json", data, compact=True)
+        pages.add(slug, data)
         label = parcel["full_address"] or queries.parcel_label(parcel)
         owners.add_page(parcel, slug, label)
         pids.setdefault(pid_key(parcel["parcel_id"]), []).append([parcel["parcel_id"], slug, label])
@@ -278,8 +329,8 @@ def export_properties(con) -> int:
         units = sorted(
             b["units"], key=lambda u: (_natural(u["unit"] or ""), u["tax_bill"] or "", u["parcel_id"])
         )
-        write_json(
-            prop_dir / f"{slug}.json",
+        pages.add(
+            slug,
             {
                 "building": {
                     **b,
@@ -289,7 +340,6 @@ def export_properties(con) -> int:
                     "lng": first.get("lng"),
                 }
             },
-            compact=True,
         )
         # Numbered units if the roll numbers them (a lot or common-area record isn't a unit);
         # otherwise every record on the lot is one.
@@ -322,7 +372,7 @@ def export_properties(con) -> int:
     print(f"  {len(aliases):,} other addresses on those lots (City address points)")
 
     parcel_pages = len(written) - len(buildings)  # building pages list units; they aren't parcels
-    _write_dir(prop_dir, {}, keep=written)
+    pages.write(OUT_DIR)
     _write_dir(addr_dir, shards)
     _write_dir(near_dir, near)
     _write_dir(OUT_DIR / "pid", {k: sorted(v) for k, v in pids.items()})
@@ -331,10 +381,16 @@ def export_properties(con) -> int:
     _write_dir(street_dir, {queries.slugify(k): sorted(v) for k, v in streets.items()})
     write_json(OUT_DIR / "streets.json", queries.street_index(streets), compact=True)
     owner_pages = owners.pages()
-    _write_dir(OUT_DIR / "owner", {}, keep=set(owner_pages))
+    owner_bundles = Bundles("owners")
     for owner_slug, page in owner_pages.items():
-        write_json(OUT_DIR / "owner" / f"{owner_slug}.json", page, compact=True)
-    _write_dir(OUT_DIR / "ownidx", owners.name_index())
+        owner_bundles.add(owner_slug, page)
+    owner_bundles.write(OUT_DIR)
+    name_bundles = Bundles("ownnames")
+    for prefix, rows in owners.name_index().items():
+        name_bundles.add(prefix, rows)
+    name_bundles.write(OUT_DIR)
+    for old in UNBUNDLED:
+        shutil.rmtree(OUT_DIR / old, ignore_errors=True)
     (OUT_DIR / "owners.json").unlink(missing_ok=True)  # replaced by ownidx/
     write_json(OUT_DIR / "ownership.json", owners.stats(queries.geos()), compact=True)
     print(f"  {len(owner_pages):,} owner pages (owners with two or more records)")

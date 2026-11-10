@@ -4,9 +4,9 @@ Owner names are public record: the parish Assessors publish them and offer owner
 are matched by ``backend.owners.owner_key`` (the name as written, punctuation and word order set
 aside) and sorted by ``owner_kind`` into individuals, organizations and public bodies.
 
-  owner/{slug}.json   an owner with two or more records: every one (address, page, flood zone,
-                      where), with totals
-  ownidx/{xxxx}.json  owner-name search: each owner under the first four letters of every word of
+  owners/ bundle      an owner with two or more records, by owner slug: every one (address,
+                      page, flood zone, where), with totals
+  ownnames/ bundle    owner-name search: each owner under the first four letters of every word of
                       their name, so "Gloria Sexton" and "Sexton Gloria" both find SEXTON GLORIA M.
                       [owner slug or null, name, records, kind, page, label]; an owner with one
                       record points at its property page instead of an owner page.
