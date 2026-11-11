@@ -1,6 +1,6 @@
 // The four illustrations on the home page, one per path. Each is a self-contained picture with its
 // own fixed palette (it reads the same in light and dark mode, like a photo would). Decoration only:
-// every scene is aria-hidden, and its motion (rain, water, power, server lights) stops under
+// every scene is aria-hidden, and its motion (flag, swings, rain, water, power, server lights) stops under
 // prefers-reduced-motion (index.css).
 
 const TRIM = "#fffaf0";
@@ -193,6 +193,68 @@ function UsFlag({ x, y }) {
   );
 }
 
+// A child seated side-on with hands forward: `dir` 1 faces right, -1 left. Drawn at the seat, (x, y).
+function Kid({ x, y, dir = 1, skin, shirt, hair }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${dir} 1)`}>
+      <path d="M0 0H8L9.5 9" stroke="#3d4a63" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <rect x="-3.6" y="-14" width="7.6" height="14" rx="3" fill={shirt} />
+      <path d="M1 -11L7 -15" stroke={skin} strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx="0.5" cy="-18.5" r="4.6" fill={skin} />
+      <path d="M-4.1 -19.5a4.6 4.6 0 0 1 9.1 -1.2q-4 -0.6 -9.1 1.2z" fill={hair} />
+    </g>
+  );
+}
+
+const PLAY = "#3a7fb4";
+
+// The playground: a swing set and a slide under the oak, a seesaw on the far lawn and hopscotch
+// chalked on the path. The swings and seesaw rock on CSS (transform-origin in viewBox units).
+function Playground() {
+  return (
+    <g>
+      <rect x="4" y="282" width="252" height="30" rx="15" fill="#d9b27c" />
+      <rect x="4" y="282" width="252" height="30" rx="15" fill="none" stroke="#c49a63" strokeWidth="2" />
+      {/* Swing set: two A-frames and a top bar, one swing taken. */}
+      <g stroke={PLAY} strokeWidth="4" strokeLinecap="round" fill="none">
+        <path d="M14 304L28 216L42 304M88 304L102 216L116 304" />
+        <path d="M26 216H104" />
+      </g>
+      {[
+        [48, "0s", true],
+        [82, "-0.9s", false],
+      ].map(([sx, delay, kid]) => (
+        <g key={sx} className="scene-swing" style={{ transformOrigin: `${sx}px 216px`, animationDelay: delay }}>
+          <path d={`M${sx - 7} 216V278M${sx + 7} 216V278`} stroke="#7b8590" strokeWidth="1.3" />
+          <rect x={sx - 9} y="277" width="18" height="4" rx="2" fill="#d9493b" />
+          {kid && <Kid x={sx - 2} y={277} skin="#8d5a3b" shirt="#f2b632" hair="#2b1d14" />}
+        </g>
+      ))}
+      {/* Slide: ladder up to a railed deck, a yellow chute down to the left. */}
+      <g stroke={PLAY} strokeWidth="3.4" strokeLinecap="round" fill="none">
+        <path d="M222 304V232M244 304V232" />
+        <path d="M224 247H242M224 262H242M224 277H242M224 292H242" strokeWidth="2.2" />
+        <path d="M218 232H248M222 232V218M244 232V218M222 220H244" strokeWidth="2.6" />
+      </g>
+      <path d="M220 233C196 238 186 286 158 296L156 304C190 296 202 246 222 240Z" fill="#f2b632" />
+      <path d="M220 233C196 238 186 286 158 296" stroke="#d9952a" strokeWidth="2" fill="none" />
+      <Kid x={232} y={231} dir={-1} skin="#e0ac7e" shirt="#d9493b" hair="#6b3f22" />
+      {/* Seesaw: a red board on a blue pivot, a child at each end. */}
+      <path d="M534 306L541 292L548 306Z" fill={PLAY} />
+      <g className="scene-seesaw" style={{ transformOrigin: "541px 292px" }}>
+        <rect x="496" y="289" width="90" height="5" rx="2.5" fill="#d9493b" />
+        <path d="M502 289V283M580 289V283" stroke={PLAY} strokeWidth="2.4" strokeLinecap="round" />
+        <Kid x={507} y={289} skin="#c68642" shirt="#4fa36a" hair="#2b1d14" />
+        <Kid x={575} y={289} dir={-1} skin="#f1c9a5" shirt="#8d6cc4" hair="#c98b3a" />
+      </g>
+      {/* Hopscotch in chalk. */}
+      <g stroke="#fff" strokeWidth="1.2" fill="none" opacity="0.85">
+        <path d="M405 316V306H415V316ZM405 306V296H415V306ZM400 296V286H410V296ZM410 296V286H420V296ZM405 286V276H415V286Z" />
+      </g>
+    </g>
+  );
+}
+
 export function SchoolsScene() {
   const windows = [270, 300, 330, 474, 506, 538];
   return (
@@ -300,6 +362,7 @@ export function SchoolsScene() {
           <path key={mx} d={`M${mx} ${my}q-3 ${len / 3} 1 ${len / 1.6}q3 ${len / 4} -1 ${len - len / 1.6}`} />
         ))}
       </g>
+      <Playground />
     </svg>
   );
 }
