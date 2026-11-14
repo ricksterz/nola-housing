@@ -62,10 +62,19 @@ class PoliteSession:
         max_retries: int = 4,
         session: requests.Session | None = None,
         sleep=time.sleep,
+        time_budget_seconds: float | None = None,
     ):
         self.min_interval = min_interval
         self.max_requests = max_requests
         self.timeout = timeout
+        # Wall-clock budget for this session's requests: once spent, _pace() raises
+        # BudgetExhausted instead of starting another request, so a slow source stops the pull
+        # gracefully (warn, keep the previous load) instead of running until the CI step
+        # timeout kills the process mid-pull. None takes the configured default; 0 disables it.
+        if time_budget_seconds is None:
+            time_budget_seconds = config.ASSESSOR_TIME_BUDGET_MINUTES * 60
+        self.time_budget_seconds = time_budget_seconds
+        self._deadline = time.monotonic() + time_budget_seconds if time_budget_seconds else None
         self.raw_dir = Path(raw_dir) if raw_dir else None
         self.respect_robots = respect_robots
         self.max_retries = max_retries
@@ -107,6 +116,8 @@ class PoliteSession:
 
     # -- pacing -------------------------------------------------------------
     def _pace(self):
+        if self._deadline is not None and time.monotonic() > self._deadline:
+            raise BudgetExhausted(f"time budget of {self.time_budget_seconds / 60:g} minutes spent")
         if self.requests_made >= self.max_requests:
             raise BudgetExhausted(f"request budget of {self.max_requests} spent")
         wait = self.min_interval - (time.monotonic() - self._last_request_at)
