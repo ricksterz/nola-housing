@@ -1,4 +1,17 @@
-from etl import load_redfin
+from pathlib import Path
+
+import duckdb
+import pytest
+
+from etl import config, load_redfin
+
+FX = Path(__file__).parent / "fixtures"
+
+_MISSING_SOURCES = {
+    "county": str(FX / "does-not-exist.tsv"),
+    "metro": str(FX / "does-not-exist.tsv"),
+    "zip": str(FX / "does-not-exist.tsv"),
+}
 
 
 def test_redfin_all_levels(con, redfin_fixtures):
@@ -77,3 +90,19 @@ def test_redfin_houston_column_names_present(con, redfin_fixtures):
 
 def test_redfin_single_level(con, redfin_fixtures):
     assert load_redfin.load(con, levels=("zip",)) == 4
+
+
+def test_redfin_failure_keeps_previous(con, redfin_fixtures, monkeypatch):
+    # Seed a previous table from the fixtures, then point at a dead source:
+    # the load must warn and keep the previous rows instead of raising.
+    assert load_redfin.load(con) == 9
+    monkeypatch.setattr(config, "REDFIN_SOURCES", dict(_MISSING_SOURCES))
+    assert load_redfin.load(con) == 9
+    assert con.execute("SELECT COUNT(*) FROM redfin_market").fetchone()[0] == 9
+
+
+def test_redfin_failure_without_previous_raises(con, monkeypatch):
+    # Fresh database, no previous table: a dead feed must still fail hard.
+    monkeypatch.setattr(config, "REDFIN_SOURCES", dict(_MISSING_SOURCES))
+    with pytest.raises(duckdb.IOException):
+        load_redfin.load(con)
