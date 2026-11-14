@@ -216,6 +216,12 @@ ASSESSOR_USER_AGENT = (
 ASSESSOR_MIN_INTERVAL_SECONDS = float(os.environ.get("ASSESSOR_MIN_INTERVAL_SECONDS", "3.0"))
 ASSESSOR_MAX_REQUESTS_PER_RUN = int(os.environ.get("ASSESSOR_MAX_REQUESTS_PER_RUN", "5000"))
 ASSESSOR_TIMEOUT_SECONDS = 30
+# Wall-clock budget for one parish's HTTP work (minutes). The refresh step's own timeout is 320
+# minutes; stopping the pull at 280 leaves room for the graceful exit (warn, save the raw landing
+# zone, publish if anything changed) instead of the runner killing the step mid-pull and failing
+# the run. Overshoot past the budget is at most one request timeout plus one page-retry sleep
+# (~11 minutes worst case). 0 disables the budget.
+ASSESSOR_TIME_BUDGET_MINUTES = float(os.environ.get("ASSESSOR_TIME_BUDGET_MINUTES", "280"))
 ASSESSOR_SEED_FILE = os.environ.get("ASSESSOR_SEED_FILE")
 
 ASSESSOR_SOURCES = {

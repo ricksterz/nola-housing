@@ -59,6 +59,20 @@ def test_polite_session_writes_raw_cache(fake_http, tmp_path):
     assert (tmp_path / "jefferson" / "detail_1.html").read_text() == "<html>hi</html>"
 
 
+def test_polite_session_time_budget_stops_requests(fake_http):
+    fake = fake_http({"https://a.test/p": (200, "ok", "text/html")})
+    s = _session(fake, time_budget_seconds=-1, respect_robots=False)  # budget already spent
+    with pytest.raises(BudgetExhausted, match="time budget"):
+        s.get("https://a.test/p")
+    assert fake.calls == []  # nothing was even attempted
+
+
+def test_polite_session_time_budget_allows_requests_within_budget(fake_http):
+    fake = fake_http({"https://a.test/p": (200, "ok", "text/html")})
+    s = _session(fake, time_budget_seconds=3600)
+    assert s.get("https://a.test/p").text == "ok"
+
+
 def _arcgis_fake(fx, fake_http):
     layer = (fx / "assessor" / "arcgis_layer.json").read_text()
     count = (fx / "assessor" / "arcgis_count.json").read_text()
@@ -324,6 +338,28 @@ def test_fetch_arcgis_rides_out_gateway_timeouts(fake_http):
     session = _session(fake_http({"https://gis.test/O/0": slow_gateway}), sleep=sleeps.append, max_retries=0)
     recs = bulk.fetch_arcgis("https://gis.test/O/0", session, "orleans", "22071", ORLEANS_MAP, page_size=500)
     assert len(recs) == 1 and sleeps == [30.0, 60.0]  # the long page-level waits, not quick retries
+
+
+def test_fetch_arcgis_stops_at_the_time_budget(fake_http):
+    """A slow layer must stop the pull with BudgetExhausted — caught upstream as a failed
+    source, so the run warns and keeps the previous load — instead of paging until the
+    runner kills the step at its timeout."""
+    import time
+
+    from tests.conftest import FakeResponse
+
+    def slow(url, params):
+        time.sleep(0.15)  # each page outlasts the budget
+        return FakeResponse(
+            url,
+            200,
+            json.dumps({"features": [_orleans_feature("41033176")], "exceededTransferLimit": True}),
+            "application/json",
+        )
+
+    session = _session(fake_http({"https://gis.test/O/0": slow}), time_budget_seconds=0.1)
+    with pytest.raises(BudgetExhausted, match="time budget"):
+        bulk.fetch_arcgis("https://gis.test/O/0", session, "orleans", "22071", ORLEANS_MAP, page_size=1)
 
 
 def test_fetch_arcgis_resumes_from_recently_saved_pages(fake_http, tmp_path):
