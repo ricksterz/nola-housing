@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { getOwner, getOwnership, ownerKindLabel, recordQuery } from "../api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getOwner, getOwnership, ownerKindLabel, recordQuery, suggestOwners } from "../api";
 import GeoPicker from "../components/GeoPicker";
 import OwnerMap from "../components/OwnerMap";
 import { METRO, geoKey, geoLabel, parseGeo } from "../lib/geo";
 import { EVENTS, trackEvent } from "../lib/metrics";
 import { seriesColor } from "../lib/theme";
+
+const SUGGEST_DEBOUNCE_MS = 150;
 
 // Who owns what, from the Assessors' public rolls (etl/export_owners.py).
 const KINDS = [
@@ -24,6 +26,129 @@ const pct = (n, d) => (d ? `${Math.round((n / d) * 1000) / 10}%` : "—");
 export default function Ownership({ ctx }) {
   const { url } = ctx;
   return url.owner ? <OwnerPage key={url.owner} ctx={ctx} slug={url.owner} /> : <OwnershipStats ctx={ctx} />;
+}
+
+function highlightMatch(text, query) {
+  const needle = query.trim();
+  const i = needle ? text.toUpperCase().indexOf(needle.toUpperCase()) : -1;
+  if (i === -1) return <span>{text}</span>;
+  return (
+    <>
+      <span>{text.slice(0, i)}</span>
+      <b>{text.slice(i, i + needle.length)}</b>
+      <span>{text.slice(i + needle.length)}</span>
+    </>
+  );
+}
+
+// Search by owner name: the Assessors' public rolls, matched by suggestOwners (api.js). An owner
+// with two or more records opens their owner page; one with a single record opens that property.
+function OwnerSearch({ navigate }) {
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const boxRef = useRef(null);
+  const debounceRef = useRef(null);
+  const requestSeq = useRef(0);
+
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (boxRef.current && !boxRef.current.contains(e.target)) setSuggestOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
+  function pick(a) {
+    setSuggestOpen(false);
+    setQuery("");
+    trackEvent(EVENTS.searchOwner);
+    if (a.kind === "owner") navigate({ owner: a.slug });
+    else navigate({ view: "property", q: a.address, owner: null, street: null });
+  }
+
+  function onInput(v) {
+    setQuery(v);
+    setActiveIndex(-1);
+    clearTimeout(debounceRef.current);
+    if (!v.trim()) {
+      setSuggestions([]);
+      setSuggestOpen(false);
+      return;
+    }
+    const seq = ++requestSeq.current;
+    debounceRef.current = setTimeout(async () => {
+      const results = await suggestOwners(v, 8).catch(() => []);
+      if (seq !== requestSeq.current) return;
+      setSuggestions(results);
+      setSuggestOpen(results.length > 0);
+    }, SUGGEST_DEBOUNCE_MS);
+  }
+
+  function onKeyDown(e) {
+    if (!suggestOpen || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % suggestions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+    } else if (e.key === "Escape") {
+      setSuggestOpen(false);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      pick(suggestions[activeIndex >= 0 ? activeIndex : 0]);
+    }
+  }
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <div>
+          <h3 className="panel-title">Search by owner name</h3>
+          <div className="panel-subtitle">Find every property on the Assessors' rolls filed under a name.</div>
+        </div>
+      </div>
+      <div className="search-row" ref={boxRef}>
+        <div className="search-box">
+          <input
+            className="search-input"
+            value={query}
+            onChange={(e) => onInput(e.target.value)}
+            onFocus={() => suggestions.length > 0 && setSuggestOpen(true)}
+            onKeyDown={onKeyDown}
+            placeholder="Owner name, e.g. Housing Authority of New Orleans"
+            aria-label="Owner name"
+            role="combobox"
+            aria-expanded={suggestOpen}
+            aria-controls="owner-suggestions"
+            aria-activedescendant={activeIndex >= 0 ? `owner-suggestion-${activeIndex}` : undefined}
+            autoComplete="off"
+          />
+          {suggestOpen && (
+            <div className="suggestions" id="owner-suggestions" role="listbox">
+              {suggestions.map((a, i) => (
+                <div
+                  key={`${a.kind}-${a.address}`}
+                  id={`owner-suggestion-${i}`}
+                  role="option"
+                  aria-selected={i === activeIndex}
+                  className={`suggestion${i === activeIndex ? " suggestion--active" : ""}`}
+                  onMouseEnter={() => setActiveIndex(i)}
+                  onMouseDown={(e) => { e.preventDefault(); pick(a); }}
+                >
+                  {highlightMatch(a.full, query)}
+                  {a.sub && <span className="suggestion-sub">{a.sub}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function StackedBar({ parts, total, label }) {
@@ -83,6 +208,7 @@ function OwnershipStats({ ctx }) {
   if (error) return <div className="error">{error}</div>;
   return (
     <div>
+      <OwnerSearch navigate={navigate} />
       <GeoPicker
         geos={geos}
         selected={[geo]}
