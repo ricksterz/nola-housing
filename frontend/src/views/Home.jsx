@@ -8,12 +8,12 @@ import { EVENTS, trackEvent } from "../lib/metrics";
 const PATHS = [
   {
     id: "housing",
-    view: "overview",
-    href: "/market/",
+    view: "property",
+    href: "/property/",
     kicker: "Homes",
     title: "What homes cost, and who owns them",
-    text: "Prices, rents and sales for every ZIP, plus a report on any address: its owner, assessed value, flood zone and the true monthly cost to own.",
-    cta: "Explore homes",
+    text: "Look up any address, street or owner name: its owner, assessed value, flood zone and the true monthly cost to own. Plus prices, rents and sales for every ZIP.",
+    cta: "Look up an address",
     Scene: HousingScene,
   },
   {
