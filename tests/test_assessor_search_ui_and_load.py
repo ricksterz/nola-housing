@@ -4,7 +4,7 @@ import pytest
 
 from etl import config, load_assessor
 from etl.assessor import JeffersonAdapter
-from etl.assessor.http import PoliteSession
+from etl.assessor.http import BudgetExhausted, PoliteSession
 from etl.assessor.search_ui import Checkpoint, load_seed_ids, pull_parcels
 from tests.conftest import FakeResponse
 
@@ -239,6 +239,57 @@ def test_build_derived_latest_and_history(con):
     assert con.execute("SELECT assessed_val FROM assessor_parcels").fetchall() == [(41000.0,)]
     hist = con.execute("SELECT tax_year, assessed_val FROM assessed_value_history ORDER BY 1").fetchall()
     assert hist == [(2025, 39000.0), (2026, 41000.0)]  # post-window pull supersedes the open-roll one
+
+
+def _partial_loader(monkeypatch, fail_parish, exc):
+    """Replace load_parish: every other parish loads one row, fail_parish raises exc."""
+
+    def fake(con, parish, **kwargs):
+        if parish == fail_parish:
+            raise exc
+        load_assessor.ensure_tables(con)
+        cols = ", ".join(load_assessor.RAW_COLUMNS)
+        base = {c: None for c in load_assessor.RAW_COLUMNS}
+        row = {
+            **base,
+            "parish": parish,
+            "parish_fips": "22051" if parish == "jefferson" else "22071",
+            "parcel_id": "1",
+            "assessed_val": 10000,
+            "tax_year": 2026,
+            "fetched_at": "2026-08-20 00:00:00",
+            "source_kind": "bulk:test",
+            "payload": "{}",
+        }
+        con.execute(
+            f"INSERT INTO assessor_parcels_raw ({cols}) VALUES ({', '.join('?' * len(row))})",
+            list(row.values()),
+        )
+        return {"parish": parish, "source": "bulk:test", "records": 1}
+
+    monkeypatch.setattr(load_assessor, "load_parish", fake)
+
+
+def test_load_continues_past_a_failed_parish_and_builds_derived(con, monkeypatch):
+    _partial_loader(
+        monkeypatch,
+        "orleans",
+        load_assessor.SourceUnavailable("orleans", "[orleans] every bulk pull failed"),
+    )
+    with pytest.raises(load_assessor.SourceUnavailable) as excinfo:
+        load_assessor.load(con)
+    assert excinfo.value.loaded == ("jefferson",)
+    # The derived tables were rebuilt from what loaded, not left stale.
+    assert con.execute("SELECT COUNT(*) FROM assessor_parcels").fetchone()[0] == 1
+
+
+def test_load_treats_a_spent_budget_as_a_failed_source(con, monkeypatch):
+    _partial_loader(monkeypatch, "orleans", BudgetExhausted("time budget spent"))
+    with pytest.raises(load_assessor.SourceUnavailable) as excinfo:
+        load_assessor.load(con)
+    assert excinfo.value.parish == "orleans"
+    assert excinfo.value.loaded == ("jefferson",)
+    assert con.execute("SELECT COUNT(*) FROM assessor_parcels").fetchone()[0] == 1
 
 
 def test_search_ui_resume_is_database_backed(con, fx, fake_http, raw_dir, monkeypatch, tmp_path):

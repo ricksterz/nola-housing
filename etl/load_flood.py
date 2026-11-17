@@ -197,6 +197,27 @@ def carry_over_by_lot(con: duckdb.DuckDBPyConnection) -> int:
     return added
 
 
+def record_source_status(con: duckdb.DuckDBPyConnection, source: str, status: str, detail: str) -> None:
+    """Record the latest refresh outcome for a source (surfaced in meta.json).
+
+    One row per source; ``status`` is ``ok``/``blocked``/``error``. A blocked or
+    failed refresh keeps the previous data — this row is what makes the freeze
+    visible instead of a date that merely stopped moving.
+    """
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS source_status (
+            source VARCHAR, status VARCHAR, detail VARCHAR, checked_at TIMESTAMP
+        )
+        """
+    )
+    con.execute("DELETE FROM source_status WHERE source = ?", [source])
+    con.execute(
+        "INSERT INTO source_status VALUES (?, ?, ?, ?)",
+        [source, status, detail, datetime.now(timezone.utc).replace(tzinfo=None)],
+    )
+
+
 def load(con: duckdb.DuckDBPyConnection, parishes=None, session: PoliteSession | None = None) -> dict:
     con.execute("INSTALL spatial")
     con.execute("LOAD spatial")

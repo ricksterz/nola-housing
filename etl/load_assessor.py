@@ -24,7 +24,7 @@ import requests
 from . import config, geocode
 from .assessor import ADAPTERS, bulk
 from .assessor.base import PARCEL_FIELDS, ParcelRecord
-from .assessor.http import PoliteSession
+from .assessor.http import BudgetExhausted, PoliteSession
 from .assessor.search_ui import Checkpoint, load_seed_ids, pull_parcels
 
 log = logging.getLogger(__name__)
@@ -71,11 +71,17 @@ def ensure_tables(con: duckdb.DuckDBPyConnection) -> None:
 
 
 class SourceUnavailable(RuntimeError):
-    """Every bulk source for a parish failed (down, timing out); its previous load is kept."""
+    """Every bulk source for a parish failed (down, timing out); its previous load is kept.
 
-    def __init__(self, parish: str, message: str):
+    ``loaded`` names the parishes that loaded successfully in the same run, so the
+    caller can rebuild the derived tables from what loaded instead of publishing
+    stale ones (see ``load``).
+    """
+
+    def __init__(self, parish: str, message: str, loaded: tuple[str, ...] = ()):
         super().__init__(message)
         self.parish = parish
+        self.loaded = loaded
 
 
 def last_bulk_pull(con, parish: str) -> datetime | None:
@@ -315,10 +321,34 @@ def build_derived(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def load(con: duckdb.DuckDBPyConnection, parishes=("jefferson", "orleans"), **kwargs) -> list[dict]:
-    out = [load_parish(con, p, **kwargs) for p in parishes]
+    # One parish's failure must not leave the other parish's fresh data
+    # unpublished: each parish loads independently, the derived tables are
+    # rebuilt from whatever loaded, and only then is the failure re-raised
+    # with the list of parishes that loaded (see SourceUnavailable.loaded).
+    out: list[dict] = []
+    loaded: list[str] = []
+    first_failure: SourceUnavailable | None = None
+    for parish in parishes:
+        try:
+            stats = load_parish(con, parish, **kwargs)
+        except BudgetExhausted:
+            # A spent wall-clock budget is a failed source, not a crash:
+            # the run warns and keeps the previous load (PR #98's design).
+            if first_failure is None:
+                first_failure = SourceUnavailable(parish, f"{parish} assessor pull ran out of time")
+        except SourceUnavailable as e:
+            if first_failure is None:
+                first_failure = e
+        else:
+            out.append(stats)
+            if stats["records"] > 0:
+                loaded.append(parish)
     n = geocode.backfill_zip_city(con)
     print(f"  geocode: filled zip/city on {n} rows from lat/lng")
     build_derived(con)
+    if first_failure is not None:
+        first_failure.loaded = tuple(loaded)
+        raise first_failure
     return out
 
 
