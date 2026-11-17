@@ -22,9 +22,9 @@ export default function About({ ctx }) {
       <div className="panel">
         <h3 className="panel-title">About NOLA Atlas</h3>
         <p className="text-block">
-          NOLA Atlas is a free, independent reference for every address in New Orleans and Metairie: flood risk, the
-          true monthly cost of owning, how an assessment compares, and home values, rents and market trends for every
-          residential ZIP in Jefferson and Orleans Parish. It is built by a
+          NOLA Atlas is a free, independent reference for homes in New Orleans and Metairie: parcel records,
+          flood risk, the true monthly cost of owning, how an assessment compares, and home values, rents and
+          market trends for 24 residential ZIPs in Jefferson and Orleans Parish. It is built by a
           local resident, not a brokerage, on public data, and refreshes automatically: market feeds monthly, parcel
           records on each parish assessor's calendar.
         </p>
@@ -112,7 +112,7 @@ export default function About({ ctx }) {
         <div className="faq-item">
           <div className="faq-q">Flood zones</div>
           <ul className="text-list">
-            <li>Each parcel's lot center is matched against FEMA's effective flood hazard zones. The Assessor's own flood field is filled in for only about 12% of parcels and never has a base flood elevation, so we don't use it.</li>
+            <li>Each parcel's lot center is matched against FEMA's effective flood hazard zones. The Assessor's own flood field is filled in for only a small share of parcels and never has a base flood elevation, so we don't use it.</li>
             <li>Zones A and V (including AE and VE) are special flood hazard areas: a 1% or greater chance of flooding each year. Lenders require flood insurance there on federally backed mortgages.</li>
             <li>Zone X covers moderate-risk areas (0.2% annual chance) and areas FEMA credits with reduced risk because of levees. Levee-protected isn't flood-proof, and FEMA reports more than 20% of flood insurance claims come from outside high-risk areas.</li>
             <li>These are effective maps only; preliminary or pending map changes aren't included. Polygons are simplified to about 1 meter, and a lot is placed by its center, so a parcel on a zone line or a large lot spanning two zones can differ from its official determination.</li>
@@ -156,7 +156,7 @@ export default function About({ ctx }) {
           <ul className="text-list">
             <li>An address, starting with the house number ("420 Bonnabel"), suggests matching addresses.</li>
             <li>A street name ("Bonnabel", "n causeway") suggests streets. Pick one to see every parcel on it, grouped by block.</li>
-            <li>A parcel or tax bill number (7 or more digits) finds that parcel. This is the only way to reach the 10,806 Jefferson parcels the Assessor lists with no street address, and units that share an address with another parcel.</li>
+            <li>A parcel or tax bill number (7 or more digits) finds that parcel. This is the only way to reach the Jefferson parcels the Assessor lists with no street address, and units that share an address with another parcel.</li>
             <li>Apartments and condos: add the unit ("714 Fairfax Dr apt 122", "#122", "unit 122", "ste D", even after the ZIP). A building's address lists every unit on record, and each unit has its own page. Units come from the address or the condo's legal description; Orleans units arrive with the City's parcel search layer, which is retried weekly while it's down.</li>
             <li>If an address has no record, the closest house numbers on that street are offered instead.</li>
           </ul>

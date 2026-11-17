@@ -7,7 +7,7 @@ export function CostInputs({ a, children }) {
     <div className="chart-actions cost-inputs">
       {children}
       <label className="field">
-        Rate <input className="num-input" type="number" step="0.125" min="0" max="20" value={a.rate} onChange={(e) => a.set({ rate: Number(e.target.value) })} />%
+        Rate <input className="num-input" type="number" step="0.01" min="0" max="20" value={a.rate} onChange={(e) => a.set({ rate: Number(e.target.value) })} />%
       </label>
       <label className="field">
         Down <input className="num-input" type="number" step="5" min="0" max="100" value={a.down} onChange={(e) => a.set({ down: Number(e.target.value) })} />%

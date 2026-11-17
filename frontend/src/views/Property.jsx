@@ -595,7 +595,8 @@ function FloodZone({ p, floodlens, floodlensSummary }) {
           Drainage, levees and storm surge for this address:{" "}
           <a href={floodLensLink(p.full_address)} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
             open it in FloodLens ↗
-          </a>
+          </a>{" "}
+          FloodLens runs on a free host and can take up to a minute to wake on a first visit.
         </div>
       )}
     </div>
@@ -640,9 +641,14 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
   const [userPrice, setUserPrice] = useState(undefined);
   const price = userPrice === undefined ? startPrice : userPrice;
   useEffect(() => {
-    getOwnershipCosts().then(setCosts);
+    getOwnershipCosts()
+      .then(setCosts)
+      .catch(() => setCosts({ zips: {} }));
   }, []);
   const z = p.zip_code && costs?.zips?.[p.zip_code];
+  // getOwnershipCosts never rejects (api.js falls back to { zips: {} }), so empty `zips` after
+  // load means the fetch failed — and must not read as "outside the 24 ZIPs" below.
+  const costsFailed = costs != null && Object.keys(costs.zips || {}).length === 0;
   // The panel only appears for parcels placed in one of the covered ZIPs, because the tax and
   // flood figures are by ZIP. While the ZIP tables load, show nothing; once loaded with no match,
   // say why instead of silently dropping the panel.
@@ -657,8 +663,9 @@ function MonthlyCostPanel({ p, theme, macro, scorecard }) {
           </div>
         </div>
         <div className="stat-note">
-          Not shown for this address — it sits outside the 24 ZIPs this site covers, so there's no
-          ZIP tax rate or flood-cost figure to build it from.
+          {costsFailed
+            ? "Tax and flood figures couldn't be loaded, so the monthly cost can't be built — showing the loan payment alone would understate it. Try reloading the page."
+            : "Not shown for this address — it sits outside the 24 ZIPs this site covers, so there's no ZIP tax rate or flood-cost figure to build it from."}
         </div>
       </div>
     );
@@ -841,6 +848,10 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
     .map(([title, items]) => [title, items.filter((s) => s.value)])
     .filter(([, items]) => items.length > 0);
 
+  // An Orleans parcel has no assessed values to show, so the Valuation section filters itself
+  // out entirely; say so where the section would be instead of leaving the gap unexplained.
+  const hasValuation = sections.some(([title]) => title === "Valuation");
+
   // Years with no values at all (every Orleans year, until the Assessor's roll is loaded) aren't history.
   const history = (data.value_history || [])
     .filter((h) => ["land_val", "bld_val", "tot_mkt_val", "assessed_val"].some((k) => h[k] != null))
@@ -868,6 +879,12 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
         </div>
         {data.notice && <div className="stat-note" style={{ margin: "0 0 10px", color: "var(--text)" }}>{data.notice}</div>}
         <FloodZone p={p} floodlens={data.floodlens} floodlensSummary={floodlensSummary} />
+        {p.parish === "orleans" && !hasValuation && (
+          <div className="stat-section">
+            <div className="stat-section-title">Valuation</div>
+            <div className="stat-note">No assessed values or sale history: the City doesn't publish them for Orleans parcels.</div>
+          </div>
+        )}
         {sections.map(([title, items]) => (
           <div key={title} className="stat-section">
             <div className="stat-section-title">{title}</div>

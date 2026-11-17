@@ -166,3 +166,26 @@ def test_rebuilding_an_already_built_site_starts_from_the_plain_app(dist):
     assert prerender.build(dist) == 17
     assert (dist / "404.html").read_text() == SHELL
     assert (dist / "index.html").read_text().count('class="prerender"') == 1
+
+
+def test_sale_prices_carry_their_vintage(dist):
+    # Redfin's public feed stopped in May 2026: sale prices carry their vintage instead of
+    # "updated monthly", on the page, in its description and on the preview card.
+    assert prerender.source_line({"price_month": "2026-05-01"}) == (
+        "Sale prices from Redfin through May 2026; Zillow values and rents updated monthly."
+    )
+    assert prerender.source_line({}) == "Sale prices from Redfin; Zillow values and rents updated monthly."
+    assert prerender.source_line(None) == "Sale prices from Redfin; Zillow values and rents updated monthly."
+    assert prerender.market_card({"median_sale_price": 355000, "price_month": "2026-05-01"})[0] == (
+        "Median sale May 2026",
+        "$355,000",
+    )
+    assert prerender.market_card({"median_sale_price": 355000})[0][0] == "Median sale"
+    prerender.build(dist)
+    home = (dist / "index.html").read_text()
+    assert "Metro median sale price (May 2026): $355,000" in home
+    market = (dist / "market" / "index.html").read_text()
+    assert "Sale prices from Redfin through May 2026; Zillow values and rents updated monthly" in market
+    assert "from Redfin and Zillow, updated monthly" not in market
+    area = (dist / "market" / "70130" / "index.html").read_text()
+    assert "Sale prices from Redfin; Zillow values and rents updated monthly" in area

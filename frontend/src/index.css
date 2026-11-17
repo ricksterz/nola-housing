@@ -83,9 +83,9 @@ a { color: var(--blue); }
 .app-main { flex: 1; }
 
 /* ---------- Header ----------
-   A slim bar that stays at the top while scrolling: the name (the way home), the tagline on wide
-   screens, and on the data tabs their source dates. The tab row sits under it on every page but
-   home, as one line that scrolls sideways on phones instead of wrapping. */
+   A slim bar that stays at the top while scrolling: the name (the way home), the tagline on the
+   home page, and on the data tabs their source dates. The tab row sits under it on every page but
+   home, and wraps instead of clipping: eleven tabs don't fit one line. */
 .topbar { position: sticky; top: 0; z-index: 1100; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--border-alt); }
 .topbar-inner { max-width: 1180px; margin: 0 auto; padding: 10px clamp(16px, 3vw, 24px); display: flex; align-items: center; gap: 14px; min-height: 56px; }
 .brand { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; line-height: 1; color: var(--text-bright); white-space: nowrap; }
@@ -94,8 +94,7 @@ a { color: var(--blue); }
 .brand-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
 .brand-tag { font-size: 13px; color: var(--text-dimmer); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding-left: 14px; border-left: 1px solid var(--border); }
 .topbar-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
-.btn-row.nav-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * clamp(16px, 3vw, 24px)) 18px; padding: 2px clamp(16px, 3vw, 24px); -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 24px), transparent); }
-.nav-tabs::-webkit-scrollbar { display: none; }
+.btn-row.nav-tabs { flex-wrap: wrap; margin: 0 0 18px; padding: 2px 0; }
 .nav-tabs .btn { flex: none; }
 @media (max-width: 1080px) { .topbar-tools .source-chips { display: none; } }
 @media (max-width: 760px) { .brand-tag { display: none; } }
@@ -430,6 +429,7 @@ a { color: var(--blue); }
 .path-title { margin: 10px 0 8px; font-family: var(--serif); font-size: clamp(21px, 2.4vw, 27px); font-weight: 700; line-height: 1.2; color: var(--text-bright); }
 .path-text { flex: 1; margin: 0 0 18px; font-size: 14.5px; line-height: 1.6; color: var(--text-dim); max-width: 46ch; }
 .path-cta { display: inline-flex; align-items: center; gap: 6px; font-size: 14.5px; font-weight: 650; color: var(--accent); }
+.path-note { display: block; margin-top: 8px; font-size: 12.5px; font-weight: 400; line-height: 1.45; color: var(--text-dimmer); }
 .path-arrow { transition: transform 0.2s ease; }
 .path:hover .path-arrow { transform: translateX(4px); }
 .path--schools:hover .path-arrow, .path--flood:hover .path-arrow { transform: translate(3px, -3px); }

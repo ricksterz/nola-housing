@@ -12,7 +12,7 @@ const PATHS = [
     href: "/property/",
     kicker: "Homes",
     title: "What homes cost, and who owns them",
-    text: "Look up any address, street or owner name: its owner, assessed value, flood zone and the true monthly cost to own. Plus prices, rents and sales for every ZIP.",
+    text: "Look up an address, street or owner name: owner, assessed value, flood zone and the true monthly cost to own, plus prices, rents and sales for 24 ZIPs.",
     cta: "Look up an address",
     Scene: HousingScene,
   },
@@ -36,6 +36,7 @@ const PATHS = [
     title: "See flood risk beyond the FEMA map",
     text: "A flood score for any address, with the drains, levees and storm surge around it and past insurance claims nearby.",
     cta: "Open FloodLens",
+    note: "FloodLens runs on a free host and can take up to a minute to wake up on a first visit.",
     Scene: FloodScene,
   },
   {
@@ -88,6 +89,7 @@ function PathCard({ path, navigate }) {
           {path.cta} <span className="path-arrow" aria-hidden="true">{external ? "↗" : "→"}</span>
           {external && <span className="sr-only"> (opens in a new tab)</span>}
         </span>
+        {path.note && <span className="path-note">{path.note}</span>}
       </div>
     </a>
   );

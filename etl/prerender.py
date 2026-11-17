@@ -33,8 +33,9 @@ from . import config, og_images
 SITE = "https://nolaatlas.com"
 DIST = config.ETL_DIR.parent / "frontend" / "dist"
 DEFAULT_DESCRIPTION = (
-    "Homes, schools, flood risk and data center power for every address in New Orleans and Metairie: "
-    "look up any parcel in Jefferson and Orleans Parish. Free, independent, and built on public records."
+    "Homes, schools, flood risk and data center power in New Orleans and Metairie: "
+    "look up a parcel in Jefferson or Orleans Parish, with market data for 24 ZIPs. "
+    "Free, independent, and built on public records."
 )
 POWER = config.ETL_DIR.parent / "frontend" / "src" / "data" / "power.json"
 SCHOOLS_URL = "https://schools.nolaatlas.com/"
@@ -60,6 +61,22 @@ def month_label(iso: str | None) -> str:
     if not iso:
         return ""
     return datetime.strptime(iso[:7], "%Y-%m").strftime("%B %Y")
+
+
+def short_month_label(iso: str | None) -> str:
+    """Abbreviated month ("May 2026"), for the preview-card tiles, where a full month overflows
+    the 336px tile ("Median sale (May 2026)" measures 288.2px against a 288px limit)."""
+    if not iso:
+        return ""
+    return datetime.strptime(iso[:7], "%Y-%m").strftime("%b %Y")
+
+
+def source_line(row: dict | None) -> str:
+    """How current the market sources are, from the row's own months. Redfin's public feed
+    stopped in May 2026, so sale prices carry their vintage instead of "updated monthly"."""
+    vintage = month_label(row.get("price_month")) if row else ""
+    redfin = f"Sale prices from Redfin through {vintage}" if vintage else "Sale prices from Redfin"
+    return f"{redfin}; Zillow values and rents updated monthly."
 
 
 class Area:
@@ -195,7 +212,7 @@ def ownership_facts(s: dict | None) -> str:
     share = lambda k: s["by_kind"].get(k, 0) / n * 100  # noqa: E731
     multi = (s["by_holder_size"].get("2-9", 0) + s["by_holder_size"].get("10+", 0)) / n * 100
     rows = [
-        ("Properties on the Assessor's roll", f"{s['records']:,}"),
+        ("Records on the Assessor's roll", f"{s['records']:,}"),
         ("Owners", f"{s['owners']:,}"),
         ("Owned by individuals", pct(share("individual"))),
         ("Owned by organizations", pct(share("organization"))),
@@ -215,8 +232,11 @@ def ownership_facts(s: dict | None) -> str:
 def market_card(row: dict | None) -> list[tuple[str, str | None]]:
     if not row:
         return []
+    vintage = short_month_label(row.get("price_month"))
+    # Short on purpose: the label shares a 336px tile on the preview image.
+    label = f"Median sale {vintage}" if vintage else "Median sale"
     return [
-        ("Median sale price", money(row.get("median_sale_price"))),
+        (label, money(row.get("median_sale_price"))),
         ("Year over year", pct(row.get("price_yoy_pct"), signed=True)),
         ("Typical rent", f"{money(row['zori'])}/mo" if row.get("zori") else None),
     ]
@@ -229,7 +249,7 @@ def ownership_card(s: dict | None) -> list[tuple[str, str | None]]:
     org = (s["by_kind"].get("organization", 0) + s["by_kind"].get("government", 0)) / n * 100
     multi = (s["by_holder_size"].get("2-9", 0) + s["by_holder_size"].get("10+", 0)) / n * 100
     return [
-        ("Properties", f"{s['records']:,}"),
+        ("Records", f"{s['records']:,}"),
         ("Organizations, public", f"{org:.0f}%"),
         ("Owner holds 2+", f"{multi:.0f}%"),
     ]
@@ -269,7 +289,7 @@ def power_page(power: dict) -> Page:
             "Data center power",
             "Who pays to power Louisiana's data centers?",
             [
-                ("Gas plants approved for Meta", "3"),
+                ("Gas plants approved", "3"),
                 ("More proposed", "7"),
                 ("Last checked", power["checked"]),
             ],
@@ -287,19 +307,21 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
     owner_index = area_links(
         [a for a in areas if a.level != "metro"], lambda a: a.ownership_path, "Who owns each area"
     )
-    tagline = "Every address in New Orleans and Metairie, explained."
+    tagline = "Homes, schools, flood and power in New Orleans and Metairie."
     metro_row = rows.get(metro.key) or {}
+    metro_vintage = month_label(metro_row.get("price_month"))
     pages = [
         Page(
             "/",
-            "NOLA Atlas — Every address in New Orleans and Metairie, explained",
+            "NOLA Atlas — Homes, schools, flood and power in New Orleans and Metairie",
             DEFAULT_DESCRIPTION,
             f"<h1>NOLA Atlas</h1><p><strong>{esc(tagline)}</strong></p>"
             "<p>Four guides to living in New Orleans and Metairie, built on public records: homes, schools, "
             "flood risk, and AI data centers and the power grid. Free and independent.</p>"
-            "<h2>Homes</h2><p>Sale prices, home values, rent and inventory for every ZIP, and a report on any "
+            "<h2>Homes</h2><p>Sale prices, home values, rent and inventory for 24 ZIPs, and a report on any "
             "address: its owner, assessed value, flood zone and the true monthly cost to own. "
-            f"Metro median sale price: {esc(money(metro_row.get('median_sale_price')) or 'not published')}. "
+            f"Metro median sale price{f' ({metro_vintage})' if metro_vintage else ''}: "
+            f"{esc(money(metro_row.get('median_sale_price')) or 'not published')}. "
             '<a href="/market/">Market overview</a> · <a href="/scorecard/">ZIP Scorecard</a> · '
             '<a href="/property/">Property lookup</a> · <a href="/ownership/">Who owns</a></p>'
             f"<h2>Schools</h2><p>Every public and private school in Jefferson and Orleans: open seats, chances of "
@@ -323,7 +345,12 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
                 "Homes, schools, flood and data center power",
                 [
                     ("Parcels and condo units", f"{meta.get('property_count', 0):,}"),
-                    ("Metro median sale price", money(metro_row.get("median_sale_price"))),
+                    (
+                        f"Median sale {short_month_label(metro_row.get('price_month'))}"
+                        if metro_vintage
+                        else "Median sale",
+                        money(metro_row.get("median_sale_price")),
+                    ),
                     ("ZIP codes", f"{sum(a.level == 'zip' for a in areas)}"),
                 ],
             ),
@@ -332,7 +359,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             metro.market_path,
             "Housing market · NOLA Atlas",
             f"The {metro.name} housing market: median sale price, home values, rent, days on market, inventory "
-            "and months of supply, from Redfin and Zillow, updated monthly.",
+            f"and months of supply — {source_line(metro_row)}.",
             f"<h1>{esc(metro.name)} housing market</h1>{market_facts(metro_row or None)}"
             f'<p><a href="/ownership/">Who owns New Orleans and Metairie</a> · '
             f'<a href="/scorecard/">Compare every ZIP</a></p>{market_index}{owner_index}',
@@ -349,7 +376,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
                 a.market_path,
                 f"{a.label} housing market · NOLA Atlas",
                 f"{a.label} housing market: median sale price{f' {price}' if price else ''}, home values, rent, "
-                "days on market, inventory and months of supply, from Redfin and Zillow, updated monthly.",
+                f"days on market, inventory and months of supply — {source_line(row)}.",
                 f"<h1>{esc(a.label)} housing market</h1>{market_facts(row)}"
                 f'<p><a href="{a.ownership_path}">Who owns {esc(a.label)}</a> · '
                 f'<a href="/scorecard/">Compare every ZIP</a></p>{market_index}',
@@ -381,7 +408,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             Page(
                 a.ownership_path,
                 f"Who owns {a.label} · NOLA Atlas",
-                f"Who owns {a.label}: {s.get('records', 0):,} properties"
+                f"Who owns {a.label}: {s.get('records', 0):,} records"
                 + (f", {org:.0f}% owned by organizations or public bodies" if org is not None else "")
                 + ", how many owners hold several, and the largest owners, from the Assessor's roll.",
                 f"<h1>Who owns {esc(a.label)}</h1>{ownership_facts(s)}"

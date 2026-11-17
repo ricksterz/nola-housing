@@ -122,6 +122,7 @@ export default function Compare({ ctx }) {
 
       {error && <div className="error">Could not load market data: {error}</div>}
       {!compare && !error && <div className="loading">Loading…</div>}
+      {compare && selected.length === 0 && <div className="empty">Pick at least one area to compare.</div>}
 
       {compare && selected.length > 0 && (
         <>
