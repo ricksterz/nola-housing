@@ -4,7 +4,7 @@ import { getCompare, getMacroIndex } from "../api";
 import ChartPanel from "../components/ChartPanel";
 import RangeToggle from "../components/RangeToggle";
 import { Frame, lineProps, yAxisProps } from "../components/charts";
-import { filterRange, monthLabel } from "../lib/rangeUtils";
+import { filterRange, monthLabel, RANGES } from "../lib/rangeUtils";
 import { fmt, seriesColor } from "../lib/theme";
 
 // FRED series shown here, cited as FRED asks: the source, the series and its ID. The Freddie Mac
@@ -26,13 +26,16 @@ const AREAS = [
 ];
 
 export default function Macro({ ctx }) {
-  const { theme, meta } = ctx;
-  const [range, setRange] = useState("10y");
+  const { theme, meta, navigate, url } = ctx;
+  // The range lives in the URL, so Back/Forward moves it too.
+  const range = RANGES.some((r) => r.id === url.range) ? url.range : "10y";
   const [fred, setFred] = useState(null);
   const [compare, setCompare] = useState(null);
 
   useEffect(() => {
-    getMacroIndex().then((r) => setFred(r.series || []));
+    getMacroIndex()
+      .then((r) => setFred(r.series || []))
+      .catch(() => setFred([]));
     getCompare().then(setCompare).catch(() => setCompare({ geos: {} }));
   }, []);
 
@@ -89,14 +92,15 @@ export default function Macro({ ctx }) {
     <div>
       <div className="btn-row">
         <div className="stat-note">Metro and parish context. Indexed charts rebase every series to 100 at the start of the range.</div>
-        <RangeToggle value={range} onChange={setRange} />
+        <RangeToggle value={range} onChange={(r) => navigate({ range: r }, { replace: true })} />
       </div>
 
-      {!hasFred && (
+      {/* While the series load, nothing: the notice below is only for a snapshot that loaded
+          without them. It used to show during loading too, contradicting the charts beneath it. */}
+      {fred !== null && !hasFred && (
         <div className="empty" style={{ marginBottom: 16 }}>
-          <b>FRED series not loaded yet.</b> The mortgage rate, FHFA house price indexes (metro, Jefferson, Orleans) and
-          realtor.com listing series appear here after the monthly refresh runs with a <code>FRED_API_KEY</code>{" "}
-          repository secret. {meta?.sources?.fred?.fetched_at ? `Last fetch ${meta.sources.fred.fetched_at}.` : ""}
+          <b>FRED series aren't in this snapshot.</b> The mortgage rate, FHFA house price indexes (metro,
+          Jefferson, Orleans) and realtor.com listing series appear here once a data refresh includes them.
         </div>
       )}
 

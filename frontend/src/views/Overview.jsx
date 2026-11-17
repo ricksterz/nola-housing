@@ -76,6 +76,12 @@ export default function Overview({ ctx }) {
         </div>
       )}
 
+      {scorecard && !row && (
+        <div className="empty">
+          {`No market summary for ${label} yet — the scorecard covers the metro, both parishes and 24 ZIPs.`}
+        </div>
+      )}
+
       {error && <div className="error">Could not load market data: {error}</div>}
       {!trend && !error && <div className="loading">Loading…</div>}
 

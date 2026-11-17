@@ -37,6 +37,9 @@ export default function Scorecard({ ctx }) {
     });
   }, [scorecard, parish, sortKey, dir]);
 
+  // ZIPs with no ZORI: Zillow publishes its rent index only where it has enough listings.
+  const noRent = rows.filter((r) => r.zori == null).map((r) => r.geo_id);
+
   const ranges = useMemo(() => {
     const out = {};
     for (const c of COLS) {
@@ -139,6 +142,12 @@ export default function Scorecard({ ctx }) {
         </div>
       </div>
 
+      {noRent.length > 0 && (
+        <div className="stat-note" style={{ margin: "-6px 0 16px" }}>
+          {`No rent or yield for ${noRent.join(", ")}: Zillow publishes its rent index only where it has enough rental listings.`}
+        </div>
+      )}
+
       <div className="panel-grid">
         <YieldPanel rows={rows} theme={theme} />
         <AffordabilityPanel rows={rows} theme={theme} macro={macro} />
@@ -187,8 +196,15 @@ function AffordabilityPanel({ rows, theme, macro }) {
   const a = useCostAssumptions(fredRate);
   const [costs, setCosts] = useState(null);
   useEffect(() => {
-    getOwnershipCosts().then(setCosts);
+    // getOwnershipCosts never rejects (api.js falls back to { zips: {} }), so empty `zips`
+    // after load is the failure signal, not a thrown error.
+    getOwnershipCosts()
+      .then(setCosts)
+      .catch(() => setCosts({ zips: {} }));
   }, []);
+  // While the ZIP tables load, the bars aren't rendered at all: computing with costs === null
+  // showed $0 tax and flood on first paint and jumped when the data landed.
+  const costsFailed = costs != null && Object.keys(costs.zips || {}).length === 0;
   const items = rows
     .filter((r) => r.median_sale_price != null)
     .map((r) => {
@@ -219,29 +235,40 @@ function AffordabilityPanel({ rows, theme, macro }) {
         </div>
       </div>
       <CostInputs a={a} />
-      <div className="stat-note" style={{ margin: "8px 0 10px" }}>
-        {fredRate != null ? `Rate starts at the latest Freddie Mac average from FRED (${fmt.pct(fredRate, 2)}). ` : ""}
-        Homeowners insurance is your estimate for every ZIP (published 2026 Louisiana averages run {HOMEOWNERS_RANGE}).
-        {missingTax ? " Some ZIPs have no published tax rate and show $0 tax." : ""}
-      </div>
-      <CostLegend theme={theme} />
-      <div className="bar-list">
-        {items.map((it) => (
-          <div
-            className="bar-row"
-            key={it.id}
-            title={`${it.label}: ${COST_PARTS.map((p) => `${p.label} ${fmt.currency(it.cost[p.key])}`).join(" · ")} — ${fmt.currency(it.cost.total)}/mo`}
-          >
-            <div className="bar-label">
-              <span>{it.id}</span>
-              <small>{it.label}</small>
-            </div>
-            <StackedCostBar cost={it.cost} max={max} theme={theme} />
-            <div className="bar-value">{fmt.currency(it.cost.total)}</div>
+      {costs === null ? (
+        <div className="loading">Loading tax and flood figures…</div>
+      ) : costsFailed ? (
+        <div className="empty">
+          Tax and flood figures couldn't be loaded, so the monthly costs can't be built — showing the
+          loan payment alone would understate them. Try reloading the page.
+        </div>
+      ) : (
+        <>
+          <div className="stat-note" style={{ margin: "8px 0 10px" }}>
+            {fredRate != null ? `Rate starts at the latest Freddie Mac average from FRED (${fmt.pct(fredRate, 2)}). ` : ""}
+            Homeowners insurance is your estimate for every ZIP (published 2026 Louisiana averages run {HOMEOWNERS_RANGE}).
+            {missingTax ? " Some ZIPs have no published tax rate and show $0 tax." : ""}
           </div>
-        ))}
-      </div>
-      <div className="stat-note" style={{ marginTop: 8 }}>Monthly totals. Hover a bar for the breakdown.</div>
+          <CostLegend theme={theme} />
+          <div className="bar-list">
+            {items.map((it) => (
+              <div
+                className="bar-row"
+                key={it.id}
+                title={`${it.label}: ${COST_PARTS.map((p) => `${p.label} ${fmt.currency(it.cost[p.key])}`).join(" · ")} — ${fmt.currency(it.cost.total)}/mo`}
+              >
+                <div className="bar-label">
+                  <span>{it.id}</span>
+                  <small>{it.label}</small>
+                </div>
+                <StackedCostBar cost={it.cost} max={max} theme={theme} />
+                <div className="bar-value">{fmt.currency(it.cost.total)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="stat-note" style={{ marginTop: 8 }}>Monthly totals. Hover a bar for the breakdown.</div>
+        </>
+      )}
     </div>
   );
 }

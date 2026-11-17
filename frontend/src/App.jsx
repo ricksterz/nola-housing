@@ -32,7 +32,7 @@ const VIEWS = [
 const NO_STRIP = new Set(["home", "power"]);
 
 const SITE = "https://nolaatlas.com";
-const DEFAULT_TITLE = "NOLA Atlas — Every address in New Orleans and Metairie, explained";
+const DEFAULT_TITLE = "NOLA Atlas — Homes, schools, flood and power in New Orleans and Metairie";
 
 // Title and canonical URL per view, so search engines index each tab and area as its own page
 // (the paths etl/prerender.py builds). Only view and area count: a searched address, street or
@@ -142,7 +142,9 @@ export default function App() {
               NOLA Atlas<span className="accent">.</span>
             </a>
           </Brand>
-          <span className="brand-tag">Every address in New Orleans and Metairie, explained.</span>
+          {/* The tagline only fits on the home page: on the data tabs the source chips and the
+              snapshot badge leave it no room, and it truncated mid-word. */}
+          {view === "home" && <span className="brand-tag">Homes, schools, flood and power in New Orleans and Metairie.</span>}
           <div className="topbar-tools">
             {view !== "home" && <SourceChips meta={meta} />}
             {view !== "home" && IS_STATIC && meta?.generated && (
@@ -168,7 +170,7 @@ export default function App() {
             <a className="btn" href={SCHOOLS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
               Schools ↗
             </a>
-            <a className="btn" href={FLOODLENS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
+            <a className="btn" href={FLOODLENS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)} title="FloodLens runs on a free host and can take up to a minute to wake on a first visit">
               Flood ↗
             </a>
           </nav>

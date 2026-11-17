@@ -30,24 +30,6 @@ function parseDay(iso) {
 const day = (iso) => parseDay(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const mw = (n) => `${n.toLocaleString("en-US")} MW`;
 
-/** Counts from 0 up to `target` once, on mount. Jumps straight there under reduced motion. */
-function useCountUp(target, ms = 1100) {
-  const [v, setV] = useState(() => (reduceMotion() ? target : 0));
-  useEffect(() => {
-    if (reduceMotion()) return;
-    let raf;
-    const start = performance.now();
-    const tick = (now) => {
-      const t = Math.min(1, (now - start) / ms);
-      setV(Math.round(target * (1 - Math.pow(1 - t, 3))));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, ms]);
-  return v;
-}
-
 function Source({ href, children }) {
   return (
     <a href={href} target="_blank" rel="noreferrer">
@@ -56,12 +38,14 @@ function Source({ href, children }) {
   );
 }
 
+/** The hero numbers are shown as they are: an earlier count-up animation showed wrong
+ * intermediate values (6,580 of 7,540 MW, 21 of 30 days) for the first second, which read
+ * as contradictions against the bars below. */
 function Kpi({ value, unit, label }) {
-  const n = useCountUp(value);
   return (
     <div className="ai-kpi">
       <div className="ai-kpi-value">
-        {n.toLocaleString("en-US")}
+        {value.toLocaleString("en-US")}
         {unit && <span className="ai-kpi-unit">{unit}</span>}
       </div>
       <div className="ai-kpi-label">{label}</div>
@@ -116,7 +100,7 @@ function Hero() {
       <div className="ai-hero-body">
         <div className="ai-hero-top">
           <span className="ai-chip">
-            <i className="ai-live" aria-hidden="true" /> Live tracker
+            <i className="ai-live" aria-hidden="true" /> Hand-checked
           </span>
           <span className="ai-mono ai-dim">checked {power.checked}</span>
         </div>
@@ -129,7 +113,7 @@ function Hero() {
           <Kpi value={plants} label={`gas plants: ${approved.plants} approved, ${proposed.plants} awaiting an LPSC vote`} />
           <Kpi value={contracted.mw} unit="MW" label={`contracted for Hut 8's River Bend AI campus, with room for ${mw(room.mw)} more`} />
           {days >= 0 ? (
-            <Kpi value={days} unit={days === 1 ? "day" : "days"} label={`until the ${vote.what} (reports give ${vote.window})`} />
+            <Kpi value={days} unit={days === 1 ? "day" : "days"} label={`until the ${vote.what} (scheduled ${vote.window})`} />
           ) : (
             <div className="ai-kpi">
               <div className="ai-kpi-value ai-kpi-value--sm">Vote due</div>

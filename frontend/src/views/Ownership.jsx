@@ -43,11 +43,15 @@ function highlightMatch(text, query) {
 
 // Search by owner name: the Assessors' public rolls, matched by suggestOwners (api.js). An owner
 // with two or more records opens their owner page; one with a single record opens that property.
+// Suggestions appear as you type (debounced, while a name bundle loads); Enter and the Search
+// button don't wait for them — they look the name up straight away.
 function OwnerSearch({ navigate }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [searching, setSearching] = useState(false);
+  const [noMatch, setNoMatch] = useState(false);
   const boxRef = useRef(null);
   const debounceRef = useRef(null);
   const requestSeq = useRef(0);
@@ -64,6 +68,7 @@ function OwnerSearch({ navigate }) {
   function pick(a) {
     setSuggestOpen(false);
     setQuery("");
+    setNoMatch(false);
     trackEvent(EVENTS.searchOwner);
     if (a.kind === "owner") navigate({ owner: a.slug });
     else navigate({ view: "property", q: a.address, owner: null, street: null });
@@ -72,22 +77,56 @@ function OwnerSearch({ navigate }) {
   function onInput(v) {
     setQuery(v);
     setActiveIndex(-1);
+    setNoMatch(false);
     clearTimeout(debounceRef.current);
     if (!v.trim()) {
+      requestSeq.current++; // drop any lookup already in flight
       setSuggestions([]);
       setSuggestOpen(false);
+      setSearching(false);
       return;
     }
+    setSearching(true);
     const seq = ++requestSeq.current;
     debounceRef.current = setTimeout(async () => {
       const results = await suggestOwners(v, 8).catch(() => []);
       if (seq !== requestSeq.current) return;
+      setSearching(false);
       setSuggestions(results);
       setSuggestOpen(results.length > 0);
     }, SUGGEST_DEBOUNCE_MS);
   }
 
+  // Search now, without waiting for the debounced suggestions: take the best match straight
+  // away, or say so when nothing matches.
+  async function runSearch() {
+    const q = query.trim();
+    if (!q) return;
+    clearTimeout(debounceRef.current);
+    const seq = ++requestSeq.current;
+    setSearching(true);
+    setNoMatch(false);
+    const results = await suggestOwners(q, 8).catch(() => []);
+    if (seq !== requestSeq.current) return;
+    setSearching(false);
+    if (results.length) {
+      setSuggestions(results);
+      pick(results[0]);
+    } else {
+      setSuggestions([]);
+      setSuggestOpen(false);
+      setNoMatch(true);
+    }
+  }
+
   function onKeyDown(e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      // Enter used to do nothing until the suggestions had loaded; now it searches immediately.
+      if (suggestOpen && suggestions.length > 0) pick(suggestions[activeIndex >= 0 ? activeIndex : 0]);
+      else runSearch();
+      return;
+    }
     if (!suggestOpen || suggestions.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -97,9 +136,6 @@ function OwnerSearch({ navigate }) {
       setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
     } else if (e.key === "Escape") {
       setSuggestOpen(false);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      pick(suggestions[activeIndex >= 0 ? activeIndex : 0]);
     }
   }
 
@@ -146,7 +182,15 @@ function OwnerSearch({ navigate }) {
             </div>
           )}
         </div>
+        <button type="button" className="btn-primary" onClick={runSearch} disabled={!query.trim()}>
+          {searching ? "Searching…" : "Search"}
+        </button>
       </div>
+      {noMatch && (
+        <div className="stat-note" role="status" style={{ marginTop: -12 }}>
+          {`No owner found for “${query}”. Try fewer words, or the name as written on the Assessor's roll.`}
+        </div>
+      )}
     </div>
   );
 }
@@ -231,7 +275,7 @@ function OwnershipStats({ ctx }) {
           </div>
           <div className="stat-grid" style={{ marginBottom: 18 }}>
             <div className="stat">
-              <div className="stat-label">Properties</div>
+              <div className="stat-label">Records</div>
               <div className="stat-value">{area.records.toLocaleString()}</div>
               <div className="stat-sub">{`${area.owners.toLocaleString()} owners`}</div>
             </div>
@@ -300,11 +344,11 @@ function OwnershipStats({ ctx }) {
                 <tr>
                   <th>ZIP · area</th>
                   {[
-                    ["records", "Properties"],
+                    ["records", "Records"],
                     ["org", "Organizations + public"],
                     ["multi", "Owner holds 2+"],
                     ["big", "Owner holds 10+"],
-                    ["home", "Lived in by owner"],
+                    ["home", "Lived in by owner *"],
                   ].map(([k, label]) => (
                     <th key={k} className={`num sortable${sort === k ? " is-sorted" : ""}`} onClick={() => {
                       trackEvent(EVENTS.ownershipSort);
@@ -331,6 +375,11 @@ function OwnershipStats({ ctx }) {
               </tbody>
             </table>
           </div>
+          {zipRows.some((r) => r.home == null) && (
+            <div className="stat-note" style={{ marginTop: 10 }}>
+              * Jefferson ZIPs only — Orleans doesn't publish homestead exemptions, so those rows show "—".
+            </div>
+          )}
         </div>
       )}
 

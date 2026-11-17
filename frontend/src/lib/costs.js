@@ -50,17 +50,22 @@ export function floodGroup(parcel) {
 
 const KEY = "nola-cost-assumptions";
 
+// FRED ships the mortgage rate with full float precision (7.28000020980835); round it to the
+// two decimals a rate is quoted in before it reaches a number input or a sentence. Older
+// versions saved the raw float to localStorage, so a saved value is rounded on the way in too.
+const roundRate = (v) => (v == null || v === "" ? v : Math.round(Number(v) * 100) / 100);
+
 function readSaved() {
   try {
-    return JSON.parse(localStorage.getItem(KEY)) || {};
+    const saved = JSON.parse(localStorage.getItem(KEY)) || {};
+    const rate = roundRate(saved.rate);
+    if (Number.isFinite(rate)) saved.rate = rate;
+    else delete saved.rate;
+    return saved;
   } catch {
     return {};
   }
 }
-
-// FRED ships the mortgage rate with full float precision (7.28000020980835); round it before
-// it reaches a number input or a sentence.
-const roundRate = (v) => (v == null ? v : Math.round(v * 1000) / 1000);
 
 /** Rate, down payment, homeowners premium, flood and homestead toggles, shared between views and kept
  * per-browser so the reader doesn't retype them. Rate follows FRED until the reader edits it. */
@@ -80,6 +85,8 @@ export function useCostAssumptions(defaultRate) {
       /* private mode */
     }
   }, [a]);
-  const set = (patch) => setA((prev) => ({ ...prev, ...patch }));
+  // A rate patch is rounded the same way, so a typed or pasted value can never carry float dust.
+  const set = (patch) =>
+    setA((prev) => ({ ...prev, ...patch, ...(patch.rate != null ? { rate: roundRate(patch.rate) } : {}) }));
   return { ...a, rate: a.rate ?? roundRate(defaultRate) ?? 6.5, set };
 }

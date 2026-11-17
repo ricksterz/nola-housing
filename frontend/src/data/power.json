@@ -1,5 +1,5 @@
 {
-  "checked": "2026-11-09",
+  "checked": "2026-11-16",
   "intro": "AI data centers use enormous amounts of electricity, and in Louisiana new gas power plants are being built to supply them. This page tracks what is proposed, who decides, and what it could mean for power bills in New Orleans and Metairie. It is checked by hand against news reports and public filings.",
   "utilities": [
     {
@@ -227,6 +227,13 @@
       "group": "nola"
     },
     {
+      "date": "2026-11-05",
+      "who": "LPSC staff",
+      "what": "Reach a settlement with Entergy Louisiana that Entergy says resolves all outstanding issues on the seven-plant expansion; the Commission is set to vote in December.",
+      "source": "https://www.utilitydive.com/news/entergy-makes-progress-on-arkansas-data-center-reports-strong-q3-sales/873873/",
+      "group": "lpsc"
+    },
+    {
       "date": "2026-11-09",
       "who": "Landowner groups",
       "what": "Sue the LPSC in state court, arguing the Lightning directive was adopted without proper public notice.",
@@ -234,11 +241,11 @@
       "group": "court"
     }
   ],
-  "next": "December 2026: the LPSC is expected to vote on the seven-plant expansion for Meta (reports give December 10 or 16; check docket U-37882).",
+  "next": "December 16, 2026: the LPSC is scheduled to consider the seven-plant expansion for Meta at its Business and Executive Session (docket U-37882).",
   "nextVote": {
-    "date": "2026-12-10",
+    "date": "2026-12-16",
     "what": "LPSC vote on the seven-plant expansion for Meta",
-    "window": "December 10 or 16"
+    "window": "December 16, 2026"
   },
   "bills": [
     {
