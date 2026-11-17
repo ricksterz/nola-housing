@@ -865,6 +865,8 @@ def meta(con) -> dict:
         "flood": {
             "parcels": one("SELECT COUNT(*) FROM parcel_flood"),
             "pulled_at": iso(one("SELECT MAX(nfhl_pulled_at) FROM parcel_flood")),
+            "status": one("SELECT status FROM source_status WHERE source = 'flood'"),
+            "status_detail": one("SELECT detail FROM source_status WHERE source = 'flood'"),
         },
         "costs": {
             "tax_acs_year": one("SELECT MAX(acs_year) FROM zip_tax_rate"),

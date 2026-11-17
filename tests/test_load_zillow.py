@@ -1,3 +1,6 @@
+import duckdb
+import pytest
+
 from etl import load_zillow
 
 
@@ -49,3 +52,18 @@ def test_zillow_values_and_region_id(con, zillow_fixtures):
 
 def test_zillow_subset(con, zillow_fixtures):
     assert load_zillow.load(con, indexes=("zori",), levels=("zip",)) == 5
+
+
+def test_zillow_failure_keeps_previous(con, zillow_fixtures, monkeypatch, tmp_path):
+    load_zillow.load(con)
+    before = con.execute("SELECT COUNT(*) FROM zillow_index").fetchone()[0]
+    assert before > 0
+    monkeypatch.setenv("ZILLOW_SOURCE_DIR", str(tmp_path))  # empty: no CSVs to read
+    assert load_zillow.load(con) == before
+    assert con.execute("SELECT COUNT(*) FROM zillow_index").fetchone()[0] == before
+
+
+def test_zillow_failure_without_previous_raises(con, monkeypatch, tmp_path):
+    monkeypatch.setenv("ZILLOW_SOURCE_DIR", str(tmp_path))  # empty: no CSVs to read
+    with pytest.raises(duckdb.IOException):
+        load_zillow.load(con)

@@ -33,6 +33,15 @@ def parishes_in_window(today: date | None = None) -> list[str]:
 STALE_AFTER_DAYS = 21
 
 
+def _rebuild(con: duckdb.DuckDBPyConnection, db_path: str) -> None:
+    """Carry over prior flood zones, rebuild the join, and compact the database."""
+    print("Rebuilding join...")
+    load_flood.carry_over_by_lot(con)  # re-keyed records keep their lot's flood zone
+    build_join.build(con)
+    print("Compacting database (DuckDB's VACUUM doesn't reclaim space; a raw copy does)...")
+    db_compact.compact(con, db_path)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default=str(config.DB_PATH))
@@ -66,12 +75,12 @@ def main(argv=None):
         if age is None or age > STALE_AFTER_DAYS:
             raise
         print(f"::warning::{e} The data is from {last:%Y-%m-%d} ({age} days old); the next run retries.")
+        if e.loaded:
+            # A parish did load: publish its fresh data instead of leaving the
+            # derived tables on the previous run's snapshot.
+            _rebuild(con, args.db)
         return
-    print("Rebuilding join...")
-    load_flood.carry_over_by_lot(con)  # re-keyed records keep their lot's flood zone
-    build_join.build(con)
-    print("Compacting database (DuckDB's VACUUM doesn't reclaim space; a raw copy does)...")
-    db_compact.compact(con, args.db)
+    _rebuild(con, args.db)
     print("Done.")
 
 

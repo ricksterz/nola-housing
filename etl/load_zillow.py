@@ -13,6 +13,12 @@ column per month). Metro, County and ZIP files are unpivoted into one long table
 Filtering is by name/FIPS rather than Zillow RegionID so a RegionID renumbering
 cannot silently drop the market. Set ZILLOW_SOURCE_DIR to a directory holding the
 same-named CSVs for offline development.
+
+Fail-soft (Nov 2026): Zillow is the market leg with no backup — if its files go
+unreachable the old load failed the whole monthly refresh (FRED and costs never
+ran, the join never rebuilt). Like ``load_redfin`` since PR #84, a failed fetch
+now warns and keeps the previous ``zillow_index`` data instead; a fresh database
+with no previous table still fails hard.
 """
 
 import duckdb
@@ -72,6 +78,16 @@ def _zip(index_name: str) -> str:
     return _select(index_name, "zip", zip_expr, f"{zip_expr} IN ({zips})")
 
 
+def _table_exists(con: duckdb.DuckDBPyConnection, name: str) -> bool:
+    return (
+        con.execute(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?",
+            [name],
+        ).fetchone()[0]
+        > 0
+    )
+
+
 def load(
     con: duckdb.DuckDBPyConnection,
     indexes: tuple[str, ...] = ("zhvi", "zori"),
@@ -79,13 +95,31 @@ def load(
 ) -> int:
     builders = {"metro": _metro, "county": _county, "zip": _zip}
     union = "\nUNION ALL BY NAME\n".join(builders[lvl](idx) for idx in indexes for lvl in levels)
+    try:
+        con.execute(
+            f"""
+            CREATE OR REPLACE TEMP TABLE _zillow_new AS
+            SELECT * FROM ({union})
+            WHERE value IS NOT NULL
+            ORDER BY index_name, geo_level, geo_id, month
+            """
+        )
+        count = con.execute("SELECT COUNT(*) FROM _zillow_new").fetchone()[0]
+        if count == 0:
+            raise ValueError("Zillow load returned 0 rows")
+    except Exception as e:  # noqa: BLE001 - one dead upstream must not kill the refresh
+        if not _table_exists(con, "zillow_index"):
+            raise
+        previous = con.execute("SELECT COUNT(*) FROM zillow_index").fetchone()[0]
+        print(
+            "  WARNING: Zillow refresh failed "
+            f"({type(e).__name__}: {str(e)[:200]}); "
+            f"keeping previous zillow_index data ({previous} rows)"
+        )
+        return previous
     con.execute(
-        f"""
-        CREATE OR REPLACE TABLE zillow_index AS
-        SELECT * FROM ({union})
-        WHERE value IS NOT NULL
-        ORDER BY index_name, geo_level, geo_id, month
-        """
+        "CREATE OR REPLACE TABLE zillow_index AS SELECT * FROM _zillow_new "
+        "ORDER BY index_name, geo_level, geo_id, month"
     )
     count = con.execute("SELECT COUNT(*) FROM zillow_index").fetchone()[0]
     by = con.execute(

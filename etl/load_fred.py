@@ -9,6 +9,13 @@ plus the realtor.com monthly listing series for the MSA.
 
 Each series lands with its normalized (geo_level, geo_id) so it joins to the
 parcel and market tables on the same keys as Redfin/Zillow.
+
+Fail-soft: a missing FRED_API_KEY skips the load entirely (existing rows kept),
+a failed series keeps its previous rows, and a snapshot in which *every* series
+failed keeps the previous ``macro_snapshot`` instead of replacing it with error
+dicts — one dead upstream must not wipe the last good snapshot. A fresh database
+with no previous snapshot still lands the error snapshot, so the failure is
+visible in the data and the table exists for downstream readers.
 """
 
 import json
@@ -17,6 +24,20 @@ from datetime import datetime, timezone
 import duckdb
 
 from . import config, fred_client
+
+
+def _snapshot_has_values(snapshot: dict) -> bool:
+    """True when at least one series fetched real data (no "error" entry)."""
+    return any(isinstance(series, dict) and "error" not in series for series in snapshot.values())
+
+
+def _snapshot_exists(con: duckdb.DuckDBPyConnection) -> bool:
+    return (
+        con.execute(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'macro_snapshot'"
+        ).fetchone()[0]
+        > 0
+    )
 
 
 def load(con: duckdb.DuckDBPyConnection, series: dict | None = None) -> int:
@@ -49,8 +70,13 @@ def load(con: duckdb.DuckDBPyConnection, series: dict | None = None) -> int:
         print(f"  fred_series: {sid} {len(rows)} observations")
 
     snapshot = fred_client.get_macro_snapshot()
-    con.execute("CREATE OR REPLACE TABLE macro_snapshot (fetched_at TIMESTAMP, snapshot JSON)")
-    con.execute("INSERT INTO macro_snapshot VALUES (?, ?)", [fetched_at, json.dumps(snapshot)])
+    if not _snapshot_has_values(snapshot) and _snapshot_exists(con):
+        print("  macro_snapshot: all series failed; keeping previous snapshot")
+    else:
+        if not _snapshot_has_values(snapshot):
+            print("  macro_snapshot: all series failed and no previous snapshot; landing error snapshot")
+        con.execute("CREATE OR REPLACE TABLE macro_snapshot (fetched_at TIMESTAMP, snapshot JSON)")
+        con.execute("INSERT INTO macro_snapshot VALUES (?, ?)", [fetched_at, json.dumps(snapshot)])
     count = con.execute("SELECT COUNT(*) FROM fred_series").fetchone()[0]
     print(f"  fred_series: {count} rows total")
     return count

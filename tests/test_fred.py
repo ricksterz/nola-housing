@@ -79,3 +79,37 @@ def test_snapshot_reports_per_series_errors(fred_fixture_get):
     # realtor.com series have no fixture -> captured as error, not raised
     assert snap["nola_median_dom"]["value"] is None
     assert "error" in snap["nola_median_dom"]
+
+
+def _four_series():
+    return {
+        k: v
+        for k, v in load_fred.config.FRED_SERIES.items()
+        if v[0] in ("MORTGAGE30US", "ATNHPIUS35380Q", "ATNHPIUS22051A", "ATNHPIUS22071A")
+    }
+
+
+def _all_fred_down(monkeypatch):
+    def _raise(url, params=None, timeout=None):
+        raise RuntimeError("FRED is down")
+
+    monkeypatch.setattr(fred_client.requests, "get", _raise)
+    # The 1h snapshot cache would otherwise mask the failure with the last good snapshot.
+    fred_client._cache["data"] = None
+
+
+def test_load_fred_all_series_failing_keeps_snapshot(con, fred_fixture_get, monkeypatch):
+    fred_client._cache["data"] = None
+    load_fred.load(con, series=_four_series())
+    before = con.execute("SELECT snapshot FROM macro_snapshot").fetchone()[0]
+    assert json.loads(before)["mortgage_rate_30yr"]["value"] == 6.22
+    _all_fred_down(monkeypatch)
+    load_fred.load(con, series=_four_series())
+    assert con.execute("SELECT snapshot FROM macro_snapshot").fetchone()[0] == before
+
+
+def test_load_fred_all_series_failing_on_fresh_db_writes_error_snapshot(con, fred_fixture_get, monkeypatch):
+    _all_fred_down(monkeypatch)
+    assert load_fred.load(con, series=_four_series()) == 0
+    snap = json.loads(con.execute("SELECT snapshot FROM macro_snapshot").fetchone()[0])
+    assert snap and all("error" in series for series in snap.values())
