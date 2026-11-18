@@ -28,11 +28,23 @@ const VIEWS = [
   ["power", "AI & Power"],
   ["about", "About"],
 ];
-// The housing snapshot strip belongs to the housing tabs, not the hub or the power tracker.
-const NO_STRIP = new Set(["home", "power"]);
+// The main bar is the four things a reader comes for: an address, the market, schools, flood.
+// The market's own tabs ride in a second row while one of them is open. AI & Power and About
+// stay one click away, from the home page's topic cards, a property's utilities row and the
+// footer, instead of competing in the main bar.
+const MARKET_TABS = [
+  ["overview", "Overview"],
+  ["scorecard", "ZIP Scorecard"],
+  ["compare", "Compare"],
+  ["ownership", "Ownership"],
+  ["macro", "Macro"],
+];
+const MARKET_VIEWS = new Set(MARKET_TABS.map(([v]) => v));
+// The market snapshot strip is market context: only on the market tabs that are about prices.
+const STRIP_VIEWS = new Set(["overview", "scorecard", "compare", "macro"]);
 
 const SITE = "https://nolaatlas.com";
-const DEFAULT_TITLE = "NOLA Atlas — Homes, schools, flood and power in New Orleans and Metairie";
+const DEFAULT_TITLE = "NOLA Atlas — Look up any New Orleans or Metairie address";
 
 // Title and canonical URL per view, so search engines index each tab and area as its own page
 // (the paths etl/prerender.py builds). Only view and area count: a searched address, street or
@@ -144,7 +156,7 @@ export default function App() {
           </Brand>
           {/* The tagline only fits on the home page: on the data tabs the source chips and the
               snapshot badge leave it no room, and it truncated mid-word. */}
-          {view === "home" && <span className="brand-tag">Homes, schools, flood and power in New Orleans and Metairie.</span>}
+          {view === "home" && <span className="brand-tag">What any address really costs, how it floods, and which schools you can get into.</span>}
           <div className="topbar-tools">
             {view !== "home" && <SourceChips meta={meta} />}
             {view !== "home" && IS_STATIC && meta?.generated && (
@@ -155,27 +167,43 @@ export default function App() {
         </div>
       </header>
       <div className="container app-main">
-        {view !== "home" && (
-          <nav className="btn-row nav-tabs" aria-label="Main navigation">
-            {VIEWS.map(([id, label]) => (
+        <nav className="btn-row nav-tabs" aria-label="Main navigation">
+          <button
+            className={`btn${view === "property" ? " is-active" : ""}`}
+            onClick={() => navigate({ view: "property", owner: null, geo: null })}
+            aria-current={view === "property" ? "page" : undefined}
+          >
+            Address
+          </button>
+          <button
+            className={`btn${MARKET_VIEWS.has(view) ? " is-active" : ""}`}
+            onClick={() => navigate({ view: "overview", owner: null, q: null, street: null })}
+            aria-current={view === "overview" ? "page" : undefined}
+          >
+            Market
+          </button>
+          <a className="btn" href={SCHOOLS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
+            Schools ↗
+          </a>
+          <a className="btn" href={FLOODLENS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)} title="FloodLens runs on a free host and can take up to a minute to wake on a first visit">
+            Flood ↗
+          </a>
+        </nav>
+        {MARKET_VIEWS.has(view) && (
+          <nav className="btn-row nav-tabs nav-tabs--sub" aria-label="Market data">
+            {MARKET_TABS.map(([id, label]) => (
               <button
                 key={id}
-                className={`btn${view === id ? " is-active" : ""}`}
-                onClick={() => navigate({ view: id, owner: null, ...(id === "property" ? {} : { q: null, street: null }) })}
+                className={`btn btn-sm${view === id ? " is-active" : ""}`}
+                onClick={() => navigate({ view: id, owner: null, q: null, street: null })}
                 aria-current={view === id ? "page" : undefined}
               >
                 {label}
               </button>
             ))}
-            <a className="btn" href={SCHOOLS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
-              Schools ↗
-            </a>
-            <a className="btn" href={FLOODLENS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)} title="FloodLens runs on a free host and can take up to a minute to wake on a first visit">
-              Flood ↗
-            </a>
           </nav>
         )}
-        {!NO_STRIP.has(view) && <MacroStrip ctx={ctx} />}
+        {STRIP_VIEWS.has(view) && <MacroStrip ctx={ctx} />}
 
         {error && <div className="error">Could not load market data: {error}</div>}
         <ErrorBoundary resetKey={`${view}|${url.q || ""}`}>
@@ -190,7 +218,7 @@ export default function App() {
           {view === "about" && <About ctx={ctx} />}
         </ErrorBoundary>
       </div>
-      <Footer generated={meta?.generated} sources={meta?.sources} />
+      <Footer generated={meta?.generated} sources={meta?.sources} navigate={navigate} />
     </div>
   );
 }

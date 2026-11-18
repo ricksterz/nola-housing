@@ -33,9 +33,8 @@ from . import config, og_images
 SITE = "https://nolaatlas.com"
 DIST = config.ETL_DIR.parent / "frontend" / "dist"
 DEFAULT_DESCRIPTION = (
-    "Homes, schools, flood risk and data center power in New Orleans and Metairie: "
-    "look up a parcel in Jefferson or Orleans Parish, with market data for 24 ZIPs. "
-    "Free, independent, and built on public records."
+    "Type any New Orleans or Metairie address: see what it really costs, how it floods, "
+    "and which schools you can get into. Free, independent, and built on public records."
 )
 POWER = config.ETL_DIR.parent / "frontend" / "src" / "data" / "power.json"
 SCHOOLS_URL = "https://schools.nolaatlas.com/"
@@ -307,17 +306,18 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
     owner_index = area_links(
         [a for a in areas if a.level != "metro"], lambda a: a.ownership_path, "Who owns each area"
     )
-    tagline = "Homes, schools, flood and power in New Orleans and Metairie."
+    tagline = "What any address really costs, how it floods, and which schools you can get into."
     metro_row = rows.get(metro.key) or {}
     metro_vintage = month_label(metro_row.get("price_month"))
     pages = [
         Page(
             "/",
-            "NOLA Atlas — Homes, schools, flood and power in New Orleans and Metairie",
+            "NOLA Atlas — Look up any New Orleans or Metairie address",
             DEFAULT_DESCRIPTION,
             f"<h1>NOLA Atlas</h1><p><strong>{esc(tagline)}</strong></p>"
-            "<p>Four guides to living in New Orleans and Metairie, built on public records: homes, schools, "
-            "flood risk, and AI data centers and the power grid. Free and independent.</p>"
+            '<p><a href="/property/">Look up any address</a> in Jefferson or Orleans Parish: its owner, '
+            "flood zone and flood history, nearby schools and the true monthly cost to own. Built on public "
+            "records. Free and independent.</p>"
             "<h2>Homes</h2><p>Sale prices, home values, rent and inventory for 24 ZIPs, and a report on any "
             "address: its owner, assessed value, flood zone and the true monthly cost to own. "
             f"Metro median sale price{f' ({metro_vintage})' if metro_vintage else ''}: "
@@ -342,7 +342,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             },
             card=(
                 "Free local data for New Orleans and Metairie",
-                "Homes, schools, flood and data center power",
+                "Any address: cost, flood and schools",
                 [
                     ("Parcels and condo units", f"{meta.get('property_count', 0):,}"),
                     (

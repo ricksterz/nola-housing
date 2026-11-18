@@ -15,13 +15,35 @@ const TERMS =
   "Terms: DOM — days on market · HPI — house price index · MSA — metropolitan statistical area · ZHVI — Zillow Home Value Index · " +
   "ZORI — Zillow Observed Rent Index · gross yield — annual rent ÷ home value · months of supply — active listings ÷ monthly sales";
 
-export default function Footer({ generated, sources }) {
+// Pages that left the main bar (App.jsx) still need a way in from every page.
+const FOOTER_LINKS = [
+  ["power", "/power/", "AI data centers and your power bill"],
+  ["about", "/about/", "About, sources and methods"],
+];
+
+export default function Footer({ generated, sources, navigate }) {
   const day = (iso) => (iso ? iso.slice(0, 10) : null);
   const fredDay = day(sources?.fred?.fetched_at);
   const femaDay = day(sources?.costs?.flood_pulled_at);
   return (
     <footer className="footer">
       <div className="footer-inner">
+        <nav className="footer-links" aria-label="More from NOLA Atlas">
+          {FOOTER_LINKS.map(([view, href, label]) => (
+            <a
+              key={view}
+              href={href}
+              onClick={(e) => {
+                if (!navigate || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                e.preventDefault();
+                navigate({ view, q: null, street: null, owner: null, geo: null });
+                window.scrollTo({ top: 0 });
+              }}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
         <div className="footer-heading">Disclaimer</div>
         <p style={{ margin: "0 0 10px" }}>
           This site is provided for general informational and educational purposes only. Nothing here constitutes

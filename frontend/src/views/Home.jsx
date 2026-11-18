@@ -1,31 +1,24 @@
+import { useEffect, useState } from "react";
+import AddressSearch from "../components/AddressSearch";
 import { FloodScene, HousingScene, PowerScene, SchoolsScene } from "../components/HomeScenes";
 import { FLOODLENS_URL, SCHOOLS_URL } from "../lib/links";
+import { wakeFloodLens } from "../lib/floodlens";
 import { EVENTS, trackEvent } from "../lib/metrics";
 
-// The home page is a landing spot with four paths: a large picture, a short description and one
-// way in for each. Homes and AI & Power are tabs of this app; School Finder and FloodLens are
-// sister sites opened in a new tab. Nothing else competes with the four choices.
+// The home page leads with the address box: the site's promise is "type any address". Below it,
+// four ways to explore by topic, each a large picture, a short description and one way in. The
+// market and AI & Power are tabs of this app; FloodLens and School Finder are sister sites opened
+// in a new tab.
 const PATHS = [
   {
     id: "housing",
-    view: "property",
-    href: "/property/",
+    view: "overview",
+    href: "/market/",
     kicker: "Homes",
-    title: "What homes cost, and who owns them",
-    text: "Look up an address, street or owner name: owner, assessed value, flood zone and the true monthly cost to own, plus prices, rents and sales for 24 ZIPs.",
-    cta: "Look up an address",
+    title: "Prices, rents and who owns what",
+    text: "Sale prices, home values, rents and inventory for 24 ZIPs, side by side, and who owns each area.",
+    cta: "See the market",
     Scene: HousingScene,
-  },
-  {
-    id: "schools",
-    href: SCHOOLS_URL,
-    event: EVENTS.openSchools,
-    kicker: "Schools",
-    site: "School Finder",
-    title: "Find a school with open seats",
-    text: "Every public and private school in Jefferson and Orleans: open seats, your chances of getting in, tuition and the dates that matter.",
-    cta: "Open School Finder",
-    Scene: SchoolsScene,
   },
   {
     id: "flood",
@@ -38,6 +31,17 @@ const PATHS = [
     cta: "Open FloodLens",
     note: "FloodLens runs on a free host and can take up to a minute to wake up on a first visit.",
     Scene: FloodScene,
+  },
+  {
+    id: "schools",
+    href: SCHOOLS_URL,
+    event: EVENTS.openSchools,
+    kicker: "Schools",
+    site: "School Finder",
+    title: "Find a school with open seats",
+    text: "Every public and private school in Jefferson and Orleans: open seats, your chances of getting in, tuition and the dates that matter.",
+    cta: "Open School Finder",
+    Scene: SchoolsScene,
   },
   {
     id: "power",
@@ -95,16 +99,53 @@ function PathCard({ path, navigate }) {
   );
 }
 
+// Desktop gets the cursor in the box; on a phone that would open the keyboard over the page.
+const FINE_POINTER = typeof window !== "undefined" && window.matchMedia?.("(pointer: fine)").matches;
+
+// Streets as examples: they open a street's list of addresses, so no one's home is the demo.
+const EXAMPLES = ["Magazine St", "Metairie Rd", "Esplanade Ave"];
+
 export default function Home({ ctx }) {
+  const { navigate } = ctx;
+  const [text, setText] = useState("");
+
+  // FloodLens sleeps when idle; the address report reads it, so start waking it now.
+  useEffect(() => wakeFloodLens(), []);
+
+  function open(patch) {
+    navigate({ view: "property", geo: null, q: null, street: null, owner: null, ...patch });
+    window.scrollTo({ top: 0 });
+  }
+
+  // The same routes Property Lookup takes: a street opens its list, an owner their page, and
+  // anything typed is searched there (a street or owner name with no house number included).
+  function onPick(a) {
+    if (a.kind === "street") open({ street: a.slug });
+    else if (a.kind === "owner") open({ view: "ownership", owner: a.slug });
+    else open({ q: a.full || a.address });
+  }
+
   return (
     <div className="home">
       <header className="home-hero">
-        <h1 className="home-title">Where would you like to start?</h1>
-        <p className="home-lede">Four guides to living in New Orleans and Metairie, built on public records.</p>
+        <h1 className="home-title">Type any New Orleans or Metairie address</h1>
+        <p className="home-lede">See what it really costs, how it floods, and which schools you can get into.</p>
+        <div className="home-search">
+          <AddressSearch value={text} onChange={setText} onPick={onPick} onSubmit={(q) => open({ q: q.trim() })} idPrefix="home" size="large" autoFocus={FINE_POINTER} />
+          <div className="home-examples">
+            <span>Try a street:</span>
+            {EXAMPLES.map((ex) => (
+              <button key={ex} type="button" className="link-button" onClick={() => open({ q: ex })}>
+                {ex}
+              </button>
+            ))}
+          </div>
+        </div>
       </header>
-      <nav className="paths" aria-label="Choose a topic">
+      <h2 className="home-section-title">Or explore by topic</h2>
+      <nav className="paths" aria-label="Explore by topic">
         {PATHS.map((p) => (
-          <PathCard key={p.id} path={p} navigate={ctx.navigate} />
+          <PathCard key={p.id} path={p} navigate={navigate} />
         ))}
       </nav>
     </div>

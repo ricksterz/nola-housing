@@ -75,6 +75,12 @@ export function getScorecard() {
   return get("/api/market/scorecard");
 }
 
+/** School Finder's school list (etl/export_schools.py), or null when the deploy couldn't fetch it.
+ *  A static file in both modes: the backend has no school data of its own. */
+export function getSchools() {
+  return getStatic("schools.json").catch(() => null);
+}
+
 export function getMacroSnapshot() {
   if (IS_STATIC) return getStatic("macro.json").catch(() => ({}));
   return get("/api/macro/snapshot").catch(() => ({}));

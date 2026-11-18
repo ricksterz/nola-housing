@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
-import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, markCutOff, parcelQuery, suggestAddresses, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
+import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, markCutOff, parcelQuery, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
+import AddressSearch from "../components/AddressSearch";
 import ChartPanel from "../components/ChartPanel";
 import { EVENTS, trackEvent } from "../lib/metrics";
 import { floodInfo } from "../lib/flood";
 import { utilityFor } from "../lib/power";
-import { floodLensLink, SCHOOLS_URL } from "../lib/links";
+import { floodLensLink } from "../lib/links";
+import { wakeFloodLens } from "../lib/floodlens";
+import FloodLensDetails from "../components/FloodLensDetails";
+import NearbySchools from "../components/NearbySchools";
 import AssessmentComparison from "../components/AssessmentComparison";
 import { CostInputs } from "../components/MonthlyCost";
 import NearbyMap from "../components/NearbyMap";
@@ -14,8 +18,6 @@ import { Frame, currencyAxis, lineProps } from "../components/charts";
 import { COST_PARTS, HOMEOWNERS_RANGE, HOMESTEAD_EXEMPT_DEFAULT, annualTax, floodGroup, monthlyCost, useCostAssumptions } from "../lib/costs";
 import { monthLabel } from "../lib/rangeUtils";
 import { fmt, fmtCompactCurrency, seriesColor } from "../lib/theme";
-
-const SUGGEST_DEBOUNCE_MS = 150;
 
 // What goes in the search box and the URL for a parcel: its address, or its parcel number when it
 // has no street address or shares one with another parcel (the export marks those with `lookup`).
@@ -34,15 +36,13 @@ export default function Property({ ctx }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
   const [trend, setTrend] = useState(null);
   const [street, setStreet] = useState(null); // { name, count, cities, entries } for a street list
   const count = meta?.property_count ?? null;
   const boxRef = useRef(null);
-  const debounceRef = useRef(null);
-  const requestSeq = useRef(0);
+
+  // FloodLens sleeps when idle; start waking it while the reader is still typing.
+  useEffect(() => wakeFloodLens(), []);
 
   // Load the address in the URL: on arrival, and again when Back/Forward changes it. A search
   // rewrites q to the full address it found, which then matches and doesn't search twice.
@@ -75,16 +75,6 @@ export default function Property({ ctx }) {
     getTrend("zip", zip).then((t) => setTrend(t.series)).catch(() => setTrend(null));
   }, [data]);
 
-  useEffect(() => {
-    function onClickOutside(e) {
-      if (boxRef.current && !boxRef.current.contains(e.target)) setSuggestOpen(false);
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, []);
-
-  useEffect(() => () => clearTimeout(debounceRef.current), []);
-
   // A nearby home picked from the map or list: open it and bring the search box back into view,
   // keeping the previous home in history so Back returns to it.
   function pickNearby(street) {
@@ -93,28 +83,29 @@ export default function Property({ ctx }) {
     boxRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function openStreet(slug) {
-    setSuggestOpen(false);
+  function openStreet(slug, { replace = false } = {}) {
     setError(null);
-    navigate({ street: slug, q: null });
+    navigate({ street: slug, q: null }, { replace });
   }
 
   async function search(addr = address, { push = false } = {}) {
     if (!addr.trim()) return;
-    setSuggestOpen(false);
     // A street name with no house number opens that street's list; otherwise an owner's name
     // opens their owner page (or their one property).
+    // A name that arrived in the URL (from the home page's box) is replaced by the page it opens,
+    // so Back doesn't land on the name and send the reader straight forward again.
     if (!parcelQuery(addr) && !/^\d/.test(addr.trim())) {
+      const replace = !push && url.q === addr;
       const [best] = await suggestStreets(addr, 1);
       if (best) {
         trackEvent(EVENTS.searchStreet);
-        openStreet(best.slug);
+        openStreet(best.slug, { replace });
         return;
       }
       const [owner] = await suggestOwners(addr, 1);
       if (owner) trackEvent(EVENTS.searchOwner);
       if (owner?.kind === "owner") {
-        navigate({ view: "ownership", owner: owner.slug, q: null, street: null });
+        navigate({ view: "ownership", owner: owner.slug, q: null, street: null }, { replace });
         return;
       }
       if (owner) addr = owner.address;
@@ -142,26 +133,7 @@ export default function Property({ ctx }) {
       .finally(() => setLoading(false));
   }
 
-  function onInput(v) {
-    setAddress(v);
-    setActiveIndex(-1);
-    clearTimeout(debounceRef.current);
-    if (!v.trim()) {
-      setSuggestions([]);
-      setSuggestOpen(false);
-      return;
-    }
-    const seq = ++requestSeq.current;
-    debounceRef.current = setTimeout(async () => {
-      const results = await suggestAddresses(v).catch(() => []);
-      if (seq !== requestSeq.current) return; // a newer keystroke superseded this request
-      setSuggestions(results);
-      setSuggestOpen(results.length > 0);
-    }, SUGGEST_DEBOUNCE_MS);
-  }
-
   function pick(a) {
-    setSuggestOpen(false);
     if (a.kind === "street") {
       trackEvent(EVENTS.searchStreet);
       openStreet(a.slug);
@@ -174,31 +146,6 @@ export default function Property({ ctx }) {
     }
     setAddress(a.full);
     search(a.address, { push: Boolean(url.street) });
-  }
-
-  function onKeyDown(e) {
-    if (suggestOpen && suggestions.length > 0) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setActiveIndex((i) => (i + 1) % suggestions.length);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
-        return;
-      }
-      if (e.key === "Escape") {
-        setSuggestOpen(false);
-        return;
-      }
-      if (e.key === "Enter" && activeIndex >= 0) {
-        e.preventDefault();
-        pick(suggestions[activeIndex]);
-        return;
-      }
-    }
-    if (e.key === "Enter") search();
   }
 
   return (
@@ -219,45 +166,7 @@ export default function Property({ ctx }) {
         </div>
       )}
 
-      <div className="search-row" ref={boxRef}>
-        <div className="search-box">
-        <input
-          className="search-input"
-          value={address}
-          onChange={(e) => onInput(e.target.value)}
-          onFocus={() => suggestions.length > 0 && setSuggestOpen(true)}
-          onKeyDown={onKeyDown}
-          placeholder="Address, street, owner name or parcel #"
-          aria-label="Address, street name, owner name or parcel number"
-          role="combobox"
-          aria-expanded={suggestOpen}
-          aria-controls="address-suggestions"
-          aria-activedescendant={activeIndex >= 0 ? `address-suggestion-${activeIndex}` : undefined}
-          autoComplete="off"
-        />
-        {suggestOpen && (
-          <div className="suggestions" id="address-suggestions" role="listbox">
-            {suggestions.map((a, i) => (
-              <div
-                key={`${a.kind || "address"}-${a.address}`}
-                id={`address-suggestion-${i}`}
-                role="option"
-                aria-selected={i === activeIndex}
-                className={`suggestion${i === activeIndex ? " suggestion--active" : ""}`}
-                onMouseEnter={() => setActiveIndex(i)}
-                onMouseDown={(e) => { e.preventDefault(); pick(a); }}
-              >
-                {highlightMatch(a.full, address)}
-                {a.sub && <span className="suggestion-sub">{a.sub}</span>}
-              </div>
-            ))}
-          </div>
-        )}
-        </div>
-        <button className="btn-primary" onClick={() => search()} disabled={loading}>
-          {loading ? "Searching…" : "Search"}
-        </button>
-      </div>
+      <AddressSearch value={address} onChange={setAddress} onPick={pick} onSubmit={(text) => search(text)} loading={loading} boxRef={boxRef} />
 
       {error && (
         <div className="error">
@@ -458,22 +367,6 @@ function StreetList({ street, onPick }) {
   );
 }
 
-// Every piece of text is the only child of its own element. Loose sibling text nodes are what
-// React edits in place on each keystroke, and anything that rewrites them first (iOS Safari's
-// address/phone detection, Google Translate, extensions) makes that update throw NotFoundError.
-function highlightMatch(text, query) {
-  const needle = query.trim();
-  const i = needle ? text.toUpperCase().indexOf(needle.toUpperCase()) : -1;
-  if (i === -1) return <span>{text}</span>;
-  return (
-    <>
-      <span>{text.slice(0, i)}</span>
-      <b>{text.slice(i, i + needle.length)}</b>
-      <span>{text.slice(i + needle.length)}</span>
-    </>
-  );
-}
-
 // Assessor style is "LAST,FIRST M & CO OWNER" with no space after the comma. A trailing "&" means
 // the record names a co-owner the Assessor didn't publish in the name field.
 function ownerName(raw) {
@@ -590,14 +483,18 @@ function FloodZone({ p, floodlens, floodlensSummary }) {
         Placed by the lot's center point. A map zone, not an elevation certificate or an insurance quote.
       </div>
       {/^A/i.test(p.flood_zone || "") && <FloodLensNote flag={floodlens} summary={floodlensSummary} />}
-      {p.full_address && (
-        <div className="method-note" style={{ marginTop: 6 }}>
-          Drainage, levees and storm surge for this address:{" "}
-          <a href={floodLensLink(p.full_address)} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
-            open it in FloodLens ↗
-          </a>{" "}
-          FloodLens runs on a free host and can take up to a minute to wake on a first visit.
-        </div>
+      {p.lat != null && p.lng != null ? (
+        <FloodLensDetails key={`${p.lat},${p.lng}`} p={p} />
+      ) : (
+        p.full_address && (
+          <div className="method-note" style={{ marginTop: 6 }}>
+            Drainage, levees and storm surge for this address:{" "}
+            <a href={floodLensLink(p.full_address)} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
+              open it in FloodLens ↗
+            </a>{" "}
+            FloodLens runs on a free host and can take up to a minute to wake on a first visit.
+          </div>
+        )
       )}
     </div>
   );
@@ -832,16 +729,6 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
       [
         { label: "Median home value", value: p.zhvi ? fmtCompactCurrency(p.zhvi) : null },
         { label: "Median sale price", value: p.redfin_median_sale_price ? fmtCompactCurrency(p.redfin_median_sale_price) : null },
-        {
-          label: "Schools",
-          // NOLA School Finder, opened on this ZIP: public and private schools, new seats, chances and tuition.
-          value: p.zip_code ? (
-            <a href={`${SCHOOLS_URL}?zip=${encodeURIComponent(p.zip_code)}`} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openSchools)}>
-              {`Schools near ${p.zip_code} ↗`}
-            </a>
-          ) : null,
-          note: "Seats, chances of getting in and tuition, on NOLA School Finder",
-        },
       ],
     ],
   ]
@@ -912,12 +799,15 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
         </div>
       </div>
 
-      <AssessmentComparison key={`compare-${p.parcel_id}`} p={p} comparison={data.comparison} />
-      {p.lat != null && p.lng != null && <NearbyMap key={`map-${p.parcel_id}`} p={p} theme={theme} onPick={onPick} />}
+      {/* The report follows the promise: what it costs, how it floods (the card above), which
+          schools are near. Then the assessment check and the neighbors. */}
       {/* Counted once per visit when any cost input changes. */}
       <div onChangeCapture={() => trackEvent(EVENTS.costCalculator, { once: true })}>
         <MonthlyCostPanel key={`cost-${p.parcel_id}`} p={p} theme={theme} macro={macro} scorecard={scorecard} />
       </div>
+      <NearbySchools key={`schools-${p.parcel_id}`} p={p} />
+      <AssessmentComparison key={`compare-${p.parcel_id}`} p={p} comparison={data.comparison} />
+      {p.lat != null && p.lng != null && <NearbyMap key={`map-${p.parcel_id}`} p={p} theme={theme} onPick={onPick} />}
 
       {v && (
         <div className="panel panel--gold">
