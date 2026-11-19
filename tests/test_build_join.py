@@ -137,6 +137,6 @@ def test_parcel_market_has_one_row_per_parcel_when_flood_rows_repeat(
     build_join.build(con)
     parcels = con.execute("SELECT COUNT(*) FROM assessor_parcels").fetchone()[0]
     assert con.execute("SELECT COUNT(*) FROM parcel_market").fetchone()[0] == parcels
-    assert con.execute(
-        "SELECT flood_zone FROM parcel_market WHERE parcel_id = '0520001234'"
-    ).fetchall() == [("AE",)]
+    assert con.execute("SELECT flood_zone FROM parcel_market WHERE parcel_id = '0520001234'").fetchall() == [
+        ("AE",)
+    ]
