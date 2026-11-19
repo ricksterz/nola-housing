@@ -1,12 +1,39 @@
 import { useEffect, useState } from "react";
-import { claimsText, elevationText, getFloodLens } from "../lib/floodlens";
+import { claimsText, elevationText, floodScore, getFloodLens } from "../lib/floodlens";
 import { floodLensLink } from "../lib/links";
 import { EVENTS, trackEvent } from "../lib/metrics";
 
-// FloodLens's facts for this spot, inside the flood card: ground elevation, levee, storm surge and
-// past claims nearby. Read live (lib/floodlens.js), so it says when it's waiting on a cold start
-// and falls back to the plain link if FloodLens doesn't answer. Facts only, worded as FloodLens
-// words them; no score and no ranking of one risk against another.
+// FloodLens inside the flood card, under the FEMA zone: its 0-100 score, labeled as a model estimate
+// validated only inside FEMA A zones, then its facts for the spot (ground elevation, levee, storm
+// surge, past claims nearby), worded as FloodLens words them, with no ranking of one risk against
+// another. Read live (lib/floodlens.js), so it says when it's waiting on a cold start and falls back
+// to the plain link if FloodLens doesn't answer.
+function FloodLensScore({ d, inAZone }) {
+  const s = floodScore(d);
+  if (!s) {
+    return (
+      <div className="floodlens-score">
+        <div className="floodlens-live-title">FloodLens score</div>
+        <div className="flood-detail">Not scored: FloodLens has too little data for this spot to give one.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="floodlens-score">
+      <div className="floodlens-live-title">FloodLens score · model estimate</div>
+      <div className="floodlens-score-value">
+        <b>{s.score}</b> / 100{s.label && <span className="floodlens-score-label">{s.label}</span>}
+      </div>
+      <span className="floodlens-fact-note">
+        {"A model's estimate, not a FEMA determination or an insurance quote. FloodLens's backtest against flood insurance claims validated it only inside FEMA A zones"}
+        {inAZone ? "." : "; this address isn't in one, so here the score is untested."}
+        {s.coverage != null && ` Based on ${Math.round(s.coverage * 100)}% of the model's inputs; the rest have no data here.`}
+        {s.prelimDate && ` Scored on FEMA's preliminary map (issued ${s.prelimDate}), which isn't in effect and isn't for insurance.`}
+      </span>
+    </div>
+  );
+}
+
 export default function FloodLensDetails({ p }) {
   const [state, setState] = useState({ status: "loading" });
   const [slow, setSlow] = useState(false);
@@ -65,6 +92,7 @@ export default function FloodLensDetails({ p }) {
 
   return (
     <div className="floodlens-live">
+      <FloodLensScore d={d} inAZone={/^A/i.test(p.flood_zone || "")} />
       <div className="floodlens-live-title">From FloodLens</div>
       {rows.length > 0 ? (
         <dl className="floodlens-facts">

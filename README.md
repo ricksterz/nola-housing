@@ -110,7 +110,7 @@ wider feature set:
 | ZIP Scorecard | All ZIPs side by side: latest reading, YoY, heat-shaded cells (one-hue ramp for magnitude, blue/red for change), 24-month sparkline; sortable, filter by parish; click through to the overview. Plus gross rent yield (rent vs. buy) and monthly payment on the median sale at an adjustable rate. |
 | Compare | Overlay up to six areas on one metric, optionally indexed to 100, with small multiples. Colors are bound to the area, not its rank. |
 | Macro | Metro vs. parish ZHVI/ZORI indexed; with FRED loaded: 30-yr mortgage rate, FHFA HPI (metro, Jefferson, Orleans) and realtor.com listing series. |
-| Property Lookup | Assessor parcel record, the FEMA flood zone with FloodLens's facts for the spot read live (ground elevation, levee, storm surge, past claims in the tract; `frontend/src/lib/floodlens.js`, no score), monthly cost to own, the nearest public and private schools from School Finder's list (`etl/export_schools.py`), the assessment check, nearby homes. |
+| Property Lookup | Assessor parcel record, the FEMA flood zone with FloodLens's facts for the spot read live (its 0–100 score, labeled as a model estimate validated only inside FEMA A zones; ground elevation, levee, storm surge, past claims in the tract; `frontend/src/lib/floodlens.js`), monthly cost to own, the nearest public and private schools from School Finder's list (`etl/export_schools.py`), the assessment check, nearby homes. |
 | AI & Power (`/power/`) | A hand-kept, sourced tracker of AI data centers and the gas plants built for them in Louisiana: headline megawatts, a map of the sites, who regulates Orleans and Jefferson rates, a filterable decision log with a countdown to the next vote, and both sides of the bill question. Edit `frontend/src/data/power.json` (the app and `etl/prerender.py` both read it) and update its `checked` date (and `nextVote` once a vote is set or held). |
 
 Charts follow the dataviz rules in this repo's tooling: no dual axes, a fixed
@@ -171,9 +171,18 @@ Raw source tables keep every column the join needs plus provenance:
 
 `etl/data/floodlens_tracts.geojson` holds the census tracts FloodLens's NFIP backtest evaluated
 inside FEMA A zones, with each tract's quintile, plus the claim rates and the pre-registered result
-in its `floodlens` header. The site flags A-zone parcels in a top-fifth tract and says nothing about
-Zone X, matching what the backtest supports. After FloodLens's monthly refresh (the 15th), rebuild
-it from a local FloodLens checkout and commit the file:
+in its `floodlens` header. The site flags A-zone parcels in a top-fifth tract and gives no tract flag
+in Zone X, where the same test was inconclusive.
+
+The property report's flood card also shows FloodLens's 0–100 score, read live, under the FEMA zone.
+Rules that must hold wherever it appears: it is always labeled as a model estimate (not a FEMA
+determination or an insurance quote) validated only inside FEMA A zones; outside an A zone the card
+says the score is untested there; a partly covered score says what share of the model's inputs it
+used; a score on FEMA's preliminary map says that map isn't in effect; and where FloodLens returns no
+score (under 70% of its inputs) the card says so instead of showing one.
+
+After FloodLens's monthly refresh (the 15th), rebuild the tracts file from a local FloodLens checkout
+and commit it:
 
 ```bash
 ~/floodlens/venv/bin/python -m etl.build_floodlens_tracts --floodlens ~/floodlens
