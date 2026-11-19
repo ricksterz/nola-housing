@@ -187,6 +187,15 @@ def build_parcel_market(con) -> None:
                    MAX(date) FILTER (WHERE series_id = 'MORTGAGE30US') AS mortgage_rate_date
             FROM latest_series
         ),
+        -- One zone per parcel: a tax bill spanning several lots can carry one from each. Keep the
+        -- higher-risk one, the rule load_flood applies to a lot center touching two zones.
+        flood AS (
+            SELECT * FROM parcel_flood
+            QUALIFY ROW_NUMBER() OVER (
+                PARTITION BY parish, parcel_id
+                ORDER BY flood_sfha DESC, flood_zone, flood_zone_subtype NULLS LAST
+            ) = 1
+        ),
         history AS (
             SELECT parish, parcel_id,
                    list(struct_pack(tax_year := tax_year, assessed_val := assessed_val,
@@ -219,7 +228,7 @@ def build_parcel_market(con) -> None:
         LEFT JOIN latest_zip z ON z.geo_id = p.zip_code
         LEFT JOIN county_hpi c ON c.parish_fips = p.parish_fips
         LEFT JOIN history h ON h.parish = p.parish AND h.parcel_id = p.parcel_id
-        LEFT JOIN parcel_flood f ON f.parish = p.parish AND f.parcel_id = p.parcel_id
+        LEFT JOIN flood f ON f.parish = p.parish AND f.parcel_id = p.parcel_id
         CROSS JOIN metro m
         ORDER BY p.parish, p.zip_code, p.site_address_norm
         """
