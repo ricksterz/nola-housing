@@ -36,6 +36,9 @@ PARCEL_FIELDS = (
     # Appended (not inserted mid-tuple) so existing databases can add them with ALTER TABLE.
     "zoning",
     "last_sale_qualified",
+    # Every exemption on the roll combined (homestead, veterans', religious, government...).
+    # Jefferson's "HOMESTEADV" is this total, not homestead alone: a church shows its whole value.
+    "exempt_val",
 )
 
 _NUMERIC = {
@@ -46,6 +49,7 @@ _NUMERIC = {
     "tot_mkt_val",
     "assessed_val",
     "homestead_exempt_val",
+    "exempt_val",
     "taxable_val",
     "last_sale_price",
     "lat",
@@ -155,6 +159,7 @@ class ParcelRecord:
     lng: float | None = None
     zoning: str | None = None
     last_sale_qualified: bool | None = None
+    exempt_val: float | None = None
     extra: dict = field(default_factory=dict)
 
     def __post_init__(self):

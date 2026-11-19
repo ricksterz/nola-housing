@@ -200,7 +200,7 @@ def build_parcel_market(con) -> None:
                p.owner_name, p.legal_description, p.property_class, p.subdivision,
                p.land_area, p.building_area, p.year_built,
                p.tax_year, p.land_val, p.bld_val, p.tot_mkt_val, p.assessed_val,
-               p.homestead_exempt_val, p.taxable_val, p.last_sale_date, p.last_sale_price,
+               p.homestead_exempt_val, p.exempt_val, p.taxable_val, p.last_sale_date, p.last_sale_price,
                p.last_sale_qualified, p.zoning,
                f.flood_zone, f.flood_zone_subtype, f.flood_sfha, f.nfhl_pulled_at,
                h.assessed_value_history,
