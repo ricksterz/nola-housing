@@ -86,3 +86,24 @@ def test_main_exit_codes(tmp_path, capsys):
     out = capsys.readouterr().out
     # main() uses the real today, so assert on the stable parts only.
     assert "redfin: 2026-05-01 is" in out and "days old (threshold 180)" in out
+
+
+def test_db_mode_reads_source_dates_from_the_database(tmp_path, capsys):
+    import duckdb
+
+    db = tmp_path / "nola.duckdb"
+    con = duckdb.connect(str(db))
+    con.execute("CREATE TABLE redfin_market (period_begin DATE)")
+    con.execute("INSERT INTO redfin_market VALUES ('2026-05-01')")
+    con.close()
+    meta = check_staleness.meta_from_db(str(db))
+    assert meta["sources"]["redfin"]["latest_period"] == "2026-05-01"
+    assert check_staleness.main(["--db", str(db)]) == 1
+    out = capsys.readouterr().out
+    assert "redfin: 2026-05-01 is" in out
+    assert "zillow: no date in meta.json" in out  # a table that isn't there reads as missing
+
+
+def test_db_mode_with_a_missing_database_fails(tmp_path, capsys):
+    assert check_staleness.main(["--db", str(tmp_path / "nope.duckdb")]) == 1
+    assert "not found" in capsys.readouterr().out

@@ -65,3 +65,38 @@ def test_a_source_outage_with_a_loaded_parish_rebuilds_the_join(tmp_path, monkey
     assert "::warning::[orleans] every bulk pull failed" in out
     assert "Rebuilding join" in out
     assert calls == ["carry_over", "build", "compact"]
+
+
+def test_a_stale_failure_still_rebuilds_and_flags_publish_for_the_loaded_parish(tmp_path, monkeypatch):
+    # Orleans failed and its data is stale, so the run fails; Jefferson loaded, so its fresh data
+    # must still be rebuilt and the workflow told to publish it.
+    _db(tmp_path / "db.duckdb", days_old=refresh_assessor.STALE_AFTER_DAYS + 1)
+
+    def down(*args, **kwargs):
+        raise load_assessor.SourceUnavailable(
+            "orleans", "[orleans] every bulk pull failed", loaded=("jefferson",)
+        )
+
+    monkeypatch.setattr(load_assessor, "load", down)
+    calls = []
+    monkeypatch.setattr(
+        refresh_assessor.load_flood, "carry_over_by_lot", lambda con: calls.append("carry_over")
+    )
+    monkeypatch.setattr(refresh_assessor.build_join, "build", lambda con: calls.append("build"))
+    monkeypatch.setattr(refresh_assessor.db_compact, "compact", lambda con, path: calls.append("compact"))
+    gh_output = tmp_path / "gh_output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(gh_output))
+    with pytest.raises(load_assessor.SourceUnavailable):
+        refresh_assessor.main(["--db", str(tmp_path / "db.duckdb"), "--parish", "orleans"])
+    assert calls == ["carry_over", "build", "compact"]
+    assert "rebuilt=true" in gh_output.read_text()
+
+
+def test_a_stale_failure_with_nothing_loaded_does_not_flag_publish(tmp_path, monkeypatch):
+    _db(tmp_path / "db.duckdb", days_old=refresh_assessor.STALE_AFTER_DAYS + 1)
+    _source_down(monkeypatch)
+    gh_output = tmp_path / "gh_output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(gh_output))
+    with pytest.raises(load_assessor.SourceUnavailable):
+        refresh_assessor.main(["--db", str(tmp_path / "db.duckdb"), "--parish", "orleans"])
+    assert not gh_output.exists()

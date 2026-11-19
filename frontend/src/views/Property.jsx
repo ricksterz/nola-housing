@@ -882,7 +882,13 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
         {p.parish === "orleans" && !hasValuation && (
           <div className="stat-section">
             <div className="stat-section-title">Valuation</div>
-            <div className="stat-note">No assessed values or sale history: the City doesn't publish them for Orleans parcels.</div>
+            <div className="stat-note">
+              No assessed values or sale history here yet: the City's parcel layer this site loads doesn't carry them. The Orleans Parish
+              Assessor shows each parcel's assessed value on{" "}
+              <a href="https://nolaassessor.com/" target="_blank" rel="noreferrer">
+                nolaassessor.com ↗
+              </a>
+            </div>
           </div>
         )}
         {sections.map(([title, items]) => (

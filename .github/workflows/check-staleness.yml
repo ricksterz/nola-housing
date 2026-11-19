@@ -1,0 +1,28 @@
+name: Data staleness check
+
+# Every loader fails soft (a dead upstream keeps the previous data), so a source can go stale for
+# months with every refresh still green. This fails, and emails, when any source in the published
+# database is older than its threshold (etl/check_staleness.py). It is separate from the deploy on
+# purpose: stale data must alert, not stop fixes from shipping.
+
+on:
+  schedule:
+    - cron: "0 14 * * 1"  # weekly, Monday 14:00 UTC (after the Monday refreshes)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staleness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install duckdb requests
+      - name: Download the published database
+        run: python -m etl.db_store pull
+      - name: Check every source's freshness
+        run: python -m etl.check_staleness --db etl/nola_housing.duckdb

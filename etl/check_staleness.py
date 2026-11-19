@@ -7,9 +7,12 @@ script is the watcher: it reads the exported meta.json, checks each source's
 freshness date against a threshold, and exits non-zero naming every stale
 source. It never fetches anything; it only reads the file.
 
-Wiring (one line, in the export workflow, after the meta.json export step):
+It runs on its own weekly schedule (.github/workflows/check-staleness.yml), not inside the deploy:
+a stale source must alert, not stop fixes from shipping.
 
-    python -m etl.check_staleness
+    python -m etl.check_staleness                       # the exported frontend/public/data/meta.json
+    python -m etl.check_staleness path/to/meta.json
+    python -m etl.check_staleness --db etl/nola_housing.duckdb   # straight from the database
 
 Thresholds are per-source because the cadences differ: the assessor's Orleans
 pull runs twice a week (21 days matches refresh_assessor.STALE_AFTER_DAYS),
@@ -90,17 +93,38 @@ def check(meta: dict, today: date | None = None) -> list[str]:
     return problems
 
 
+def meta_from_db(db_path: str) -> dict:
+    """The same "sources" dates meta.json carries, read from the database without exporting."""
+    import duckdb
+
+    from backend import queries
+
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        # Round-trip through JSON so dates are ISO strings, exactly as in the exported meta.json.
+        return json.loads(json.dumps(queries.meta(con), default=str))
+    finally:
+        con.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    path = (
-        Path(argv[0])
-        if argv
-        else Path(__file__).resolve().parents[1] / "frontend" / "public" / "data" / "meta.json"
-    )
-    if not path.exists():
-        print(f"check_staleness: {path} not found")
-        return 1
-    problems = check(json.loads(path.read_text()))
+    if argv[:1] == ["--db"]:
+        if len(argv) < 2 or not Path(argv[1]).exists():
+            print(f"check_staleness: database {argv[1] if len(argv) > 1 else '(none given)'} not found")
+            return 1
+        meta = meta_from_db(argv[1])
+    else:
+        path = (
+            Path(argv[0])
+            if argv
+            else Path(__file__).resolve().parents[1] / "frontend" / "public" / "data" / "meta.json"
+        )
+        if not path.exists():
+            print(f"check_staleness: {path} not found")
+            return 1
+        meta = json.loads(path.read_text())
+    problems = check(meta)
     if not problems:
         print("check_staleness: all sources fresh")
         return 0

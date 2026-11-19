@@ -10,6 +10,7 @@ Cadence (see .github/workflows/refresh-assessor.yml):
 """
 
 import argparse
+import os
 from datetime import date, datetime, timezone
 
 import duckdb
@@ -40,6 +41,10 @@ def _rebuild(con: duckdb.DuckDBPyConnection, db_path: str) -> None:
     build_join.build(con)
     print("Compacting database (DuckDB's VACUUM doesn't reclaim space; a raw copy does)...")
     db_compact.compact(con, db_path)
+    # The workflow publishes on this even when the step then fails on a stale parish.
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write("rebuilt=true\n")
 
 
 def main(argv=None):
@@ -72,13 +77,13 @@ def main(argv=None):
         # the next scheduled run try again. Fail (and email) once the data is getting stale.
         last = load_assessor.last_bulk_pull(con, e.parish)
         age = (datetime.now(timezone.utc).replace(tzinfo=None) - last).days if last else None
+        if e.loaded:
+            # A parish did load: rebuild with its fresh data before deciding whether the failed one
+            # fails the run, so a stale failure still leaves the fresh parish ready to publish.
+            _rebuild(con, args.db)
         if age is None or age > STALE_AFTER_DAYS:
             raise
         print(f"::warning::{e} The data is from {last:%Y-%m-%d} ({age} days old); the next run retries.")
-        if e.loaded:
-            # A parish did load: publish its fresh data instead of leaving the
-            # derived tables on the previous run's snapshot.
-            _rebuild(con, args.db)
         return
     _rebuild(con, args.db)
     print("Done.")

@@ -40,6 +40,24 @@ def _snapshot_exists(con: duckdb.DuckDBPyConnection) -> bool:
     )
 
 
+def _previous_snapshot(con: duckdb.DuckDBPyConnection) -> dict:
+    if not _snapshot_exists(con):
+        return {}
+    row = con.execute("SELECT snapshot FROM macro_snapshot ORDER BY fetched_at DESC LIMIT 1").fetchone()
+    return json.loads(row[0]) if row and row[0] else {}
+
+
+def _keep_last_good(snapshot: dict, previous: dict) -> dict:
+    """A series that failed this time keeps its last good entry, which carries its own date, so one
+    dead series can't blank a figure the site shows (the mortgage rate) while others succeed."""
+    return {
+        key: previous[key]
+        if "error" in entry and isinstance(previous.get(key), dict) and "error" not in previous[key]
+        else entry
+        for key, entry in snapshot.items()
+    }
+
+
 def load(con: duckdb.DuckDBPyConnection, series: dict | None = None) -> int:
     series = series or config.FRED_SERIES
     con.execute(
@@ -75,6 +93,7 @@ def load(con: duckdb.DuckDBPyConnection, series: dict | None = None) -> int:
     else:
         if not _snapshot_has_values(snapshot):
             print("  macro_snapshot: all series failed and no previous snapshot; landing error snapshot")
+        snapshot = _keep_last_good(snapshot, _previous_snapshot(con))
         con.execute("CREATE OR REPLACE TABLE macro_snapshot (fetched_at TIMESTAMP, snapshot JSON)")
         con.execute("INSERT INTO macro_snapshot VALUES (?, ?)", [fetched_at, json.dumps(snapshot)])
     count = con.execute("SELECT COUNT(*) FROM fred_series").fetchone()[0]

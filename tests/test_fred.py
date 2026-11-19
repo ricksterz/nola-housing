@@ -113,3 +113,20 @@ def test_load_fred_all_series_failing_on_fresh_db_writes_error_snapshot(con, fre
     assert load_fred.load(con, series=_four_series()) == 0
     snap = json.loads(con.execute("SELECT snapshot FROM macro_snapshot").fetchone()[0])
     assert snap and all("error" in series for series in snap.values())
+
+
+def test_load_fred_one_series_failing_keeps_its_last_good_value(con, fred_fixture_get, monkeypatch):
+    load_fred.load(con, series=_four_series())
+    serve = fred_client.requests.get  # the fixture server
+
+    def mortgage_down(url, params=None, timeout=None):
+        if params["series_id"] == "MORTGAGE30US":
+            raise RuntimeError("FRED is down for this series")
+        return serve(url, params=params, timeout=timeout)
+
+    monkeypatch.setattr(fred_client.requests, "get", mortgage_down)
+    fred_client._cache["data"] = None
+    load_fred.load(con, series=_four_series())
+    snap = json.loads(con.execute("SELECT snapshot FROM macro_snapshot").fetchone()[0])
+    assert snap["mortgage_rate_30yr"]["value"] == 6.22 and "error" not in snap["mortgage_rate_30yr"]
+    assert all("error" not in snap[key] for key in _four_series())
