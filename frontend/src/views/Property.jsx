@@ -658,6 +658,10 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
   const address = p.full_address || `Parcel ${p.parcel_id}`;
   const utility = utilityFor(p.parish);
   const hasAddress = Boolean(p.full_address);
+  // exempt_val is every exemption combined (homestead, veterans', religious, public...). A parcel
+  // exempt in full carries $0 land and building on Jefferson's roll, which would read as worthless.
+  const fullyExempt = p.exempt_val > 0 && p.assessed_val > 0 && p.exempt_val >= p.assessed_val;
+  const zeroedByExemption = fullyExempt && !p.land_val && !p.bld_val;
 
   const sections = [
     [
@@ -665,9 +669,16 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
       [
         { label: "Assessor market value", value: p.tot_mkt_val ? fmt.currency(p.tot_mkt_val) : null },
         { label: "Assessed value", value: p.assessed_val != null ? fmt.currency(p.assessed_val) : null },
-        { label: "Land value", value: p.land_val != null ? fmt.currency(p.land_val) : null },
-        { label: "Building value", value: p.bld_val != null ? fmt.currency(p.bld_val) : null },
+        { label: "Land value", value: p.land_val != null && !zeroedByExemption ? fmt.currency(p.land_val) : null },
+        { label: "Building value", value: p.bld_val != null && !zeroedByExemption ? fmt.currency(p.bld_val) : null },
         { label: "Homestead exemption", value: p.homestead_exempt_val ? fmt.currency(p.homestead_exempt_val) : null },
+        {
+          label: "Exemptions",
+          value: p.exempt_val ? `${fmt.currency(p.exempt_val)}${fullyExempt ? " · fully exempt" : ""}` : null,
+          note: fullyExempt
+            ? "All of the assessed value is exempt from property tax, as for religious, school, nonprofit or public property or a fully disabled veteran's home. The roll lists no separate land or building value for it."
+            : "Every exemption on the roll combined. Louisiana's homestead exemption covers the first $7,500 of assessed value.",
+        },
         { label: "Taxable value", value: p.taxable_val != null ? fmt.currency(p.taxable_val) : null },
       ],
     ],

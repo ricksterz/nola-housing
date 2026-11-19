@@ -296,7 +296,7 @@ function OwnershipStats({ ctx }) {
             <div className="stat">
               <div className="stat-label">Lived in by the owner</div>
               <div className="stat-value">{area.homestead_share == null ? "—" : pct(area.homestead_share, 1)}</div>
-              <div className="stat-sub">{area.homestead_share == null ? "Orleans doesn't publish homestead exemptions" : `of ${area.buildings.toLocaleString()} buildings claim a homestead exemption`}</div>
+              <div className="stat-sub">{area.homestead_share == null ? "Orleans doesn't publish homestead exemptions" : `of ${area.buildings.toLocaleString()} buildings are owned by a person and carry an exemption (homestead)`}</div>
             </div>
           </div>
           <div className="stat-section-title">Who owns them</div>
@@ -390,7 +390,7 @@ function OwnershipStats({ ctx }) {
 
       <div className="method-note">
         <span>
-          Counts are records on the Jefferson and Orleans Assessors' rolls; each condo unit is its own record. Owners are matched by name as written on the roll, so one owner spelled two ways counts twice, and two people with the same name count once. Organizations include companies, trusts, churches and nonprofits; public bodies include city, parish, state and federal agencies. "Lived in by the owner" is the share of Jefferson buildings claiming a homestead exemption, which only an owner's primary residence can.
+          Counts are records on the Jefferson and Orleans Assessors' rolls; each condo unit is its own record. Owners are matched by name as written on the roll, so one owner spelled two ways counts twice, and two people with the same name count once. Organizations include companies, trusts, churches and nonprofits; public bodies include city, parish, state and federal agencies. "Lived in by the owner" is the share of Jefferson buildings that a person owns and that carry a property-tax exemption: in practice the homestead exemption, which only an owner's primary residence can claim. The roll gives every exemption combined, so a full exemption counts only when a person owns the building (a fully disabled veteran's home), not a church, school or public body.
         </span>
       </div>
     </div>

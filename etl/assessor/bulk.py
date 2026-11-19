@@ -111,14 +111,10 @@ DEFAULT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "ASSD_VAL",
         "ASSESSED_V",  # Jefferson PAO_MAP_2025 (Esri-truncated "ASSESSED_VAL")
     ),
-    "homestead_exempt_val": (
-        "HOMESTEAD",
-        "HOMESTEAD_EXEMPTION",
-        "HMSTD_EXEMPT",
-        "EXEMPT_VALUE",
-        "HOMESTEAD_VALUE",
-        "HOMESTEADV",  # Jefferson PAO_MAP_2025
-    ),
+    "homestead_exempt_val": ("HOMESTEAD", "HOMESTEAD_EXEMPTION", "HMSTD_EXEMPT", "HOMESTEAD_VALUE"),
+    # All exemptions combined. Jefferson PAO_MAP_2025's HOMESTEADV is this, despite its name: it
+    # equals the whole assessed value on churches, schools and other fully exempt parcels.
+    "exempt_val": ("EXEMPT_VALUE", "TOTAL_EXEMPT", "EXEMPTIONS", "HOMESTEADV"),
     "taxable_val": ("TAXABLE_VALUE", "TAXABLE", "NET_ASSESSED", "TAXABLE_ASSESSED"),
     "tax_year": ("TAX_YEAR", "TAXYEAR", "ROLL_YEAR", "ASSESSMENT_YEAR", "YEAR"),
     "last_sale_date": ("SALE_DATE", "LAST_SALE_DATE", "SALEDATE", "DEED_DATE", "TRANSFER_DATE"),

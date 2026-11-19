@@ -40,6 +40,7 @@ _TYPES = {
     "tot_mkt_val": "DOUBLE",
     "assessed_val": "DOUBLE",
     "homestead_exempt_val": "DOUBLE",
+    "exempt_val": "DOUBLE",
     "taxable_val": "DOUBLE",
     "tax_year": "INTEGER",
     "last_sale_date": "DATE",
@@ -282,9 +283,32 @@ def load_parish(
     return summary
 
 
+# Source fields that are every exemption combined but were once loaded as homestead_exempt_val.
+_TOTAL_EXEMPT_FIELDS = ("HOMESTEADV", "EXEMPT_VALUE")
+
+
+def migrate_exempt_val(con: duckdb.DuckDBPyConnection) -> int:
+    """Move values that came from a total-exemption field out of homestead_exempt_val and into
+    exempt_val, using the source field kept in each row's payload. Idempotent; returns rows moved."""
+    if not con.execute(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'assessor_parcels_raw'"
+    ).fetchone()[0]:
+        return 0
+    ensure_tables(con)
+    from_total = " OR ".join(f"json_extract(payload, '$.raw.{f}') IS NOT NULL" for f in _TOTAL_EXEMPT_FIELDS)
+    return con.execute(
+        f"""
+        UPDATE assessor_parcels_raw
+        SET exempt_val = homestead_exempt_val, homestead_exempt_val = NULL
+        WHERE exempt_val IS NULL AND homestead_exempt_val IS NOT NULL AND ({from_total})
+        """
+    ).fetchone()[0]
+
+
 def build_derived(con: duckdb.DuckDBPyConnection) -> None:
     """assessor_parcels = latest record per (parish, parcel_id); assessed_value_history = per tax year."""
     ensure_tables(con)
+    migrate_exempt_val(con)
     cols = ", ".join(PARCEL_FIELDS)
     con.execute(
         f"""
@@ -304,7 +328,7 @@ def build_derived(con: duckdb.DuckDBPyConnection) -> None:
         """
         CREATE OR REPLACE TABLE assessed_value_history AS
         SELECT parish, parish_fips, parcel_id, tax_year, land_val, bld_val, tot_mkt_val, assessed_val,
-               homestead_exempt_val, taxable_val, source_kind, fetched_at
+               homestead_exempt_val, exempt_val, taxable_val, source_kind, fetched_at
         FROM (
             SELECT *, ROW_NUMBER() OVER (
                 PARTITION BY parish, parcel_id, tax_year ORDER BY fetched_at DESC

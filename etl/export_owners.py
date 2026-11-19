@@ -211,6 +211,22 @@ class Owners:
             out[geo] = self._area_stats(by_area.get(geo, []))
         return out
 
+    def _lived_in(self, parcel: dict) -> bool:
+        """Whether the roll shows a homestead. Jefferson gives only every exemption combined
+        (exempt_val). A partial one is the homestead (with any veterans' add-on), held by a person or
+        their trust. A full one is a church's, school's or public body's, unless a person owns it (a
+        fully disabled veteran's home), so a full exemption counts only for a person."""
+        if (parcel.get("homestead_exempt_val") or 0) > 0:
+            return True
+        exempt = parcel.get("exempt_val") or 0
+        if exempt <= 0:
+            return False
+        assessed = parcel.get("assessed_val") or 0
+        if not (assessed > 0 and exempt >= assessed):
+            return True
+        key = self.key_of.get((parcel["parish"], parcel["parcel_id"]))
+        return key is not None and self.kind[key] == "individual"
+
     def _area_stats(self, parcels: list[dict]) -> dict:
         keys = [self.key_of.get((p["parish"], p["parcel_id"])) for p in parcels]
         owned = [k for k in keys if k]
@@ -233,9 +249,9 @@ class Owners:
                 largest_by_kind[self.kind[k]].append(row)
             if len(largest) >= TOP_OWNERS and all(len(v) >= TOP_OWNERS for v in largest_by_kind.values()):
                 break
-        # Homestead exemptions are only published by Jefferson; Orleans parcels carry no values.
+        # Orleans parcels carry no values, so only Jefferson has buildings to count.
         buildings = [p for p in parcels if (p.get("bld_val") or 0) > 0]
-        homestead = sum(1 for p in buildings if (p.get("homestead_exempt_val") or 0) > 0)
+        homestead = sum(1 for p in buildings if self._lived_in(p))
         return {
             "records": len(parcels),
             "with_owner": len(owned),
