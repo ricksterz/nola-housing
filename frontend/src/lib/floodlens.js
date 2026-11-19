@@ -1,10 +1,9 @@
 // FloodLens, read live from the property report. FloodLens is a separate service on a free host
 // that sleeps when idle, so the first request after a quiet spell can take up to a minute.
 //
-// The report shows FloodLens's FACTS for the spot (ground elevation, levee, storm surge, past
-// insurance claims in the census tract), not its 0-100 score. NOLA Atlas only shows what
-// FloodLens's backtest supports (see README "FloodLens tracts"): the score itself was validated
-// only as a top-fifth signal inside FEMA A zones, which the report already shows separately.
+// The report shows FloodLens's 0-100 score under the FEMA zone, always labeled as a model estimate
+// validated only inside FEMA A zones (README "FloodLens tracts"), then its facts for the spot
+// (ground elevation, levee, storm surge, past insurance claims in the census tract).
 import { FLOODLENS_URL } from "./links";
 
 const API = (import.meta.env.VITE_FLOODLENS_API || FLOODLENS_URL).replace(/\/$/, "");
@@ -35,6 +34,22 @@ export function wakeFloodLens() {
   if (woken || typeof fetch === "undefined") return;
   woken = true;
   fetch(`${API}/api/health`, { mode: "no-cors" }).catch(() => {});
+}
+
+const RISK_LABEL = { HIGH: "High", MODERATE: "Moderate", "LOW-MODERATE": "Low to moderate", LOW: "Low" };
+
+/** FloodLens's 0-100 score for a lookup, or null when it didn't score the spot (it needs data for
+ *  70% of its model's weight and never fills the rest with a guess). */
+export function floodScore(d) {
+  const r = d?.risk_score;
+  if (!r || r.overall_score == null) return null;
+  const prelim = d.flood_zone?.zone_status === "preliminary";
+  return {
+    score: Math.round(r.overall_score),
+    label: RISK_LABEL[r.risk_label] || null,
+    coverage: r.score_basis === "partial" ? r.data_coverage : null,
+    prelimDate: prelim ? d.flood_zone.prelim_issue_date || null : null,
+  };
 }
 
 const ft = (n) => `${Math.abs(n).toFixed(1)} ft`;
