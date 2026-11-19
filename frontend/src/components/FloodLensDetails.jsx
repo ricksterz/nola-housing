@@ -37,13 +37,17 @@ function FloodLensScore({ d, inAZone }) {
 export default function FloodLensDetails({ p }) {
   const [state, setState] = useState({ status: "loading" });
   const [slow, setSlow] = useState(false);
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again"
   const link = floodLensLink(p.full_address || `${p.lat},${p.lng}`);
 
   useEffect(() => {
     // The parent keys this component by location, so each spot starts from the loading state.
     let live = true;
     const t = setTimeout(() => live && setSlow(true), 4000);
+    // One quiet retry before saying anything: a sleeping host or a dropped connection usually
+    // answers the second time. getFloodLens drops a failed lookup from its cache, so this refetches.
     getFloodLens(p.lat, p.lng)
+      .catch(() => (live ? getFloodLens(p.lat, p.lng) : Promise.reject()))
       .then((d) => live && setState({ status: "ok", d }))
       .catch(() => {
         if (!live) return;
@@ -55,7 +59,13 @@ export default function FloodLensDetails({ p }) {
       live = false;
       clearTimeout(t);
     };
-  }, [p.lat, p.lng]);
+  }, [p.lat, p.lng, attempt]);
+
+  function retry() {
+    setState({ status: "loading" });
+    setSlow(false);
+    setAttempt((n) => n + 1);
+  }
 
   const open = (
     <a href={link} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
@@ -75,9 +85,17 @@ export default function FloodLensDetails({ p }) {
     );
   }
   if (state.status === "error") {
+    // Quiet on purpose: the FEMA zone above already answers the main question.
     return (
-      <div className="floodlens-live">
-        <div className="flood-detail">FloodLens didn't answer just now. {open}</div>
+      <div className="floodlens-live" aria-live="polite">
+        <div className="method-note">
+          Flood details from FloodLens are taking longer than usual.{" "}
+          <button type="button" className="link-button" onClick={retry}>
+            Try again
+          </button>
+          {" · "}
+          {open}
+        </div>
       </div>
     );
   }
