@@ -5,10 +5,16 @@ import Sparkline from "../components/Sparkline";
 import { COST_PARTS, HOMEOWNERS_RANGE, annualTax, monthlyCost, useCostAssumptions } from "../lib/costs";
 import { diverging, fmt, fmtCompactCurrency, seriesColor, sequential } from "../lib/theme";
 
+// Redfin's median sale price is the median of whatever sold in the 3-month window; on a dozen sales
+// it swings ±20% a year from the mix alone. Below this many sales its YoY is greyed and unshaded.
+// ZHVI is Zillow's estimate across every home, so its YoY doesn't depend on how many sold.
+const MIN_SALES = 30;
+const thinSample = (r) => r.homes_sold != null && r.homes_sold < MIN_SALES;
+
 const COLS = [
   { key: "geo", label: "ZIP · area", sort: "geo_id", align: "left" },
   { key: "median_sale_price", label: "Median sale", fmt: fmtCompactCurrency, heat: "seq" },
-  { key: "price_yoy_pct", label: "YoY", fmt: (v) => fmt.signedPct(v, 0), heat: "div" },
+  { key: "price_yoy_pct", label: "YoY", fmt: (v) => fmt.signedPct(v, 0), heat: "div", needsSales: true },
   { key: "zhvi", label: "ZHVI", fmt: fmtCompactCurrency, heat: "seq" },
   { key: "zhvi_yoy_pct", label: "YoY", fmt: (v) => fmt.signedPct(v, 1), heat: "div" },
   { key: "zori", label: "Rent", fmt: (v) => (v != null ? fmt.currency(v) : "—") },
@@ -37,6 +43,8 @@ export default function Scorecard({ ctx }) {
     });
   }, [scorecard, parish, sortKey, dir]);
 
+  const thin = rows.filter(thinSample);
+
   // ZIPs with no ZORI: Zillow publishes its rent index only where it has enough listings.
   const noRent = rows.filter((r) => r.zori == null).map((r) => r.geo_id);
 
@@ -44,7 +52,7 @@ export default function Scorecard({ ctx }) {
     const out = {};
     for (const c of COLS) {
       if (!c.heat) continue;
-      const vals = rows.map((r) => r[c.key]).filter((v) => v != null);
+      const vals = rows.filter((r) => !(c.needsSales && thinSample(r))).map((r) => r[c.key]).filter((v) => v != null);
       if (!vals.length) continue;
       out[c.key] = { min: Math.min(...vals), max: Math.max(...vals), absmax: Math.max(...vals.map(Math.abs)) };
     }
@@ -128,6 +136,14 @@ export default function Scorecard({ ctx }) {
                       );
                     if (c.key === "spark") return <td key="spark"><Sparkline values={r.spark_price} width={80} height={22} /></td>;
                     const v = r[c.key];
+                    if (c.needsSales && thinSample(r) && v != null)
+                      return (
+                        <td key={c.key} className="num">
+                          <span className="thin-sample" title={`Only ${fmt.int(r.homes_sold)} homes sold: too few for a reliable year-over-year change`}>
+                            {c.fmt(v)}†
+                          </span>
+                        </td>
+                      );
                     const style = cellStyle(c, v);
                     return (
                       <td key={c.key} className="num">
@@ -142,6 +158,11 @@ export default function Scorecard({ ctx }) {
         </div>
       </div>
 
+      {thin.length > 0 && (
+        <div className="stat-note" style={{ margin: "-6px 0 8px" }}>
+          {`† Fewer than ${MIN_SALES} homes sold in the 3-month window (${thin.map((r) => r.geo_id).join(", ")}): the median sale price moves a lot on a few sales, so its YoY is greyed and left out of the shading. ZHVI's YoY covers every home, so it stands.`}
+        </div>
+      )}
       {noRent.length > 0 && (
         <div className="stat-note" style={{ margin: "-6px 0 16px" }}>
           {`No rent or yield for ${noRent.join(", ")}: Zillow publishes its rent index only where it has enough rental listings.`}
