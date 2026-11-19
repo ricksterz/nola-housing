@@ -122,7 +122,9 @@ export default function Home({ ctx }) {
   function onPick(a) {
     if (a.kind === "street") open({ street: a.slug });
     else if (a.kind === "owner") open({ view: "ownership", owner: a.slug });
-    else open({ q: a.full || a.address });
+    // `address` is what to look up (a parcel number for a condo unit, the property for a one-record
+    // owner); `full` is only the label, which for an owner suggestion is their name.
+    else open({ q: a.address });
   }
 
   return (

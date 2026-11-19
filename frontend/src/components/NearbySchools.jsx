@@ -78,7 +78,7 @@ export default function NearbySchools({ p }) {
             {list.length > 0 ? (
               <ul className="school-list">
                 {list.map((s) => (
-                  <SchoolRow key={s.slug} s={s} zip={zip} />
+                  <SchoolRow key={`${s.slug}@${s.lat},${s.lng}`} s={s} zip={zip} />
                 ))}
               </ul>
             ) : (
