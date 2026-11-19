@@ -207,6 +207,7 @@ a.btn { text-decoration: none; }
 .data-table tr.clickable { cursor: pointer; }
 .heat { display: inline-block; min-width: 56px; padding: 2px 7px; border-radius: 6px; text-align: right; color: var(--text-bright); }
 [data-theme="light"] .heat.strong { color: #ffffff; }
+.thin-sample { display: inline-block; min-width: 56px; padding: 2px 7px; text-align: right; color: var(--text-dimmer); cursor: help; }
 .geo-cell { display: flex; flex-direction: column; line-height: 1.2; }
 .geo-cell .geo-name { font-size: 11px; color: var(--text-dim); font-weight: 400; }
 .geo-cell .geo-id { font-weight: 650; color: var(--text-bright); }

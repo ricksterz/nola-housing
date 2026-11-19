@@ -73,8 +73,12 @@ export const fmt = {
   num: (v) => (v != null ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 }) : "—"),
   int: (v) => (v != null ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "—"),
   pct: (v, digits = 1) => (v != null ? `${Number(v).toFixed(digits)}%` : "—"),
-  signedPct: (v, digits = 1) =>
-    v != null ? `${Number(v) > 0 ? "+" : ""}${Number(v).toFixed(digits)}%` : "—",
+  signedPct: (v, digits = 1) => {
+    if (v == null) return "—";
+    const s = Number(v).toFixed(digits);
+    if (Number(s) === 0) return "0%"; // a change that rounds to zero is "0%", never "-0%"
+    return `${Number(v) > 0 ? "+" : ""}${s}%`;
+  },
   days: (v) => (v != null ? `${Math.round(v)} d` : "—"),
   raw: (v) => (v != null && v !== "" ? String(v) : "—"),
   date: (v) => {
