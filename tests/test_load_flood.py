@@ -133,3 +133,27 @@ def test_carry_over_gives_tax_bill_records_their_lots_zone(con):
     assert zones["103109611"] == zones["103109620"] == "X"
     assert zones["105306710"] == "AE"  # its own zone wins
     assert load_flood.carry_over_by_lot(con) == 0  # idempotent
+
+
+def test_carry_over_gives_a_tax_bill_on_several_lots_one_zone(con):
+    # One tax bill spanning three lots that touch different zones: one row, the higher-risk zone.
+    from etl import load_flood
+
+    load_flood.ensure_table(con)
+    con.execute("CREATE TABLE assessor_parcels_raw (parish VARCHAR, parcel_id VARCHAR, payload VARCHAR)")
+    con.execute(
+        "INSERT INTO assessor_parcels_raw VALUES"
+        """ ('orleans', '39W822811', '{"lot_id": "41127737"}'),"""
+        """ ('orleans', '39W822811', '{"lot_id": "41127738"}'),"""
+        """ ('orleans', '39W822811', '{"lot_id": "41127739"}')"""
+    )
+    con.execute(
+        "INSERT INTO parcel_flood VALUES"
+        " ('orleans', '41127737', 'X', '0.2 PCT ANNUAL CHANCE FLOOD HAZARD', false, NULL),"
+        " ('orleans', '41127738', 'X', 'AREA WITH REDUCED FLOOD RISK DUE TO LEVEE', false, NULL),"
+        " ('orleans', '41127739', 'AE', NULL, true, NULL)"
+    )
+    assert load_flood.carry_over_by_lot(con) == 1
+    assert con.execute("SELECT flood_zone FROM parcel_flood WHERE parcel_id = '39W822811'").fetchall() == [
+        ("AE",)
+    ]

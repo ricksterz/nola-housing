@@ -120,3 +120,23 @@ def test_houston_compat_views(
         ["70005"],
     ).fetchone() == (650000.0, 60.0, 4.0)
     assert con.execute("SELECT COUNT(*) FROM zori_trend").fetchone()[0] == 5
+
+
+def test_parcel_market_has_one_row_per_parcel_when_flood_rows_repeat(
+    con, fx, fake_http, redfin_fixtures, zillow_fixtures, fred_fixture_get, monkeypatch
+):
+    # A published parcel_flood can hold two zones for one record (a tax bill on several lots);
+    # the join must still give one row per parcel, or every count built on it runs high.
+    _load_all(con, fx, fake_http, monkeypatch)
+    con.execute(
+        "INSERT INTO parcel_flood VALUES"
+        " ('jefferson', '0520001234', 'X', '0.2 PCT ANNUAL CHANCE FLOOD HAZARD', false, NULL),"
+        " ('jefferson', '0520001234', 'X', 'AREA WITH REDUCED FLOOD RISK DUE TO LEVEE', false, NULL),"
+        " ('jefferson', '0520001234', 'AE', NULL, true, NULL)"
+    )
+    build_join.build(con)
+    parcels = con.execute("SELECT COUNT(*) FROM assessor_parcels").fetchone()[0]
+    assert con.execute("SELECT COUNT(*) FROM parcel_market").fetchone()[0] == parcels
+    assert con.execute("SELECT flood_zone FROM parcel_market WHERE parcel_id = '0520001234'").fetchall() == [
+        ("AE",)
+    ]

@@ -178,17 +178,25 @@ def carry_over_by_lot(con: duckdb.DuckDBPyConnection) -> int:
     con.execute(
         """
         INSERT INTO parcel_flood
-        SELECT DISTINCT r.parish, r.parcel_id, f.flood_zone, f.flood_zone_subtype, f.flood_sfha,
-               f.nfhl_pulled_at
+        SELECT parish, parcel_id, flood_zone, flood_zone_subtype, flood_sfha, nfhl_pulled_at
         FROM (
-            SELECT DISTINCT parish, parcel_id, json_extract_string(payload, '$.lot_id') AS lot_id
-            FROM assessor_parcels_raw
-        ) r
-        JOIN parcel_flood f ON f.parish = r.parish AND f.parcel_id = r.lot_id
-        WHERE r.lot_id IS NOT NULL
-          AND NOT EXISTS (
-              SELECT 1 FROM parcel_flood x WHERE x.parish = r.parish AND x.parcel_id = r.parcel_id
-          )
+            SELECT r.parish, r.parcel_id, f.flood_zone, f.flood_zone_subtype, f.flood_sfha,
+                   f.nfhl_pulled_at,
+                   -- A tax bill spanning several lots gets one zone, the higher-risk one.
+                   ROW_NUMBER() OVER (
+                       PARTITION BY r.parish, r.parcel_id
+                       ORDER BY f.flood_sfha DESC, f.flood_zone, f.flood_zone_subtype NULLS LAST
+                   ) AS rn
+            FROM (
+                SELECT DISTINCT parish, parcel_id, json_extract_string(payload, '$.lot_id') AS lot_id
+                FROM assessor_parcels_raw
+            ) r
+            JOIN parcel_flood f ON f.parish = r.parish AND f.parcel_id = r.lot_id
+            WHERE r.lot_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM parcel_flood x WHERE x.parish = r.parish AND x.parcel_id = r.parcel_id
+              )
+        ) WHERE rn = 1
         """
     )
     added = con.execute("SELECT COUNT(*) FROM parcel_flood").fetchone()[0] - before
