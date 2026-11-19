@@ -32,6 +32,7 @@ etl/
   load_flood.py          FEMA NFHL flood zone per parcel                 -> parcel_flood
   load_costs.py          ACS property tax rate + NFIP flood cost by ZIP  -> zip_tax_rate, zip_flood_cost
   db_compact.py          reclaim DuckDB file space after a refresh (VACUUM doesn't)
+  check_staleness.py     weekly: fail (and email) when any source is older than its threshold
   db_store.py            download / publish the database on the `data` release (not in git)
   build_floodlens_tracts.py  FloodLens's validated top-fifth tracts -> data/floodlens_tracts.geojson
   assessor/
@@ -53,7 +54,8 @@ etl/
 tests/                   fixture-backed tests for every loader, the assessor fallbacks and the join
 cloudflare/link-previews/ Worker on nolaatlas.com/: link previews for property and owner lookups
 .github/workflows/       ci.yml, security.yml, refresh-market-data.yml, refresh-assessor.yml,
-                         refresh-flood.yml, refresh-addresses.yml, deploy-pages.yml
+                         refresh-flood.yml, refresh-addresses.yml, deploy-pages.yml,
+                         check-staleness.yml
 ```
 
 ## Setup

@@ -48,6 +48,7 @@ function highlightMatch(text, query) {
 function OwnerSearch({ navigate }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsFor, setSuggestionsFor] = useState(""); // the text the shown list was built for
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [searching, setSearching] = useState(false);
@@ -93,6 +94,7 @@ function OwnerSearch({ navigate }) {
       if (seq !== requestSeq.current) return;
       setSearching(false);
       setSuggestions(results);
+      setSuggestionsFor(v);
       setSuggestOpen(results.length > 0);
     }, SUGGEST_DEBOUNCE_MS);
   }
@@ -123,7 +125,10 @@ function OwnerSearch({ navigate }) {
     if (e.key === "Enter") {
       e.preventDefault();
       // Enter used to do nothing until the suggestions had loaded; now it searches immediately.
-      if (suggestOpen && suggestions.length > 0) pick(suggestions[activeIndex >= 0 ? activeIndex : 0]);
+      // A list still showing matches for earlier text (typed on before the debounce caught up) only
+      // counts if the reader arrowed to an item in it; otherwise search what's in the box now.
+      const listIsCurrent = suggestionsFor === query || activeIndex >= 0;
+      if (suggestOpen && suggestions.length > 0 && listIsCurrent) pick(suggestions[activeIndex >= 0 ? activeIndex : 0]);
       else runSearch();
       return;
     }

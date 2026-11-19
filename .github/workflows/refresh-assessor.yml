@@ -113,6 +113,8 @@ jobs:
           python -m etl.refresh_assessor $ARGS
 
       - name: Publish the database if it changed
+        # Also after a failed refresh in which one parish loaded and the join was rebuilt.
+        if: success() || steps.refresh.outputs.rebuilt == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PARISH: ${{ (github.event.schedule == '0 7 * * 1' || github.event.schedule == '0 7 * * 4') && 'orleans weekly' || github.event_name == 'schedule' && 'scheduled' || github.event.inputs.parish }}
