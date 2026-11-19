@@ -44,6 +44,10 @@ jobs:
         run: python -m etl.db_store pull
       - name: Export static data from the DuckDB snapshot
         run: python -m etl.export_static
+      # Nearby schools for the property report, from School Finder's own page (etl/export_schools.py).
+      # A failed fetch only skips the file; the report then keeps its plain School Finder link.
+      - name: Export the school list from School Finder
+        run: python -m etl.export_schools
       - uses: actions/setup-node@v7
         with:
           node-version: 22

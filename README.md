@@ -49,6 +49,7 @@ etl/
   refresh_flood.py       monthly: FEMA flood zones, rebuild join
   load_address_points.py monthly: City address points -> lot, for addresses the roll files under another
   export_owners.py       owner pages, owner-name search and ownership stats
+  export_schools.py      School Finder's school list -> data/schools.json (nearby schools in the report)
   prerender.py           after the site build: a real HTML page per tab and area, and sitemap.xml
   probe_assessor_bulk.py report which official bulk options answer
 tests/                   fixture-backed tests for every loader, the assessor fallbacks and the join
@@ -104,12 +105,12 @@ wider feature set:
 
 | View | What it shows |
 |---|---|
-| Home (`/`) | A landing page with four paths, each a large illustration, a short description and one way in: Homes (Property Lookup and the market tabs), Schools ([School Finder](https://schools.nolaatlas.com/)), Flood ([FloodLens](https://nola-floodlens.onrender.com/)) and AI & Power. The illustrations are inline SVG in `frontend/src/components/HomeScenes.jsx`. |
+| Home (`/`) | The address box first, under the promise "Type any New Orleans or Metairie address: see what it really costs, how it floods, and which schools you can get into." Below it, four topic cards (inline SVG in `frontend/src/components/HomeScenes.jsx`): Homes (the market tabs), Flood ([FloodLens](https://nola-floodlens.onrender.com/)), Schools ([School Finder](https://schools.nolaatlas.com/)) and AI & Power. |
 | Market Overview (`/market/`) | One area at a time (metro, parish or any of 24 ZIPs): KPI tiles with YoY deltas and sparklines, then home value vs. sale price, rent, DOM, listings pipeline, inventory, months of supply, $/sqft and negotiation charts. Every chart has a table twin. |
 | ZIP Scorecard | All ZIPs side by side: latest reading, YoY, heat-shaded cells (one-hue ramp for magnitude, blue/red for change), 24-month sparkline; sortable, filter by parish; click through to the overview. Plus gross rent yield (rent vs. buy) and monthly payment on the median sale at an adjustable rate. |
 | Compare | Overlay up to six areas on one metric, optionally indexed to 100, with small multiples. Colors are bound to the area, not its rank. |
 | Macro | Metro vs. parish ZHVI/ZORI indexed; with FRED loaded: 30-yr mortgage rate, FHFA HPI (metro, Jefferson, Orleans) and realtor.com listing series. |
-| Property Lookup | Assessor parcel record, value history, indicative value from the ZIP's $/sqft, ZIP market context. |
+| Property Lookup | Assessor parcel record, the FEMA flood zone with FloodLens's facts for the spot read live (ground elevation, levee, storm surge, past claims in the tract; `frontend/src/lib/floodlens.js`, no score), monthly cost to own, the nearest public and private schools from School Finder's list (`etl/export_schools.py`), the assessment check, nearby homes. |
 | AI & Power (`/power/`) | A hand-kept, sourced tracker of AI data centers and the gas plants built for them in Louisiana: headline megawatts, a map of the sites, who regulates Orleans and Jefferson rates, a filterable decision log with a countdown to the next vote, and both sides of the bill question. Edit `frontend/src/data/power.json` (the app and `etl/prerender.py` both read it) and update its `checked` date (and `nextVote` once a vote is set or held). |
 
 Charts follow the dataviz rules in this repo's tooling: no dual axes, a fixed
@@ -126,6 +127,7 @@ cd frontend && npm install && npm run dev
 
 # Static site (GitHub Pages / previews): bake JSON, then build
 python -m etl.export_static
+python -m etl.export_schools   # optional: nearby schools; SCHOOLS_SOURCE=page.html works offline
 cd frontend && VITE_STATIC_DATA=true npm run build   # Pages builds use VITE_BASE=./ (relative)
 ```
 
