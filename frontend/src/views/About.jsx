@@ -23,7 +23,7 @@ export default function About({ ctx }) {
         <h3 className="panel-title">About NOLA Atlas</h3>
         <p className="text-block">
           NOLA Atlas is a free, independent reference for homes in New Orleans and Metairie: parcel records,
-          flood risk, the true monthly cost of owning, how an assessment compares, and home values, rents and
+          flood risk, how an assessment compares, the monthly cost of buying in each ZIP, and home values, rents and
           market trends for 24 residential ZIPs in Jefferson and Orleans Parish. It is built by a
           local resident, not a brokerage, on public data, and refreshes automatically: market feeds monthly, parcel
           records on each parish assessor's calendar.
@@ -42,7 +42,7 @@ export default function About({ ctx }) {
           <li><strong>ZIP Scorecard</strong> — all 24 ZIPs side by side with the latest reading, year-over-year change and a 24-month price sparkline. Cell shading is a single blue ramp for magnitude and blue/red for change. Below it: gross rent yield (rent vs. buy) and the true monthly cost of the median sale: loan, property tax, homeowners and flood insurance.</li>
           <li><strong>Compare</strong> — overlay up to six areas on one metric, optionally indexed to 100 so growth can be compared across very different price levels, with small multiples underneath.</li>
           <li><strong>Macro</strong> — metro vs. parish indexes, the 30-year mortgage rate, FHFA house price indexes and realtor.com listing series for the MSA.</li>
-          <li><strong>Property Lookup</strong> — parcel records from the parish assessor (owner, assessed value, exemptions, value history, legal description), the FEMA flood zone, a map of the homes around it, the ZIP's market context and a monthly cost to own at a price you set. Copy link shares the page for that address.{orleansParcels ? " Orleans parcels have no assessed values yet — see Methodology." : " Currently Jefferson Parish only — see Methodology."}</li>
+          <li><strong>Property Lookup</strong> — parcel records from the parish assessor (owner, assessed value, exemptions, value history, legal description), the FEMA flood zone, a map of the homes around it and the ZIP's market context. Copy link shares the page for that address.{orleansParcels ? " Orleans parcels have no assessed values yet — see Methodology." : " Currently Jefferson Parish only — see Methodology."}</li>
           <li><strong>Ownership</strong> — who owns each ZIP and parish by owner type (individuals, organizations, public bodies), the largest owners, and an owner page for anyone with two or more records. Names are matched as written on the rolls; see "Is the owner shown correct?" below.</li>
           <li><strong>AI &amp; Power</strong> — a hand-kept tracker of AI data centers in Louisiana, the power plants proposed to serve them, the Public Service Commission decisions and what they could mean for bills. Every item links its source; where the two sides of the bill question disagree, both are given, attributed. Pending cases change, so check the linked filings.</li>
         </ul>
@@ -139,12 +139,12 @@ export default function About({ ctx }) {
           </ul>
         </div>
         <div className="faq-item">
-          <div className="faq-q">Monthly cost to own</div>
+          <div className="faq-q">Monthly cost to own, by ZIP (Scorecard)</div>
           <ul className="text-list">
             <li>Principal and interest: a 30-year fixed loan at the rate and down payment you set. The rate starts at the latest Freddie Mac weekly average.</li>
             <li>Property tax: starts from what owner-occupants in the ZIP report paying: total real estate taxes ÷ the total value of their homes, from the Census American Community Survey 5-year estimates{costs.tax_acs_year ? ` (${costs.tax_acs_year - 4}–${costs.tax_acs_year})` : ""}. Nearly all of those owners get Louisiana's homestead exemption on the first $75,000 of value ($7,500 assessed), so that exemption is backed out for every owner-occupied home to get the ZIP's rate on full value.</li>
             <li>A home you'll live in ("I'll live here", the default) is taxed at that rate on the price minus $75,000. A rental or second home gets no homestead exemption and is taxed on the full price, typically $500–$900 a year more here. The rate is an estimate: owners report their own home values and taxes, millage differs within a ZIP (in Harahan, for example, city taxes are added and the homestead exemption doesn't cover them), and senior, veteran and disability exemptions aren't modeled. It's applied to the price you enter, which assumes the home is eventually assessed near that price.</li>
-            <li>Flood insurance: the median yearly cost (premium plus fees and surcharges) of single-family, one-year NFIP policies in the ZIP that took effect{costs.flood_period_start ? ` between ${costs.flood_period_start.slice(0, 10)} and ${costs.flood_period_end.slice(0, 10)}` : " in the last 12 months"}, from FEMA's OpenFEMA policy data. On a property, it uses the policies for that parcel's zone class (high-risk A/V or not); the Scorecard uses all policies in the ZIP. A ZIP or zone class with fewer than 20 policies isn't published.</li>
+            <li>Flood insurance: the median yearly cost (premium plus fees and surcharges) of single-family, one-year NFIP policies in the ZIP that took effect{costs.flood_period_start ? ` between ${costs.flood_period_start.slice(0, 10)} and ${costs.flood_period_end.slice(0, 10)}` : " in the last 12 months"}, from FEMA's OpenFEMA policy data. The Scorecard uses all policies in the ZIP. A ZIP or zone class with fewer than 20 policies isn't published.</li>
             <li>Existing NFIP policies are still stepping up to full-risk rates (for most primary homes, increases are capped at 18% a year), so a brand-new policy can cost more than the median. NFIP policies can usually be assumed by a buyer. NFIP building coverage tops out at $250,000; private or excess flood coverage costs extra.</li>
             <li>Homeowners (wind and fire) insurance: your estimate. There's no public ZIP-level source. The starting value sits inside the range 2026 insurance-comparison sites publish for Louisiana (about $2,900–$7,300 a year, depending on the source and coverage) and isn't a quote.</li>
             <li>Not included: HOA or condo dues, mortgage insurance on loans with less than 20% down, and maintenance.</li>
