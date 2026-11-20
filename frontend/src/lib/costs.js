@@ -15,7 +15,7 @@ export const COST_PARTS = [
 ];
 
 // Louisiana homestead exemption, $75,000 of market value; the data file carries the same figure.
-export const HOMESTEAD_EXEMPT_DEFAULT = 75000;
+const HOMESTEAD_EXEMPT_DEFAULT = 75000;
 
 /**
  * Annual property tax for a ZIP's rates. A home you live in is taxed on its price minus the
@@ -39,13 +39,6 @@ export function monthlyCost({ price, downPct, ratePct, taxAnnual, homeownersAnnu
     flood: (floodAnnual || 0) / 12,
   };
   return { ...parts, total: parts.pi + parts.tax + parts.home + parts.flood };
-}
-
-/** Flood cost group for a parcel: its own zone class when known, else the ZIP overall. */
-export function floodGroup(parcel) {
-  if (parcel?.flood_sfha === true) return "sfha";
-  if (parcel?.flood_zone) return "other";
-  return "all";
 }
 
 const KEY = "nola-cost-assumptions";
