@@ -288,7 +288,6 @@ a.btn { text-decoration: none; }
 @media (max-width: 560px) { .floodlens-fact { grid-template-columns: 1fr; } }
 
 /* Schools near an address (components/NearbySchools.jsx): public and private side by side. */
-.school-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 28px; }
 .school-list { list-style: none; margin: 0; padding: 0; }
 .school-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border-alt); }
 .school-row:first-child { border-top: none; }
@@ -296,7 +295,6 @@ a.btn { text-decoration: none; }
 .school-main a { font-size: 14px; font-weight: 600; }
 .school-facts { font-size: 12.5px; color: var(--text-dimmer); line-height: 1.45; }
 .school-dist { flex: none; font-size: 12.5px; color: var(--text-dim); }
-@media (max-width: 760px) { .school-groups { grid-template-columns: 1fr; } }
 
 .footer { margin-top: 56px; border-top: 1px solid var(--border); background: var(--panel); }
 .footer-inner { max-width: 1180px; margin: 0 auto; padding: 28px clamp(16px, 3vw, 24px) 40px; color: var(--text-dimmer); font-size: 11.5px; line-height: 1.7; }

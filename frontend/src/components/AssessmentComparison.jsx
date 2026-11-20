@@ -1,3 +1,4 @@
+import { subdivisionName } from "../lib/names";
 import { fmt, fmtCompactCurrency } from "../lib/theme";
 
 // When each parish's assessment rolls are open for review. Month is 0-based.
@@ -76,7 +77,7 @@ export default function AssessmentComparison({ p, comparison }) {
     },
     c.subdivision && {
       key: "subdivision",
-      title: c.subdivision.name,
+      title: subdivisionName(c.subdivision.name),
       sub: `${c.subdivision.n.toLocaleString()} similar parcels in the subdivision`,
       g: c.subdivision,
     },
