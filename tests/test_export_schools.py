@@ -50,3 +50,12 @@ def test_page_without_school_list_is_an_error():
     except ValueError:
         return
     raise AssertionError("expected ValueError")
+
+
+def test_summary_counts_kept_and_dropped_by_kind():
+    # A kind whose schools have no location on School Finder would vanish from "nearby": this says so.
+    schools = export_schools.parse_page(open(FIXTURE).read())
+    assert export_schools.summary(schools) == (
+        "Schools: 4 with a location (2 public, 1 Catholic, 1 private); "
+        "1 without one, left out (0 public, 0 Catholic, 1 private)."
+    )
