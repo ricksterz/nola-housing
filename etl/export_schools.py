@@ -43,13 +43,38 @@ def _tuition(t: dict | None) -> dict | None:
     return {"low": min(amounts), "high": max(amounts), "year": t.get("year") or None}
 
 
+def kind(s: dict) -> str:
+    """public, catholic or private (a private school that isn't Catholic)."""
+    if s.get("sector") == "public":
+        return "public"
+    return "catholic" if s.get("catholic") else "private"
+
+
+def summary(schools: list[dict]) -> str:
+    """Kept and dropped by kind, for the deploy log: a kind missing its locations shows up here."""
+
+    def by_kind(rows):
+        n = {k: 0 for k in ("public", "catholic", "private")}
+        for s in rows:
+            n[kind(s)] += 1
+        return f"{n['public']} public, {n['catholic']} Catholic, {n['private']} private"
+
+    named = [s for s in schools if s.get("school")]
+    located = [s for s in named if s.get("lat") is not None and s.get("lon") is not None]
+    missing = [s for s in named if s not in located]
+    return (
+        f"Schools: {len(located)} with a location ({by_kind(located)}); "
+        f"{len(missing)} without one, left out ({by_kind(missing)})."
+    )
+
+
 def compact(schools: list[dict]) -> list[dict]:
     """Keep what the report shows; drop schools with no location (they can't be 'nearby')."""
     out = []
     for s in schools:
         if s.get("lat") is None or s.get("lon") is None or not s.get("school"):
             continue
-        public = s.get("sector") == "public"
+        public = kind(s) == "public"
         out.append(
             {
                 "name": s["school"],
@@ -58,7 +83,7 @@ def compact(schools: list[dict]) -> list[dict]:
                 "lat": round(float(s["lat"]), 5),
                 "lng": round(float(s["lon"]), 5),
                 "grades": s.get("grades") or None,
-                "kind": "public" if public else "catholic" if s.get("catholic") else "private",
+                "kind": kind(s),
                 "charter": bool(s.get("charter")) if public else None,
                 "admission": s.get("admission") or None,
                 "letter_grade": (s.get("letter_grade") or None) if public else None,
@@ -91,13 +116,14 @@ def fetch_page() -> str:
 
 def main(out: Path = OUT) -> int:
     try:
-        rows = compact(parse_page(fetch_page()))
+        schools = parse_page(fetch_page())
+        rows = compact(schools)
     except Exception as e:  # noqa: BLE001 - a sister site being down must not stop the deploy
         print(f"Schools: skipped ({type(e).__name__}: {e}); the report keeps its School Finder link.")
         return 0
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"source": SCHOOLS_URL, "schools": rows}, separators=(",", ":")))
-    print(f"Schools: {len(rows)} with a location, from School Finder.")
+    print(summary(schools))
     return len(rows)
 
 

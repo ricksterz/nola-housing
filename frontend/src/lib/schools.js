@@ -4,7 +4,14 @@
 import { SCHOOLS_URL } from "./links";
 
 export const SCHOOL_RADIUS_MI = 2;
-export const SCHOOLS_PER_GROUP = 4;
+export const SCHOOLS_SHOWN = 8;
+// The filter chips, in order. "private" is private schools that aren't Catholic.
+export const SCHOOL_KINDS = [
+  ["all", "All"],
+  ["public", "Public"],
+  ["private", "Private"],
+  ["catholic", "Catholic"],
+];
 
 const EARTH_MI = 3958.8;
 const rad = (d) => (d * Math.PI) / 180;
@@ -14,17 +21,12 @@ export function milesBetween(lat1, lng1, lat2, lng2) {
   return 2 * EARTH_MI * Math.asin(Math.sqrt(a));
 }
 
-/** { public, private } nearest first, each within SCHOOL_RADIUS_MI and at most SCHOOLS_PER_GROUP. */
-export function nearbySchools(schools, lat, lng, { radius = SCHOOL_RADIUS_MI, perGroup = SCHOOLS_PER_GROUP } = {}) {
-  const near = (schools || [])
-    .map((s) => ({ ...s, miles: milesBetween(lat, lng, s.lat, s.lng) }))
-    .filter((s) => s.miles <= radius)
-    .sort((a, b) => a.miles - b.miles);
-  return {
-    public: near.filter((s) => s.kind === "public").slice(0, perGroup),
-    private: near.filter((s) => s.kind !== "public").slice(0, perGroup),
-  };
+/** Every located school with its straight-line distance from the address, nearest first. */
+export function schoolsByDistance(schools, lat, lng) {
+  return (schools || []).map((s) => ({ ...s, miles: milesBetween(lat, lng, s.lat, s.lng) })).sort((a, b) => a.miles - b.miles);
 }
+
+export const matchesKind = (s, kind) => kind === "all" || s.kind === kind;
 
 // How a school takes new students, in the reader's words. School Finder's own codes.
 const ADMISSION = {
