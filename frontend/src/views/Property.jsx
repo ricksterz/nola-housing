@@ -5,6 +5,7 @@ import AddressSearch from "../components/AddressSearch";
 import ChartPanel from "../components/ChartPanel";
 import { EVENTS, trackEvent } from "../lib/metrics";
 import { floodInfo } from "../lib/flood";
+import { subdivisionName, titleCase } from "../lib/names";
 import { utilityFor } from "../lib/power";
 import { floodLensLink } from "../lib/links";
 import { wakeFloodLens } from "../lib/floodlens";
@@ -370,7 +371,7 @@ function StreetList({ street, onPick }) {
 // Assessor style is "LAST,FIRST M & CO OWNER" with no space after the comma. A trailing "&" means
 // the record names a co-owner the Assessor didn't publish in the name field.
 function ownerName(raw) {
-  const s = String(raw).replace(/\s*,\s*/g, ", ").replace(/\s*&\s*/g, " & ").trim();
+  const s = titleCase(String(raw).replace(/\s*&\s*/g, " & "));
   return s.endsWith("&") ? `${s.slice(0, -1).trim()} & co-owner` : markCutOff(s);
 }
 
@@ -425,6 +426,15 @@ function CopyLinkButton({ address }) {
 // The Jefferson Assessor publishes a sale price and whether it was a qualified (arm's-length)
 // sale, but not the sale date. $0 means none recorded; family transfers and successions carry
 // nominal prices, which is exactly why the qualified flag has to travel with the number.
+// The Assessor's market value read back from a Jefferson home's assessed value (÷ 10%). Only for
+// homes: zoned residential, or with no zoning on the roll but a homestead exemption. A commercial
+// building is assessed at 15%, so the same arithmetic would overstate it.
+function assessorMarket(p) {
+  if (p.parish !== "jefferson" || p.tot_mkt_val || !(p.assessed_val > 0)) return null;
+  const home = /^R/i.test(p.zoning || "") || (!p.zoning && (p.homestead_exempt_val > 0 || (p.exempt_val > 0 && p.exempt_val <= 7500)));
+  return home ? p.assessed_val * 10 : null;
+}
+
 function lastSale(p) {
   if (p.last_sale_date) {
     return { label: "Last sale", value: `${fmt.date(p.last_sale_date)} · ${fmt.currency(p.last_sale_price)}` };
@@ -662,15 +672,40 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
   // exempt in full carries $0 land and building on Jefferson's roll, which would read as worthless.
   const fullyExempt = p.exempt_val > 0 && p.assessed_val > 0 && p.exempt_val >= p.assessed_val;
   const zeroedByExemption = fullyExempt && !p.land_val && !p.bld_val;
+  // Jefferson's roll carries assessed amounts only: land, building and total are each 10% of the
+  // Assessor's market value for a home (15% for a commercial building). Read back for homes.
+  const market = assessorMarket(p);
+  const atMarket = (v) => (market && v ? `≈ ${fmt.currency(v * 10)} at market value` : null);
 
   const sections = [
     [
       "Valuation",
       [
-        { label: "Assessor market value", value: p.tot_mkt_val ? fmt.currency(p.tot_mkt_val) : null },
-        { label: "Assessed value", value: p.assessed_val != null ? fmt.currency(p.assessed_val) : null },
-        { label: "Land value", value: p.land_val != null && !zeroedByExemption ? fmt.currency(p.land_val) : null },
-        { label: "Building value", value: p.bld_val != null && !zeroedByExemption ? fmt.currency(p.bld_val) : null },
+        {
+          label: "Assessor market value",
+          value: p.tot_mkt_val ? fmt.currency(p.tot_mkt_val) : market ? `≈ ${fmt.currency(market)}` : null,
+          note: market && "The assessed value × 10. Louisiana taxes a home on 10% of the Assessor's market value, last reappraised for 2024.",
+        },
+        {
+          label: "Assessed value",
+          value: p.assessed_val != null ? fmt.currency(p.assessed_val) : null,
+          note:
+            p.parish === "jefferson" && !p.tot_mkt_val
+              ? market
+                ? "10% of the Assessor's market value: the base for property tax, not a price."
+                : "The base for property tax, not a price: 10% of the Assessor's market value for land and homes, 15% for commercial buildings."
+              : null,
+        },
+        {
+          label: p.parish === "jefferson" ? "Land (assessed)" : "Land value",
+          value: p.land_val != null && !zeroedByExemption ? fmt.currency(p.land_val) : null,
+          note: atMarket(p.land_val),
+        },
+        {
+          label: p.parish === "jefferson" ? "Building (assessed)" : "Building value",
+          value: p.bld_val != null && !zeroedByExemption ? fmt.currency(p.bld_val) : null,
+          note: atMarket(p.bld_val),
+        },
         { label: "Homestead exemption", value: p.homestead_exempt_val ? fmt.currency(p.homestead_exempt_val) : null },
         {
           label: "Exemptions",
@@ -689,7 +724,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
         { label: "Living area", value: p.building_area ? `${fmt.int(p.building_area)} sq ft` : null },
         { label: "Lot", value: p.land_area ? `${fmt.int(p.land_area)} sq ft` : null },
         { label: "Property class", value: p.property_class || null },
-        { label: "Subdivision", value: p.subdivision || null },
+        { label: "Subdivision", value: p.subdivision ? subdivisionName(p.subdivision) : null },
         { label: "Zoning", value: p.zoning || null, note: "Parish zoning code" },
       ],
     ],
@@ -805,7 +840,7 @@ function ParcelCard({ data, trend, theme, navigate, macro, scorecard, onPick, fl
         ))}
         {p.legal_description && (
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border-alt)", color: "var(--text-dimmer)", fontSize: 12, overflowWrap: "anywhere" }}>
-            Legal: {p.legal_description}
+            Legal: {titleCase(p.legal_description)}
           </div>
         )}
         <div className="method-note" style={{ marginTop: 10 }}>

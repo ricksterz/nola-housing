@@ -60,6 +60,13 @@ def test_display_name():
     assert export_owners.display_name("MARY FUND PARC LLC") == "Mary Fund Parc LLC"
     assert export_owners.display_name("PHAZES REALTY OF") == "Phazes Realty of…"  # cut off by the roll
     assert export_owners.display_name("KENNER,CITY OF") == "City of Kenner"  # complete
+    # Initials stay capitals; Mc and O' names, and "& WF" (and wife), read as written by hand.
+    assert export_owners.display_name("SCHLANKER,WILLIAM A & AUBREY A") == "Schlanker William A & Aubrey A"
+    assert export_owners.display_name("MCDONALD,MARY A & WF") == "McDonald Mary A & wife"
+    assert export_owners.display_name("O'BRIEN,PAT JR") == "O'Brien Pat Jr"
+    assert export_owners.display_name("KH & JW METRO LAND CO LLC") == "KH & JW Metro Land Co LLC"
+    assert export_owners.display_name("RHONE ENTERPRISES INC") == "Rhone Enterprises Inc"
+    assert export_owners.display_name("RAIBSTEIN-PERALTA,LEIBO D SR") == "Raibstein-Peralta Leibo D Sr"
 
 
 def _parcel(pid, owner, parish="orleans", zip_code="70130", **kw):
