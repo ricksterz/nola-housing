@@ -3,6 +3,7 @@
 //   python -m etl.export_static
 import { BUNDLES, bundleKey } from "./lib/bundles";
 import { cellsAround } from "./lib/nearby";
+import { titleCase } from "./lib/names";
 
 export const IS_STATIC = import.meta.env.VITE_STATIC_DATA === "true";
 
@@ -351,9 +352,6 @@ function lookupMiss(street, nearby) {
 }
 
 /** "Tax bill 103109611 · Steeg Robert M" for a unit the roll doesn't number. */
-// Title case, keeping the abbreviations and generational suffixes on owner names in capitals.
-const OWNER_CAPS = new Set(["LLC", "LLP", "LP", "INC", "II", "III", "IV", "USA", "HUD", "NOLA"]);
-
 // An owner name that stops on a joining word ("PHAZES REALTY OF") was cut off by the roll's field
 // length; the roll's back-to-front names ("NEW ORLEANS,CITY OF") are complete. Same rule as
 // etl/export_owners.py display_name.
@@ -364,12 +362,7 @@ export function markCutOff(name) {
 }
 
 export function unitRecordLabel(u) {
-  const owner = markCutOff(
-    (u.owner || "")
-      .replace(/\s*,\s*/g, ", ")
-      .toLowerCase()
-      .replace(/\b\w+/g, (w) => (OWNER_CAPS.has(w.toUpperCase()) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))),
-  );
+  const owner = markCutOff(titleCase(u.owner));
   return [u.tax_bill ? `Tax bill ${u.tax_bill}` : `Parcel ${u.parcel_id}`, owner].filter(Boolean).join(" · ");
 }
 

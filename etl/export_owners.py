@@ -36,7 +36,6 @@ _CAPS = {
     "LLC",
     "LLP",
     "LP",
-    "INC",
     "II",
     "III",
     "IV",
@@ -49,21 +48,60 @@ _CAPS = {
     "NA",
     "PLLC",
     "CCC",
+    "DBA",
+    "MD",
+    "CPA",
+    "PC",
+    "VI",
 }
+# Same word rules as frontend/src/lib/names.js.
+_TITLE_ABBR = {
+    "ST",
+    "STS",
+    "SQ",
+    "PK",
+    "DR",
+    "MR",
+    "MRS",
+    "MS",
+    "JR",
+    "SR",
+    "BLVD",
+    "HWY",
+    "HGTS",
+    "HTS",
+    "MT",
+    "FT",
+}
+_SPELLED = {"ETAL": "et al", "ETUX": "et ux", "ETVIR": "et vir", "WF": "wife", "HUS": "husband"}
 _CUT_OFF = re.compile(r"\b(?:OF|THE|AND|FOR)$")
-_SMALL = {"OF", "THE", "AND", "FOR", "AT", "IN", "ON", "TO", "A"}
+_SMALL = {"OF", "THE", "AND", "FOR", "AT", "IN", "ON", "TO"}
 
 
 def display_name(name: str) -> str:
     """An owner key read out: "CITY OF NEW ORLEANS" -> "City of New Orleans", "STATE OF
     LOUISIANA-DOTD" -> "State of Louisiana-DOTD", company forms and suffixes in capitals."""
 
-    def word(w: str, first: bool) -> str:
-        if w in _CAPS:
+    def part(w: str) -> str:
+        if w in _SPELLED:
+            return _SPELLED[w]
+        if w in _CAPS or len(w) == 1:
             return w
+        if w in _TITLE_ABBR:
+            return w[0] + w[1:].lower()
+        # Initials run together ("KH & JW METRO LAND"): no vowel, so not a word.
+        if len(w) <= 4 and w.isalpha() and not re.search(r"[AEIOUY]", w):
+            return w
+        if m := re.fullmatch(r"([A-Z])'([A-Z]{2,})", w):  # O'Brien
+            return f"{m[1]}'{m[2][0]}{m[2][1:].lower()}"
+        if m := re.fullmatch(r"MC([A-Z]{2,})", w):  # McDonald
+            return f"Mc{m[1][0]}{m[1][1:].lower()}"
+        return w[:1] + w[1:].lower()
+
+    def word(w: str, first: bool) -> str:
         if w in _SMALL and not first:
             return w.lower()
-        return "-".join(part if part in _CAPS else part[:1] + part[1:].lower() for part in w.split("-"))
+        return "-".join(part(p) for p in w.split("-"))
 
     key = owner_key(name)
     words = key.split(" ")
