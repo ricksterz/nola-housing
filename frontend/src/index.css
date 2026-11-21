@@ -271,22 +271,21 @@ a.btn { text-decoration: none; }
 
 /* ---------- Footer ---------- */
 /* FloodLens facts inside the flood card (components/FloodLensDetails.jsx). */
-.floodlens-live { margin-top: 12px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
-.floodlens-live-title { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
-.floodlens-facts { margin: 0; display: grid; gap: 8px; }
-.floodlens-fact { display: grid; grid-template-columns: minmax(120px, 170px) 1fr; gap: 4px 14px; }
-.floodlens-fact dt { font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
-.floodlens-fact dd { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text); }
-.floodlens-fact-note { display: block; font-size: 12px; color: var(--text-dimmer); }
-.floodlens-score { margin-bottom: 12px; }
-.floodlens-score-value { font-size: 14px; color: var(--text); margin-bottom: 2px; }
-.floodlens-score-value b { font-size: 22px; color: var(--text-bright); }
-.floodlens-score-label { margin-left: 8px; font-size: 13px; color: var(--text-dim); }
-.floodlens-score--minor { font-size: 12px; line-height: 1.5; color: var(--text-dimmer); }
+.floodlens-live { margin-top: 10px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
 .floodlens-spinner { display: inline-block; width: 11px; height: 11px; margin-right: 8px; vertical-align: -1px; border: 2px solid var(--border); border-top-color: var(--text-dim); border-radius: 50%; animation: floodlens-spin 0.9s linear infinite; }
+.flood-tiles { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.flood-tile { min-width: 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--panel) 70%, transparent); border: 1px solid color-mix(in srgb, currentColor 10%, transparent); }
+.flood-tile dt { font-size: 10.5px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dimmer); }
+.flood-tile dd { margin: 2px 0 0; line-height: 1.3; }
+.flood-tile b { display: block; font-size: 15px; font-weight: 650; color: var(--text-bright); }
+.flood-tile span { display: block; font-size: 11.5px; color: var(--text-dim); }
+.flood-more { margin-top: 8px; font-size: 12px; color: var(--text-dimmer); }
+.flood-more summary { cursor: pointer; color: var(--text-dim); font-weight: 600; width: fit-content; }
+.flood-more-body { margin-top: 6px; line-height: 1.6; max-width: 780px; }
+.flood-more-body p { margin: 0 0 6px; }
 @keyframes floodlens-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .floodlens-spinner { animation: none; } }
-@media (max-width: 560px) { .floodlens-fact { grid-template-columns: 1fr; } }
+
 
 /* Schools near an address (components/NearbySchools.jsx): public and private side by side. */
 .school-list { list-style: none; margin: 0; padding: 0; }

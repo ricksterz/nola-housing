@@ -456,7 +456,6 @@ function FloodLensNote({ flag, summary }) {
   const r = summary.rates;
   const rates = r.per_1000_policy_years;
   const lower = [1, 2, 3, 4].map((q) => rates[q]).filter((v) => v != null);
-  const pre = summary.pre_registered;
   const top = flag.quintile === 5;
   return (
     <div className={`floodlens-note${top ? " floodlens-note--top" : ""}`}>
@@ -466,19 +465,37 @@ function FloodLensNote({ flag, summary }) {
       <div className="flood-detail">
         {top
           ? `This census tract is in FloodLens's top fifth of high-risk-zone tracts. Homes there filed flood insurance claims at about ${Math.round(r.top_vs_rest)}× the rate of other high-risk-zone tracts: ${rates[5].toFixed(1)} vs ${r.rest.toFixed(1)} claims per 1,000 insured homes a year (${summary.window}).`
-          : `This census tract isn't in FloodLens's top fifth. Outside that fifth, high-risk-zone tracts had similar claim rates (${Math.min(...lower).toFixed(1)}–${Math.max(...lower).toFixed(1)} per 1,000 insured homes a year), so FloodLens doesn't rank them further.`}
-      </div>
-      <div className="method-note" style={{ marginTop: 6 }}>
-        <span>{`Tested before the results were known: FloodLens ${pre.model.replace("FloodLens ", "")} found a claim rate ${pre.top_vs_bottom.toFixed(1)} times as high in its top fifth of high-risk-zone tracts as in its bottom fifth (${pre.claims.toLocaleString()} claims, ${pre.window}); rechecked monthly, latest ${r.top_vs_bottom.toFixed(1)} times. An area measure from census tracts, not a rating of this house. `}</span>
-        <a href="https://nola-floodlens.onrender.com/about.html" target="_blank" rel="noreferrer">How it was tested ↗</a>
+          : `Not in FloodLens's top fifth. The other high-risk-zone tracts had similar claim rates (${Math.min(...lower).toFixed(1)}–${Math.max(...lower).toFixed(1)} per 1,000 insured homes a year), so they aren't ranked further.`}
       </div>
     </div>
+  );
+}
+
+// How the tract flag above was tested, for the flood card's "Details and sources".
+function floodLensMethod(summary) {
+  const pre = summary?.pre_registered;
+  if (!pre || !summary.rates) return null;
+  return (
+    <p>
+      {`Census tract flag: tested before the results were known, FloodLens ${pre.model.replace("FloodLens ", "")} found a claim rate ${pre.top_vs_bottom.toFixed(1)} times as high in its top fifth of high-risk-zone tracts as in its bottom fifth (${pre.claims.toLocaleString()} claims, ${pre.window}); rechecked monthly, latest ${summary.rates.top_vs_bottom.toFixed(1)} times. An area measure from census tracts, not a rating of this house. `}
+      <a href="https://nola-floodlens.onrender.com/about.html" target="_blank" rel="noreferrer">How it was tested ↗</a>
+    </p>
   );
 }
 
 function FloodZone({ p, floodlens, floodlensSummary }) {
   const f = floodInfo(p);
   if (!f) return null;
+  const aZone = /^A/i.test(p.flood_zone || "");
+  // The FEMA source and the tract test's method fold into FloodLens's "Details and sources".
+  const notes = (
+    <>
+      <p>
+        {`FEMA flood zone: National Flood Hazard Layer, effective maps${p.nfhl_pulled_at ? `, pulled ${p.nfhl_pulled_at.slice(0, 10)}` : ""}. Placed by the lot's center point. A map zone, not an elevation certificate or an insurance quote.`}
+      </p>
+      {aZone && floodlens && floodLensMethod(floodlensSummary)}
+    </>
+  );
   return (
     <div className={`flood-card flood-card--${f.tone}`}>
       <div className="flood-zone">
@@ -487,23 +504,22 @@ function FloodZone({ p, floodlens, floodlensSummary }) {
       </div>
       <div className="flood-title">{f.title}</div>
       {f.detail && <div className="flood-detail">{f.detail}</div>}
-      <div className="method-note" style={{ marginTop: 6 }}>
-        FEMA National Flood Hazard Layer, effective maps{p.nfhl_pulled_at ? ` · pulled ${p.nfhl_pulled_at.slice(0, 10)}` : ""}.
-        Placed by the lot's center point. A map zone, not an elevation certificate or an insurance quote.
-      </div>
-      {/^A/i.test(p.flood_zone || "") && <FloodLensNote flag={floodlens} summary={floodlensSummary} />}
+      {aZone && <FloodLensNote flag={floodlens} summary={floodlensSummary} />}
       {p.lat != null && p.lng != null ? (
-        <FloodLensDetails key={`${p.lat},${p.lng}`} p={p} />
+        <FloodLensDetails key={`${p.lat},${p.lng}`} p={p} notes={notes} />
       ) : (
-        p.full_address && (
-          <div className="method-note" style={{ marginTop: 6 }}>
-            Drainage, levees and storm surge for this address:{" "}
-            <a href={floodLensLink(p.full_address)} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
-              open it in FloodLens ↗
-            </a>{" "}
-            FloodLens runs on a free host and can take up to a minute to wake on a first visit.
-          </div>
-        )
+        <>
+          <div className="method-note" style={{ marginTop: 6 }}>{notes}</div>
+          {p.full_address && (
+            <div className="method-note" style={{ marginTop: 6 }}>
+              Drainage, levees and storm surge for this address:{" "}
+              <a href={floodLensLink(p.full_address)} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)}>
+                open it in FloodLens ↗
+              </a>{" "}
+              FloodLens runs on a free host and can take up to a minute to wake on a first visit.
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -688,6 +704,21 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
     .map((h) => ({ ...h, monthLabel: String(h.tax_year) }));
   const implied = trend && v ? trend.filter((d) => d.zhvi != null).map((d, _, arr) => ({ monthLabel: monthLabel(d.month), month: d.month, implied: Math.round((d.zhvi / arr[arr.length - 1].zhvi) * v.est_mid) })) : [];
 
+  const renderSection = ([title, items]) => (
+    <div key={title} className="stat-section">
+      <div className="stat-section-title">{title}</div>
+      <div className="stat-grid">
+        {items.map((s) => (
+          <div key={s.label} className={`stat${s.wide ? " stat--wide" : ""}`}>
+            <div className="stat-label">{s.label}</div>
+            <div className="stat-value">{s.value}</div>
+            {s.note && <div className="stat-sub">{s.note}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="panel">
@@ -708,7 +739,8 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
           </div>
         </div>
         {data.notice && <div className="stat-note" style={{ margin: "0 0 10px", color: "var(--text)" }}>{data.notice}</div>}
-        <FloodZone p={p} floodlens={data.floodlens} floodlensSummary={floodlensSummary} />
+        {/* What it's worth first, then how it floods, then the rest of the record. */}
+        {sections.filter(([title]) => title === "Valuation").map(renderSection)}
         {p.parish === "orleans" && !hasValuation && (
           <div className="stat-section">
             <div className="stat-section-title">Valuation</div>
@@ -721,20 +753,8 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
             </div>
           </div>
         )}
-        {sections.map(([title, items]) => (
-          <div key={title} className="stat-section">
-            <div className="stat-section-title">{title}</div>
-            <div className="stat-grid">
-              {items.map((s) => (
-                <div key={s.label} className={`stat${s.wide ? " stat--wide" : ""}`}>
-                  <div className="stat-label">{s.label}</div>
-                  <div className="stat-value">{s.value}</div>
-                  {s.note && <div className="stat-sub">{s.note}</div>}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+        <FloodZone p={p} floodlens={data.floodlens} floodlensSummary={floodlensSummary} />
+        {sections.filter(([title]) => title !== "Valuation").map(renderSection)}
         {p.legal_description && (
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border-alt)", color: "var(--text-dimmer)", fontSize: 12, overflowWrap: "anywhere" }}>
             Legal: {titleCase(p.legal_description)}
