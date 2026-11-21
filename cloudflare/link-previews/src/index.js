@@ -1,7 +1,9 @@
 // Cloudflare Worker on nolaatlas.com/property/* and /ownership/* (wrangler.toml): fills the
 // link-preview tags of property and owner lookups, which share their tab's pre-built HTML, with
-// that property's or owner's details. See meta.js. Deploy: `npx wrangler deploy` in this folder.
+// that property's or owner's details. See meta.js. Its cron trigger also keeps FloodLens awake
+// (keepawake.js). Deploy: `npx wrangler deploy` in this folder.
 
+import { pingFloodLens } from "./keepawake.js";
 import { previewFor } from "./meta.js";
 
 const CACHE_SECONDS = 3600;
@@ -21,6 +23,10 @@ function setContent(meta) {
 }
 
 export default {
+  scheduled(event, env, ctx) {
+    ctx.waitUntil(pingFloodLens());
+  },
+
   async fetch(request) {
     const res = await fetch(request);
     const url = new URL(request.url);
