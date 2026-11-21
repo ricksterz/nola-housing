@@ -257,7 +257,9 @@ def test_llms_txt_describes_the_site_and_lists_its_pages(dist):
     )
     assert "305,869 parcels and condo units" in text
     assert ".." not in text.replace("...", "")
-    assert "schools.nolaatlas.com" in text and "https://nolaatlas.com/sitemap.xml" in text
+    # Whole Markdown links, not bare hosts (CodeQL reads a host checked with `in` as URL sanitizing).
+    assert "- [NOLA Atlas School Finder](https://schools.nolaatlas.com/): " in text
+    assert "- [Sitemap](https://nolaatlas.com/sitemap.xml): " in text
     assert (
         "aren't proof of ownership" in text
         and "Nothing here is financial, legal, tax or insurance advice" in text
