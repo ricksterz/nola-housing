@@ -11,9 +11,9 @@ export function floodInfo(p) {
   if (zone.startsWith("A")) {
     return { tone: "high", title: "High-risk flood area", detail: `1% or greater chance of flooding each year (the "100-year" floodplain). ${required}` };
   }
-  const outside = "Flood insurance isn't federally required here, but FEMA reports more than 20% of flood insurance claims come from outside high-risk areas.";
+  const outside = "Insurance isn't federally required, but FEMA says over 20% of flood claims come from outside high-risk areas.";
   if (zone === "X" && sub.includes("LEVEE")) {
-    return { tone: "moderate", title: "Reduced risk because of levees", detail: `FEMA credits a levee system with lowering the risk here. Levees can be overtopped or fail. ${outside}` };
+    return { tone: "moderate", title: "Reduced risk because of levees", detail: `FEMA credits a levee with lowering the risk; levees can be overtopped or fail. ${outside}` };
   }
   if (zone === "X" && sub.includes("0.2")) {
     return { tone: "moderate", title: "Moderate flood risk", detail: `Between a 1% and 0.2% chance of flooding each year. ${outside}` };
