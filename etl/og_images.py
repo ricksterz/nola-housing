@@ -21,7 +21,7 @@ TEXT_DIM = "#8b98ac"
 GOLD = "#d4922a"
 UP = "#0ca30c"
 DOWN = "#e66767"
-TAGLINE = "What any address really costs, how it floods, and which schools you can get into."
+TAGLINE = "Who owns any address, how it floods, and which schools are near."
 
 # (sans, sans bold, serif bold) per font family; the first family found wins.
 _FONT_SETS = [

@@ -156,7 +156,7 @@ export default function App() {
           </Brand>
           {/* The tagline only fits on the home page: on the data tabs the source chips and the
               snapshot badge leave it no room, and it truncated mid-word. */}
-          {view === "home" && <span className="brand-tag">What any address really costs, how it floods, and which schools you can get into.</span>}
+          {view === "home" && <span className="brand-tag">Who owns any address, how it floods, and which schools are near.</span>}
           <div className="topbar-tools">
             {view !== "home" && <SourceChips meta={meta} />}
             {view !== "home" && IS_STATIC && meta?.generated && (

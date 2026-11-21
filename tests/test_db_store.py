@@ -12,7 +12,7 @@ def _db(path, parcels=10):
     con = duckdb.connect(str(path))
     con.execute("CREATE TABLE assessor_parcels AS SELECT range AS id FROM range(?)", [parcels])
     con.execute("CREATE TABLE market_monthly AS SELECT 1 AS x")
-    con.execute("CREATE TABLE parcel_market AS SELECT 1 AS x")
+    con.execute("CREATE TABLE parcel_market AS SELECT 1 AS x, 0.0 AS exempt_val")
     con.close()
     return path
 
@@ -118,6 +118,18 @@ def test_publish_refuses_a_collapsed_parcel_table(tmp_path):
         db_store.publish(
             _db(tmp_path / "a.duckdb", 10), _db(tmp_path / "b.duckdb", 100), token="t", session=api
         )
+    assert api.calls == []
+
+
+def test_publish_refuses_a_join_older_than_the_code(tmp_path):
+    # Assessor tables migrated, join not: parcel_market without exempt_val.
+    path = _db(tmp_path / "a.duckdb")
+    con = duckdb.connect(str(path))
+    con.execute("ALTER TABLE parcel_market DROP COLUMN exempt_val")
+    con.close()
+    api = _API({"nola_housing.duckdb": 1})
+    with pytest.raises(db_store.DatabaseCheckFailed, match="parcel_market.exempt_val"):
+        db_store.publish(path, token="t", session=api)
     assert api.calls == []
 
 

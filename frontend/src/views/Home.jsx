@@ -131,7 +131,7 @@ export default function Home({ ctx }) {
     <div className="home">
       <header className="home-hero">
         <h1 className="home-title">Type any New Orleans or Metairie address</h1>
-        <p className="home-lede">See what it really costs, how it floods, and which schools you can get into.</p>
+        <p className="home-lede">See who owns it, how it floods, and which schools are near.</p>
         <div className="home-search">
           <AddressSearch value={text} onChange={setText} onPick={onPick} onSubmit={(q) => open({ q: q.trim() })} idPrefix="home" size="large" autoFocus={FINE_POINTER} />
           <div className="home-examples">

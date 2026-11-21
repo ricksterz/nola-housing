@@ -105,7 +105,7 @@ wider feature set:
 
 | View | What it shows |
 |---|---|
-| Home (`/`) | The address box first, under the promise "Type any New Orleans or Metairie address: see what it really costs, how it floods, and which schools you can get into." Below it, four topic cards (inline SVG in `frontend/src/components/HomeScenes.jsx`): Homes (the market tabs), Flood ([FloodLens](https://nola-floodlens.onrender.com/)), Schools ([School Finder](https://schools.nolaatlas.com/)) and AI & Power. |
+| Home (`/`) | The address box first, under the promise "Type any New Orleans or Metairie address: see who owns it, how it floods, and which schools are near." Below it, four topic cards (inline SVG in `frontend/src/components/HomeScenes.jsx`): Homes (the market tabs), Flood ([FloodLens](https://nola-floodlens.onrender.com/)), Schools ([School Finder](https://schools.nolaatlas.com/)) and AI & Power. |
 | Market Overview (`/market/`) | One area at a time (metro, parish or any of 24 ZIPs): KPI tiles with YoY deltas and sparklines, then home value vs. sale price, rent, DOM, listings pipeline, inventory, months of supply, $/sqft and negotiation charts. Every chart has a table twin. |
 | ZIP Scorecard | All ZIPs side by side: latest reading, YoY, heat-shaded cells (one-hue ramp for magnitude, blue/red for change), 24-month sparkline; sortable, filter by parish; click through to the overview. Plus gross rent yield (rent vs. buy) and monthly payment on the median sale at an adjustable rate. |
 | Compare | Overlay up to six areas on one metric, optionally indexed to 100, with small multiples. Colors are bound to the area, not its rank. |
@@ -176,8 +176,8 @@ in Zone X, where the same test was inconclusive.
 
 The property report's flood card also shows FloodLens's 0–100 score, read live, under the FEMA zone.
 Rules that must hold wherever it appears: it is always labeled as a model estimate (not a FEMA
-determination or an insurance quote) validated only inside FEMA A zones; outside an A zone the card
-says the score is untested there; a partly covered score says what share of the model's inputs it
+determination or an insurance quote) validated only inside FEMA A zones; it is shown prominently only
+in an A zone, and outside one it is a single small line that says the score is untested there; a partly covered score says what share of the model's inputs it
 used; a score on FEMA's preliminary map says that map isn't in effect; and where FloodLens returns no
 score (under 70% of its inputs) the card says so instead of showing one.
 

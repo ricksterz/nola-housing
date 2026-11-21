@@ -83,3 +83,35 @@ export function useCostAssumptions(defaultRate) {
     setA((prev) => ({ ...prev, ...patch, ...(patch.rate != null ? { rate: roundRate(patch.rate) } : {}) }));
   return { ...a, rate: a.rate ?? roundRate(defaultRate) ?? 6.5, set };
 }
+
+// Louisiana assesses a home at 10% of its market value; millage applies per assessed dollar.
+const HOME_ASSESSMENT_RATIO = 0.1;
+
+/**
+ * A parcel's yearly property tax and flood insurance, from its own roll values and its ZIP's rates.
+ * Tax: assessed value minus the exemptions on the roll, times the ZIP's tax rate per assessed
+ * dollar. The ZIP's rate (etl/load_costs.py full_rate) is tax per dollar of a home's market value,
+ * and a home is assessed at 10% of that, so the rate per assessed dollar is full_rate ÷ 10%; millage
+ * is the same for every kind of property. Flood: the ZIP's median NFIP premium for policies in the
+ * parcel's zone class (high-risk A/V or not). Each part is null where its data doesn't exist; the
+ * whole is null without the tax part, since a "yearly cost" of flood insurance alone misleads.
+ */
+export function yearlyCost(p, costs) {
+  const z = costs?.zips?.[p?.zip_code];
+  const rate = z?.tax?.full_rate;
+  if (!rate || !(p?.assessed_val > 0)) return null;
+  const exempt = p.exempt_val ?? p.homestead_exempt_val ?? 0;
+  const taxable = Math.max(p.assessed_val - exempt, 0);
+  const perAssessed = rate / HOME_ASSESSMENT_RATIO;
+  const group = p.flood_sfha === true ? "sfha" : p.flood_zone ? "other" : null;
+  const flood = group ? z.flood?.[group] ?? null : null;
+  const tax = Math.round(taxable * perAssessed);
+  return {
+    taxable,
+    mills: perAssessed * 1000,
+    acsYear: z.tax.acs_year,
+    tax,
+    flood: flood?.median ? { ...flood, group } : null,
+    total: tax + (flood?.median || 0),
+  };
+}

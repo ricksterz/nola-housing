@@ -282,6 +282,7 @@ a.btn { text-decoration: none; }
 .floodlens-score-value { font-size: 14px; color: var(--text); margin-bottom: 2px; }
 .floodlens-score-value b { font-size: 22px; color: var(--text-bright); }
 .floodlens-score-label { margin-left: 8px; font-size: 13px; color: var(--text-dim); }
+.floodlens-score--minor { font-size: 12px; line-height: 1.5; color: var(--text-dimmer); }
 .floodlens-spinner { display: inline-block; width: 11px; height: 11px; margin-right: 8px; vertical-align: -1px; border: 2px solid var(--border); border-top-color: var(--text-dim); border-radius: 50%; animation: floodlens-spin 0.9s linear infinite; }
 @keyframes floodlens-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .floodlens-spinner { animation: none; } }
