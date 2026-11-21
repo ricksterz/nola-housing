@@ -116,11 +116,23 @@ def test_every_page_carries_the_disclaimer(dist):
         assert "proof of ownership" in root and 'href="/about/"' in root, page
 
 
+def _jsonld(page: str) -> dict:
+    return json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', page).group(1))
+
+
+def _node(ld: dict, kind: str) -> dict:
+    [node] = [n for n in ld["@graph"] if n["@type"] == kind]
+    return node
+
+
 def test_home_names_the_site_for_search(dist):
     prerender.build(dist)
     home = (dist / "index.html").read_text()
-    ld = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', home).group(1))
-    assert ld["@type"] == "WebSite" and ld["name"] == "NOLA Atlas" and ld["url"] == "https://nolaatlas.com/"
+    ld = _jsonld(home)
+    site = _node(ld, "WebSite")
+    assert site["name"] == "NOLA Atlas" and site["url"] == "https://nolaatlas.com/"
+    assert site["publisher"]["@id"] == "https://nolaatlas.com/#organization"
+    assert _node(ld, "Organization")["@id"] == "https://nolaatlas.com/#organization"
     assert "<h1>NOLA Atlas</h1>" in home
     for link in ('href="/market/"', 'href="/power/"', "schools.nolaatlas.com", "nola-floodlens.onrender.com"):
         assert link in home, link  # the hub links every topic
@@ -189,3 +201,64 @@ def test_sale_prices_carry_their_vintage(dist):
     assert "from Redfin and Zillow, updated monthly" not in market
     area = (dist / "market" / "70130" / "index.html").read_text()
     assert "Sale prices from Redfin; Zillow values and rents updated monthly" in area
+
+
+def test_area_pages_describe_their_data_and_place_for_search(dist):
+    prerender.build(dist)
+    ld = _jsonld((dist / "market" / "70130" / "index.html").read_text())
+    data = _node(ld, "Dataset")
+    assert data["name"] == "70130 · French Quarter <& Lower Garden> housing market statistics"
+    assert data["url"] == "https://nolaatlas.com/market/70130/"
+    place = data["spatialCoverage"]
+    assert place["address"]["postalCode"] == "70130"
+    assert place["containedInPlace"]["name"] == "Orleans Parish, Louisiana"
+    assert {s["name"] for s in data["isBasedOn"]} == {"Redfin Data Center", "Zillow Research"}
+    assert data["creator"]["name"] == "NOLA Atlas"  # named in full: the home page's node isn't on this page
+    crumbs = [i["item"] for i in _node(ld, "BreadcrumbList")["itemListElement"]]
+    assert crumbs == [
+        "https://nolaatlas.com/",
+        "https://nolaatlas.com/market/",
+        "https://nolaatlas.com/market/70130/",
+    ]
+
+    owners = _node(_jsonld((dist / "ownership" / "jefferson" / "index.html").read_text()), "Dataset")
+    assert owners["spatialCoverage"] == {
+        "@type": "AdministrativeArea",
+        "name": "Jefferson Parish, Louisiana",
+        "containedInPlace": {"@type": "State", "name": "Louisiana"},
+    }
+    assert [s["name"] for s in owners["isBasedOn"]] == ["Jefferson Parish Assessor"]
+    # A script tag can't be closed early by text inside the data.
+    assert (
+        "</script>"
+        not in (dist / "market" / "70130" / "index.html")
+        .read_text()
+        .split("ld+json")[1]
+        .split("</script>")[0]
+    )
+
+    # Every other pre-built page at least says where it sits.
+    about = _jsonld((dist / "about" / "index.html").read_text())
+    assert [i["name"] for i in _node(about, "BreadcrumbList")["itemListElement"]] == [
+        "NOLA Atlas",
+        "About and methodology",
+    ]
+
+
+def test_llms_txt_describes_the_site_and_lists_its_pages(dist):
+    prerender.build(dist)
+    text = (dist / "llms.txt").read_text()
+    assert text.startswith("# NOLA Atlas\n\n> A free, independent reference for homes in New Orleans")
+    assert "## Main pages" in text and "## Housing market by area" in text and "## Who owns each area" in text
+    assert "- [Property Lookup](https://nolaatlas.com/property/): " in text
+    assert (
+        "(https://nolaatlas.com/market/70005/)" in text
+        and "(https://nolaatlas.com/ownership/orleans/)" in text
+    )
+    assert "305,869 parcels and condo units" in text
+    assert ".." not in text.replace("...", "")
+    assert "schools.nolaatlas.com" in text and "https://nolaatlas.com/sitemap.xml" in text
+    assert (
+        "aren't proof of ownership" in text
+        and "Nothing here is financial, legal, tax or insurance advice" in text
+    )

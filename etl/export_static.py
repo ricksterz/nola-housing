@@ -4,7 +4,7 @@ Writes to frontend/public/data/:
     meta.json                    freshness per source, geography list, refresh windows
     macro.json                   latest FRED values (macro strip)
     macro_index.json             FRED history (Macro view)
-    costs.json                   per-ZIP property tax rate + flood insurance cost (monthly cost)
+    costs.json                   per-ZIP property tax rate + flood insurance cost (yearly cost, Scorecard)
     scorecard.json               one row per geography: latest metrics, YoY, sparklines
     compare.json                 every geography's monthly series (compare charts)
     trend_<level>_<id>.json      one geography's monthly series

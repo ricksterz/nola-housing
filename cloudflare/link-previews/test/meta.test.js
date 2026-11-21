@@ -83,7 +83,7 @@ test("owner links preview the owner; anything else is left alone", async () => {
 test("an unknown ZIP falls back to the generic property image", () => {
   const p = describeProperty({ parcel: { full_address: "1 Main St, Kenner, LA 70062", zip_code: "70062" } }, new Set(["70130"]));
   assert.equal(p.image, "https://nolaatlas.com/og/property.png");
-  assert.equal(p.description, "Flood risk, the true monthly cost and the market around it, on NOLA Atlas.");
+  assert.equal(p.description, "Owner, flood risk, yearly tax and the market around it, on NOLA Atlas.");
   assert.equal(describeOwner({ name: "X LLC", count: 2, parishes: { jefferson: 1, orleans: 1 } }).description.includes("Jefferson and Orleans Parish Assessor's rolls"), true);
 });
 
