@@ -11,7 +11,9 @@ name: Keep FloodLens awake
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # Every 5 minutes, off the :00/:05 marks: GitHub delays and drops scheduled runs most at the
+    # popular minutes, and "*/5" never started a single scheduled run in its first 90 minutes.
+    - cron: "3-58/5 * * * *"
   workflow_dispatch:
 
 permissions: {}
