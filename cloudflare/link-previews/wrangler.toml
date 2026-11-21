@@ -13,3 +13,8 @@ routes = [
   { pattern = "nolaatlas.com/property/*", zone_name = "nolaatlas.com" },
   { pattern = "nolaatlas.com/ownership/*", zone_name = "nolaatlas.com" },
 ]
+
+# Every 10 minutes: call FloodLens's health check so Render's free plan never puts it to sleep
+# (it sleeps after 15 idle minutes). See src/keepawake.js.
+[triggers]
+crons = ["*/10 * * * *"]
