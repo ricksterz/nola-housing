@@ -9,7 +9,8 @@ import { fmt, seriesColor } from "../lib/theme";
 // (.nearby-map--dark), which keeps streets and labels legible.
 const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-const LIST_COUNT = 8;
+const LIST_COUNT = 12;
+const LIST_FIRST = 4; // shown before "Show more"
 
 function homeLine(h) {
   return [
@@ -50,6 +51,7 @@ export default function NearbyMap({ p, theme, onPick }) {
   const [homes, setHomes] = useState(null);
   const [mapFailed, setMapFailed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   // Popups are built once per marker; they call the latest onPick through this ref.
   const pickRef = useRef(onPick);
   useEffect(() => {
@@ -104,7 +106,8 @@ export default function NearbyMap({ p, theme, onPick }) {
       .addTo(layer);
   }, [mapReady, homes, theme, p.lat, p.lng]);
 
-  const listed = (homes || []).slice(0, LIST_COUNT);
+  const nearest = (homes || []).slice(0, LIST_COUNT);
+  const listed = showAll ? nearest : nearest.slice(0, LIST_FIRST);
   return (
     <div className="panel">
       <div className="panel-head">
@@ -133,7 +136,13 @@ export default function NearbyMap({ p, theme, onPick }) {
             </li>
           ))}
         </ul>
-      ) : (
+      ) : null}
+      {homes && nearest.length > LIST_FIRST && (
+        <button type="button" className="link-button nearby-more" onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>
+          {showAll ? "Show fewer" : `Show ${nearest.length - LIST_FIRST} more nearby homes`}
+        </button>
+      )}
+      {homes && !listed.length && (
         <div className="stat-note" style={{ marginTop: 10 }}>No other parcels on record within {fmtDistance(NEAR_RADIUS_M)}.</div>
       )}
     </div>
