@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Line, LineChart } from "recharts";
-import { getPropertyLookup, getStreet, getTrend, markCutOff, parcelQuery, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
+import { getOwnershipCosts, getPropertyLookup, getStreet, getTrend, markCutOff, parcelQuery, suggestOwners, suggestStreets, unitRecordLabel } from "../api";
 import AddressSearch from "../components/AddressSearch";
 import ChartPanel from "../components/ChartPanel";
 import { EVENTS, trackEvent } from "../lib/metrics";
 import { floodInfo } from "../lib/flood";
 import { subdivisionName, titleCase } from "../lib/names";
+import { yearlyCost } from "../lib/costs";
 import { utilityFor } from "../lib/power";
 import { floodLensLink } from "../lib/links";
 import { wakeFloodLens } from "../lib/floodlens";
@@ -508,6 +509,29 @@ function FloodZone({ p, floodlens, floodlensSummary }) {
   );
 }
 
+const FLOOD_GROUP = { sfha: "in high-risk (A/V) zones", other: "outside high-risk zones" };
+
+// Property tax plus flood insurance a year, only where the roll and the ZIP's rates allow it
+// (lib/costs.js yearlyCost): Orleans has no assessed values yet, so it gets no line.
+function yearlyCostStat(p, y) {
+  if (!y) return { label: "Yearly tax + flood insurance", value: null };
+  const years = `Census ACS ${y.acsYear - 4}–${y.acsYear}`;
+  const exempted = y.taxable < p.assessed_val;
+  const rate = `about ${y.mills.toFixed(0)} mills, ${p.zip_code}'s rate from what owner-occupants there report paying (${years})`;
+  const tax = !y.taxable
+    ? "No property tax: the roll exempts all of the assessed value."
+    : `Property tax ≈ ${fmt.currency(y.tax)}: the ${fmt.currency(y.taxable)} assessed value ${exempted ? "left after exemptions" : "(no exemptions on the roll)"} × ${rate}.`;
+  const flood = y.flood
+    ? ` Flood insurance ≈ ${fmt.currency(y.flood.median)}: the median NFIP premium for ${p.zip_code} policies ${FLOOD_GROUP[y.flood.group]} (middle half ${fmt.currency(y.flood.p25)}–${fmt.currency(y.flood.p75)}).`
+    : " No flood insurance figure for this parcel's zone here.";
+  return {
+    label: y.flood ? "Yearly tax + flood insurance" : "Yearly property tax",
+    value: `≈ ${fmt.currency(y.total)}/yr`,
+    wide: true,
+    note: `${tax}${flood} Estimates, not a tax bill or an insurance quote${exempted ? "; an owner without these exemptions pays more tax" : ""}.`,
+  };
+}
+
 // Every stat is { label, value } with value already null when there's nothing to show — a
 // section renders only if at least one of its stats survived, so the card never shows a wall
 // of "—" placeholders for fields this data source simply doesn't carry (Jefferson's assessor
@@ -527,6 +551,15 @@ function sourceNote(p) {
 
 function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) {
   const p = data.parcel;
+  const [costs, setCosts] = useState(null);
+  useEffect(() => {
+    let live = true;
+    getOwnershipCosts().then((c) => live && setCosts(c));
+    return () => {
+      live = false;
+    };
+  }, []);
+  const yearly = yearlyCost(p, costs);
   const v = data.valuation;
   const address = p.full_address || `Parcel ${p.parcel_id}`;
   const utility = utilityFor(p.parish);
@@ -578,6 +611,7 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
             : "Every exemption on the roll combined. Louisiana's homestead exemption covers the first $7,500 of assessed value.",
         },
         { label: "Taxable value", value: p.taxable_val != null ? fmt.currency(p.taxable_val) : null },
+        yearlyCostStat(p, yearly),
       ],
     ],
     [

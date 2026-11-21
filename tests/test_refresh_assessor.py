@@ -26,13 +26,17 @@ def _source_down(monkeypatch):
     monkeypatch.setattr(load_assessor, "load", down)
 
 
-def test_a_source_outage_with_recent_data_only_warns(tmp_path, monkeypatch, capsys):
+def test_a_source_outage_with_recent_data_warns_and_rebuilds_the_join(tmp_path, monkeypatch, capsys):
     _db(tmp_path / "db.duckdb", days_old=9)
     _source_down(monkeypatch)
+    rebuilt = []
+    monkeypatch.setattr(refresh_assessor, "_rebuild", lambda con, path: rebuilt.append(path))
     refresh_assessor.main(["--db", str(tmp_path / "db.duckdb"), "--parish", "orleans"])
     out = capsys.readouterr().out
     assert "::warning::[orleans] every bulk pull failed" in out and "(9 days old)" in out
-    assert "Rebuilding join" not in out  # nothing changed, nothing rebuilt
+    # load() rebuilt the assessor tables before raising and the run publishes, so the join is
+    # rebuilt to match them.
+    assert rebuilt == [str(tmp_path / "db.duckdb")]
 
 
 @pytest.mark.parametrize("days_old", [refresh_assessor.STALE_AFTER_DAYS + 1, None])

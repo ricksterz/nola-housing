@@ -33,6 +33,10 @@ import requests
 from . import config
 
 REQUIRED_TABLES = ("assessor_parcels", "market_monthly", "parcel_market")
+# Columns the site reads that a join built by older code lacks. A database without them is a
+# half-rebuilt one (its assessor tables migrated, its join not), so it is neither published nor
+# deployed: 420 Bonnabel Blvd's full exemption showed as a homestead that way.
+REQUIRED_COLUMNS = {"parcel_market": ("exempt_val",)}
 # Refuse to publish if assessor_parcels shrinks below this share of the copy being replaced.
 MIN_PARCEL_RATIO = 0.5
 UPLOADING_ASSET = config.DB_ASSET + ".uploading"
@@ -65,6 +69,34 @@ def check(path) -> dict[str, int]:
     if empty:
         raise DatabaseCheckFailed(f"{path} has no rows in {', '.join(empty)}")
     return counts
+
+
+def missing_columns(con: duckdb.DuckDBPyConnection) -> list[str]:
+    """``table.column`` for each REQUIRED_COLUMNS entry the database lacks."""
+    out = []
+    for table, columns in REQUIRED_COLUMNS.items():
+        have = {
+            r[0]
+            for r in con.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = ?", [table]
+            ).fetchall()
+        }
+        out += [f"{table}.{c}" for c in columns if c not in have]
+    return out
+
+
+def check_columns(path) -> None:
+    """Raise DatabaseCheckFailed when the database lacks a REQUIRED_COLUMNS column."""
+    con = duckdb.connect(str(path), read_only=True)
+    try:
+        missing = missing_columns(con)
+    finally:
+        con.close()
+    if missing:
+        raise DatabaseCheckFailed(
+            f"{path} lacks {', '.join(missing)}: its join predates the code. Rebuild it "
+            "(python -m etl.build_join) before publishing."
+        )
 
 
 def pull(
@@ -150,6 +182,7 @@ def publish(
     """
     path = Path(path)
     counts = check(path)
+    check_columns(path)
     if before and Path(before).exists():
         if filecmp.cmp(path, before, shallow=False):
             print("No data changes; nothing published.")

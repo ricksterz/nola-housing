@@ -2,6 +2,9 @@ import json
 import re
 from pathlib import Path
 
+import duckdb
+import pytest
+
 from etl import export_static
 from etl.export_static import BUNDLES, Bundles, bundle_key
 
@@ -45,3 +48,13 @@ def test_bundles_write_pages_by_key_and_drop_stale_files(tmp_path, monkeypatch):
             assert f.stem == bundle_key(slug, 16)
             found[slug] = page
     assert found == {s: {"slug": s} for s in ("1-poydras-st", "418-bonnabel-blvd", "parcel-103109601")}
+
+
+def test_a_join_older_than_the_code_fails_the_export(tmp_path, monkeypatch):
+    # The published database once had its assessor tables migrated but not its join: parcel_market
+    # without exempt_val, so a convent's full exemption showed as a homestead. The deploy must stop.
+    monkeypatch.setattr(export_static, "OUT_DIR", tmp_path)
+    con = duckdb.connect()
+    con.execute("CREATE TABLE parcel_market (parcel_id VARCHAR, homestead_exempt_val DOUBLE)")
+    with pytest.raises(SystemExit, match="parcel_market.exempt_val"):
+        export_static.export_properties(con)

@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 
 from backend import queries  # noqa: E402
 from backend.db import get_connection  # noqa: E402
-from etl import export_owners  # noqa: E402
+from etl import db_store, export_owners  # noqa: E402
 
 OUT_DIR = ROOT / "frontend" / "public" / "data"
 REDACT_OWNER_NAMES = False  # assessor records are public; mirror the Houston default
@@ -184,6 +184,14 @@ def export_properties(con) -> int:
     addr_dir.mkdir(parents=True, exist_ok=True)
     if not queries._table_exists(con, "parcel_market"):
         return 0
+    # A half-rebuilt database (assessor tables migrated, join not) would publish wrong values,
+    # e.g. a convent's full exemption as a homestead. Fail the build instead.
+    missing = db_store.missing_columns(con)
+    if missing:
+        raise SystemExit(
+            f"parcel_market lacks {', '.join(missing)}: the published database's join predates the "
+            "code. Run a refresh (e.g. Monthly Market Data Refresh) to rebuild and republish it."
+        )
 
     print("Fetching parcels, value history and per-ZIP valuation stats (batched, not per-parcel)...")
     parcels = queries._rows(con, "SELECT * FROM parcel_market ORDER BY site_address_norm")

@@ -10,6 +10,29 @@ import { EVENTS, trackEvent } from "../lib/metrics";
 // to the plain link if FloodLens doesn't answer.
 function FloodLensScore({ d, inAZone }) {
   const s = floodScore(d);
+  // The README's FloodLens rules hold in both forms: always a model estimate, validated only in
+  // FEMA A zones, with its input coverage and a preliminary map named when they apply.
+  const caveats = s && (
+    <>
+      {s.coverage != null && ` Based on ${Math.round(s.coverage * 100)}% of the model's inputs; the rest have no data here.`}
+      {s.prelimDate && ` Scored on FEMA's preliminary map (issued ${s.prelimDate}), which isn't in effect and isn't for insurance.`}
+    </>
+  );
+  // Outside an A zone the score is untested, so it is one small line, not a headline number.
+  if (!inAZone) {
+    return (
+      <div className="floodlens-score floodlens-score--minor">
+        {s ? (
+          <>
+            {`FloodLens model score ${s.score}/100${s.label ? ` (${s.label.toLowerCase()})` : ""}: untested outside FEMA A zones, so not a reading of this address's risk. A model estimate, not a FEMA determination or an insurance quote.`}
+            {caveats}
+          </>
+        ) : (
+          "FloodLens has too little data here to give a model score."
+        )}
+      </div>
+    );
+  }
   if (!s) {
     return (
       <div className="floodlens-score">
@@ -25,10 +48,8 @@ function FloodLensScore({ d, inAZone }) {
         <b>{s.score}</b> / 100{s.label && <span className="floodlens-score-label">{s.label}</span>}
       </div>
       <span className="floodlens-fact-note">
-        {"A model's estimate, not a FEMA determination or an insurance quote. FloodLens's backtest against flood insurance claims validated it only inside FEMA A zones"}
-        {inAZone ? "." : "; this address isn't in one, so here the score is untested."}
-        {s.coverage != null && ` Based on ${Math.round(s.coverage * 100)}% of the model's inputs; the rest have no data here.`}
-        {s.prelimDate && ` Scored on FEMA's preliminary map (issued ${s.prelimDate}), which isn't in effect and isn't for insurance.`}
+        {"A model's estimate, not a FEMA determination or an insurance quote. FloodLens's backtest against flood insurance claims validated it only inside FEMA A zones, which this address is in."}
+        {caveats}
       </span>
     </div>
   );

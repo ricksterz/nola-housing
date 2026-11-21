@@ -83,6 +83,11 @@ def main(argv=None):
             _rebuild(con, args.db)
         if age is None or age > STALE_AFTER_DAYS:
             raise
+        if not e.loaded:
+            # load() rebuilt the assessor tables before raising, and this run publishes: rebuild the
+            # join with them too, or the published database pairs migrated assessor tables with an
+            # old join (how 420 Bonnabel Blvd's full exemption stayed a "homestead" on the site).
+            _rebuild(con, args.db)
         print(f"::warning::{e} The data is from {last:%Y-%m-%d} ({age} days old); the next run retries.")
         return
     _rebuild(con, args.db)

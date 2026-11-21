@@ -33,8 +33,8 @@ from . import config, og_images
 SITE = "https://nolaatlas.com"
 DIST = config.ETL_DIR.parent / "frontend" / "dist"
 DEFAULT_DESCRIPTION = (
-    "Type any New Orleans or Metairie address: see what it really costs, how it floods, "
-    "and which schools you can get into. Free, independent, and built on public records."
+    "Type any New Orleans or Metairie address: see who owns it, how it floods, "
+    "and which schools are near. Free, independent, and built on public records."
 )
 POWER = config.ETL_DIR.parent / "frontend" / "src" / "data" / "power.json"
 SCHOOLS_URL = "https://schools.nolaatlas.com/"
@@ -306,7 +306,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
     owner_index = area_links(
         [a for a in areas if a.level != "metro"], lambda a: a.ownership_path, "Who owns each area"
     )
-    tagline = "What any address really costs, how it floods, and which schools you can get into."
+    tagline = "Who owns any address, how it floods, and which schools are near."
     metro_row = rows.get(metro.key) or {}
     metro_vintage = month_label(metro_row.get("price_month"))
     pages = [
