@@ -6,7 +6,7 @@
 // Render's free plan gives a workspace 750 instance hours a month. One service awake all month
 // uses 720-744, so this fits only while FloodLens is the workspace's one free service.
 
-// The onrender.com address answers whatever happens to the custom domain's DNS.
+// The onrender.com address, not flood.nolaatlas.com: it answers whatever happens to that domain's DNS.
 export const FLOODLENS_HEALTH = "https://nola-floodlens.onrender.com/api/health";
 const TIMEOUT_MS = 90_000; // a cold start can take about a minute
 

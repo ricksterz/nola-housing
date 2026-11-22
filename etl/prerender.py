@@ -41,7 +41,7 @@ DEFAULT_DESCRIPTION = (
 )
 POWER = config.ETL_DIR.parent / "frontend" / "src" / "data" / "power.json"
 SCHOOLS_URL = "https://schools.nolaatlas.com/"
-FLOODLENS_URL = "https://nola-floodlens.onrender.com/"
+FLOODLENS_URL = "https://flood.nolaatlas.com/"
 PARISH_SLUG = {"22051": "jefferson", "22071": "orleans"}
 
 
