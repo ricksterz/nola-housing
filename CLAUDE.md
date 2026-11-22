@@ -57,7 +57,8 @@ from a database (`NOLA_DB_PATH=... python -m etl.export_static`), build with
   tracts").
 - Privacy: searches are never sent to the analytics services. A property's map point does
   go to FloodLens for its flood details, and About says so. Keep that answer true when
-  anything new leaves the browser.
+  anything new leaves the browser. The watchlist (`lib/watchlist.js`) stays in localStorage;
+  its dashboard reads only the site's own files and counts a save, never what was saved.
 
 ## FloodLens from this site
 

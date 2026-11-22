@@ -7,7 +7,7 @@
 
 const PARISH_SLUG = { 22051: "jefferson", 22071: "orleans" };
 const SLUG_PARISH = { jefferson: "22051", orleans: "22071" };
-const TAB_PATHS = new Set(["scorecard", "compare", "macro", "property", "ownership", "power", "about"]);
+const TAB_PATHS = new Set(["scorecard", "compare", "macro", "property", "ownership", "power", "about", "watchlist"]);
 // Tabs that show one area; elsewhere the area isn't part of the page, so it's left off.
 const AREA_VIEWS = new Set(["overview", "ownership"]);
 

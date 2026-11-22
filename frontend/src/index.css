@@ -719,3 +719,18 @@ a.btn { text-decoration: none; }
   .report-jumps a { padding: 4px 10px; font-size: 12px; }
 }
 .report-anchor:focus { outline: none; }
+
+/* Watchlist: Save buttons and the saved-items dashboard (views/Watchlist.jsx). */
+.watch-btn { display: inline-flex; align-items: center; gap: 6px; }
+.watch-btn.is-saved { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); }
+.watch-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.watch-grid { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 12px; }
+.watch-card { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel-alt, var(--panel)); padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.watch-title { font-family: var(--serif); font-weight: 700; font-size: 16px; color: var(--text-bright); text-decoration: none; line-height: 1.3; padding-right: 64px; overflow-wrap: anywhere; }
+.watch-title:hover, .watch-title:focus-visible { text-decoration: underline; }
+.watch-remove { position: absolute; top: 12px; right: 14px; font-size: 12.5px; }
+.watch-facts { margin: 8px 0 0; display: grid; gap: 4px; font-size: 13px; }
+.watch-facts > div { display: flex; justify-content: space-between; gap: 12px; }
+.watch-facts dt { color: var(--text-dim); }
+.watch-facts dd { margin: 0; color: var(--text); text-align: right; overflow-wrap: anywhere; }
+.watch-stats { margin-top: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }

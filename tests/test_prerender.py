@@ -111,6 +111,8 @@ def test_page_has_its_own_title_canonical_and_readable_content(dist):
 def test_every_page_carries_the_disclaimer(dist):
     prerender.build(dist)
     for page in dist.rglob("index.html"):
+        if '<meta name="robots" content="noindex" />' in page.read_text():
+            continue  # a personal page: the plain app, which shows the disclaimer in its footer
         root = re.search(r'<div id="root">(.*)</div>', page.read_text(), re.S).group(1)
         assert "not financial, legal, tax or insurance advice" in root, page
         assert "proof of ownership" in root and 'href="/about/"' in root, page
@@ -264,3 +266,14 @@ def test_llms_txt_describes_the_site_and_lists_its_pages(dist):
         "aren't proof of ownership" in text
         and "Nothing here is financial, legal, tax or insurance advice" in text
     )
+
+
+def test_the_watchlist_opens_from_a_bookmark_but_stays_out_of_search(dist):
+    prerender.build(dist)
+    page = (dist / "watchlist" / "index.html").read_text()
+    assert "<title>Your watchlist · NOLA Atlas</title>" in page
+    assert '<meta name="robots" content="noindex" />' in page
+    assert '<link rel="canonical" href="https://nolaatlas.com/watchlist/" />' in page
+    assert '<div id="root"></div>' in page  # the plain app: the list lives in the browser
+    assert "/watchlist/" not in (dist / "sitemap.xml").read_text()
+    assert "/watchlist/" not in (dist / "llms.txt").read_text()
