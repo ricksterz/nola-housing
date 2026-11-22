@@ -13,7 +13,10 @@ Each page is the built index.html with its own title, description, canonical and
 tags (and a preview image, etl/og_images.py, at /og/{page}.png), and readable content in place of the empty app root: a heading, the area's numbers from
 the exported data, and links to the related pages. The app replaces that content when it loads,
 so visitors see the same app as before. 404.html is the plain app shell, so any other path still
-opens the app. sitemap.xml lists every page here.
+opens the app. sitemap.xml lists every page here, and llms.txt describes the site and its pages
+for AI search tools (llmstxt.org). Pages carry schema.org JSON-LD: the site and its publisher on the
+home page, a Dataset covering the ZIP, parish or metro (as a Place) on market, ownership and
+scorecard pages, and a BreadcrumbList everywhere else.
 
 Owner lists name organizations and public bodies only; property and owner pages aren't built. The
 data center power page is built from the same hand-kept file the app shows (src/data/power.json).
@@ -38,7 +41,7 @@ DEFAULT_DESCRIPTION = (
 )
 POWER = config.ETL_DIR.parent / "frontend" / "src" / "data" / "power.json"
 SCHOOLS_URL = "https://schools.nolaatlas.com/"
-FLOODLENS_URL = "https://nola-floodlens.onrender.com/"
+FLOODLENS_URL = "https://flood.nolaatlas.com/"
 PARISH_SLUG = {"22051": "jefferson", "22071": "orleans"}
 
 
@@ -125,6 +128,121 @@ class Page:
     def image(self) -> str:
         """Its preview image's file name under /og/."""
         return (self.path.strip("/").replace("/", "-") or "home") + ".png"
+
+
+# Structured data (schema.org JSON-LD) for search engines: the site and its publisher on the home
+# page; on area pages, a Dataset whose spatialCoverage is the ZIP, parish or metro as a Place; a
+# BreadcrumbList on every page but the home page. Facts only: no license, rating or claim the
+# page doesn't make.
+ORG = {"@type": "Organization", "@id": f"{SITE}/#organization", "name": "NOLA Atlas", "url": f"{SITE}/"}
+PUBLISHER = ORG  # in full on every page: a bare @id would point at a node only the home page has
+MARKET_SOURCES = [
+    {
+        "@type": "CreativeWork",
+        "name": "Redfin Data Center",
+        "url": "https://www.redfin.com/news/data-center/",
+    },
+    {"@type": "CreativeWork", "name": "Zillow Research", "url": "https://www.zillow.com/research/data/"},
+]
+ROLL_SOURCES = {
+    "jefferson": {
+        "@type": "CreativeWork",
+        "name": "Jefferson Parish Assessor",
+        "url": "https://www.jpassessor.net/",
+    },
+    "orleans": {
+        "@type": "CreativeWork",
+        "name": "City of New Orleans parcel records (Orleans Parish Assessor's roll)",
+        "url": "https://data.nola.gov/",
+    },
+}
+MARKET_VARIABLES = [
+    "Median sale price",
+    "Change in median sale price from a year earlier",
+    "Typical home value (Zillow ZHVI)",
+    "Typical rent (Zillow ZORI)",
+    "Homes sold",
+    "Median days on market",
+    "Active listings",
+    "Months of supply",
+    "Sale price per square foot",
+    "Sale-to-list ratio",
+]
+OWNERSHIP_VARIABLES = [
+    "Records on the Assessor's roll",
+    "Owners",
+    "Share owned by individuals, organizations and public bodies",
+    "Share of properties whose owner holds two or more",
+    "Share held by the 10 largest owners",
+    "Share of buildings lived in by their owner (homestead)",
+]
+
+
+def place(area: "Area") -> dict:
+    """The area a page covers, as schema.org sees it."""
+    louisiana = {"@type": "State", "name": "Louisiana"}
+    if area.level == "zip":
+        parish = {"jefferson": "Jefferson Parish", "orleans": "Orleans Parish"}.get(area.parish)
+        return {
+            "@type": "Place",
+            "name": f"ZIP code {area.id} ({area.name}), Louisiana",
+            "address": {
+                "@type": "PostalAddress",
+                "postalCode": area.id,
+                "addressRegion": "LA",
+                "addressCountry": "US",
+            },
+            "containedInPlace": (
+                {"@type": "AdministrativeArea", "name": f"{parish}, Louisiana"} if parish else louisiana
+            ),
+        }
+    if area.level == "county":
+        return {
+            "@type": "AdministrativeArea",
+            "name": f"{area.name}, Louisiana",
+            "containedInPlace": louisiana,
+        }
+    return {
+        "@type": "Place",
+        "name": "New Orleans–Metairie metro area, Louisiana",
+        "containedInPlace": louisiana,
+    }
+
+
+def breadcrumbs(*trail: tuple[str, str]) -> dict:
+    items = [("NOLA Atlas", "/"), *trail]
+    return {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": i, "name": name, "item": f"{SITE}{path}"}
+            for i, (name, path) in enumerate(items, 1)
+        ],
+    }
+
+
+def dataset(
+    name: str, description: str, path: str, area: "Area", variables: list, sources: list, modified: str | None
+) -> dict:
+    out = {
+        "@type": "Dataset",
+        "name": name,
+        "description": description,
+        "url": f"{SITE}{path}",
+        "spatialCoverage": place(area),
+        "variableMeasured": variables,
+        "isBasedOn": sources,
+        "creator": PUBLISHER,
+        "publisher": PUBLISHER,
+        "isAccessibleForFree": True,
+        "inLanguage": "en-US",
+    }
+    if modified:
+        out["dateModified"] = modified
+    return out
+
+
+def graph(*nodes: dict) -> dict:
+    return {"@context": "https://schema.org", "@graph": list(nodes)}
 
 
 def nav() -> str:
@@ -306,6 +424,7 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
     owner_index = area_links(
         [a for a in areas if a.level != "metro"], lambda a: a.ownership_path, "Who owns each area"
     )
+    modified = (meta.get("generated") or "")[:10] or None
     tagline = "Who owns any address, how it floods, and which schools are near."
     metro_row = rows.get(metro.key) or {}
     metro_vintage = month_label(metro_row.get("price_month"))
@@ -316,10 +435,10 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             DEFAULT_DESCRIPTION,
             f"<h1>NOLA Atlas</h1><p><strong>{esc(tagline)}</strong></p>"
             '<p><a href="/property/">Look up any address</a> in Jefferson or Orleans Parish: its owner, '
-            "flood zone and flood history, nearby schools and the true monthly cost to own. Built on public "
+            "assessed value and yearly property tax, flood zone and flood history, and nearby schools. Built on public "
             "records. Free and independent.</p>"
             "<h2>Homes</h2><p>Sale prices, home values, rent and inventory for 24 ZIPs, and a report on any "
-            "address: its owner, assessed value, flood zone and the true monthly cost to own. "
+            "address: its owner, assessed value, flood zone and yearly tax and flood insurance. "
             f"Metro median sale price{f' ({metro_vintage})' if metro_vintage else ''}: "
             f"{esc(money(metro_row.get('median_sale_price')) or 'not published')}. "
             '<a href="/market/">Market overview</a> · <a href="/scorecard/">ZIP Scorecard</a> · '
@@ -331,18 +450,25 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             f"<h2>Data center power</h2><p>{esc(power['intro'])} "
             '<a href="/power/">Follow the tracker</a>.</p>'
             f"{market_index}",
-            {
-                "@context": "https://schema.org",
-                "@type": "WebSite",
-                "name": "NOLA Atlas",
-                "alternateName": ["nolaatlas", "nolaatlas.com"],
-                "url": f"{SITE}/",
-                "description": DEFAULT_DESCRIPTION,
-                "inLanguage": "en-US",
-            },
+            graph(
+                {
+                    "@type": "WebSite",
+                    "@id": f"{SITE}/#website",
+                    "name": "NOLA Atlas",
+                    "alternateName": ["nolaatlas", "nolaatlas.com"],
+                    "url": f"{SITE}/",
+                    "description": DEFAULT_DESCRIPTION,
+                    "inLanguage": "en-US",
+                    "publisher": PUBLISHER,
+                },
+                {
+                    **ORG,
+                    "description": "A free, independent reference for homes in New Orleans and Metairie.",
+                },
+            ),
             card=(
                 "Free local data for New Orleans and Metairie",
-                "Any address: cost, flood and schools",
+                "Any address: owner, flood and schools",
                 [
                     ("Parcels and condo units", f"{meta.get('property_count', 0):,}"),
                     (
@@ -359,10 +485,23 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             metro.market_path,
             "Housing market · NOLA Atlas",
             f"The {metro.name} housing market: median sale price, home values, rent, days on market, inventory "
-            f"and months of supply — {source_line(metro_row)}.",
+            f"and months of supply — {source_line(metro_row)}",
             f"<h1>{esc(metro.name)} housing market</h1>{market_facts(metro_row or None)}"
             f'<p><a href="/ownership/">Who owns New Orleans and Metairie</a> · '
             f'<a href="/scorecard/">Compare every ZIP</a></p>{market_index}{owner_index}',
+            graph(
+                dataset(
+                    f"{metro.name} housing market statistics",
+                    f"Monthly housing market statistics for the {metro.name} metro area: median sale price, "
+                    f"home values, rent, days on market, inventory and months of supply. {source_line(metro_row)}",
+                    metro.market_path,
+                    metro,
+                    MARKET_VARIABLES,
+                    MARKET_SOURCES,
+                    modified,
+                ),
+                breadcrumbs(("Housing market", metro.market_path)),
+            ),
             card=("Housing market", "New Orleans and Metairie", market_card(metro_row or None)),
         ),
     ]
@@ -376,10 +515,23 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
                 a.market_path,
                 f"{a.label} housing market · NOLA Atlas",
                 f"{a.label} housing market: median sale price{f' {price}' if price else ''}, home values, rent, "
-                f"days on market, inventory and months of supply — {source_line(row)}.",
+                f"days on market, inventory and months of supply — {source_line(row)}",
                 f"<h1>{esc(a.label)} housing market</h1>{market_facts(row)}"
                 f'<p><a href="{a.ownership_path}">Who owns {esc(a.label)}</a> · '
                 f'<a href="/scorecard/">Compare every ZIP</a></p>{market_index}',
+                graph(
+                    dataset(
+                        f"{a.label} housing market statistics",
+                        f"Monthly housing market statistics for {a.label}: median sale price, home values, rent, "
+                        f"days on market, inventory and months of supply. {source_line(row)}",
+                        a.market_path,
+                        a,
+                        MARKET_VARIABLES,
+                        MARKET_SOURCES,
+                        modified,
+                    ),
+                    breadcrumbs(("Housing market", metro.market_path), (a.label, a.market_path)),
+                ),
                 card=("Housing market", a.label, market_card(row)),
             )
         )
@@ -390,6 +542,20 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             "Who owns property in Jefferson and Orleans Parish: individuals, organizations and public bodies, "
             "how many owners hold several properties, and the largest owners, from the Assessors' rolls.",
             f"<h1>Who owns New Orleans and Metairie</h1>{ownership_facts(ownership.get(metro.key))}{owner_index}",
+            graph(
+                dataset(
+                    "Property ownership in New Orleans and Metairie",
+                    "Who owns property in Jefferson and Orleans Parish, from the Assessors' rolls: individuals, "
+                    "organizations and public bodies, owners holding several properties, the largest owners, and "
+                    "the share of homes lived in by their owner.",
+                    "/ownership/",
+                    metro,
+                    OWNERSHIP_VARIABLES,
+                    list(ROLL_SOURCES.values()),
+                    modified,
+                ),
+                breadcrumbs(("Who owns", "/ownership/")),
+            ),
             card=("Who owns", "New Orleans and Metairie", ownership_card(ownership.get(metro.key))),
         )
     )
@@ -414,6 +580,20 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
                 f"<h1>Who owns {esc(a.label)}</h1>{ownership_facts(s)}"
                 f'<p><a href="{a.market_path}">{esc(a.label)} housing market</a> · '
                 f'<a href="/ownership/">All areas</a></p>{owner_index}',
+                graph(
+                    dataset(
+                        f"Property ownership in {a.label}",
+                        f"Who owns property in {a.label}, from the Assessor's roll: individuals, organizations "
+                        "and public bodies, owners holding several properties, the largest owners, and the share "
+                        "of homes lived in by their owner.",
+                        a.ownership_path,
+                        a,
+                        OWNERSHIP_VARIABLES,
+                        [ROLL_SOURCES[a.parish]] if a.parish in ROLL_SOURCES else list(ROLL_SOURCES.values()),
+                        modified,
+                    ),
+                    breadcrumbs(("Who owns", "/ownership/"), (a.label, a.ownership_path)),
+                ),
                 card=("Who owns", a.label, ownership_card(s)),
             )
         )
@@ -436,6 +616,19 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             "<h1>ZIP Scorecard: New Orleans and Metairie ZIP codes side by side</h1>"
             "<table><thead><tr><th>ZIP</th><th>Median sale price</th><th>Year over year</th><th>Home value (ZHVI)"
             f"</th><th>Rent (ZORI)</th><th>Days on market</th></tr></thead><tbody>{table_rows}</tbody></table>",
+            graph(
+                dataset(
+                    "New Orleans and Metairie ZIP code housing scorecard",
+                    "Every New Orleans and Metairie ZIP code side by side: median sale price, year-over-year "
+                    "change, home value, rent, days on market and gross rent yield.",
+                    "/scorecard/",
+                    metro,
+                    [*MARKET_VARIABLES, "Gross rent yield"],
+                    MARKET_SOURCES,
+                    modified,
+                ),
+                breadcrumbs(("ZIP Scorecard", "/scorecard/")),
+            ),
             card=("ZIP Scorecard", "New Orleans and Metairie ZIP codes side by side", []),
         ),
         Page(
@@ -457,15 +650,15 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             "/property/",
             "Property Lookup · NOLA Atlas",
             "Look up any parcel in Jefferson and Orleans Parish by address, street, owner name or parcel number: "
-            "flood zone, monthly cost, assessment comparison, owner and nearby homes.",
+            "flood zone, yearly tax and flood insurance, assessment comparison, owner and nearby homes.",
             "<h1>Property lookup for Jefferson and Orleans Parish</h1><p>Search any address, street, owner name, "
-            "parcel number or tax bill. Each property shows its FEMA flood zone, the true monthly cost to own, how "
+            "parcel number or tax bill. Each property shows its FEMA flood zone, its yearly property tax and flood insurance, how "
             "its assessment compares with similar homes nearby, its owner and the homes around it on a map. Condo "
             f"buildings list every unit.</p><p>{meta.get('property_count', 0):,} parcels and condo units are on "
             "record.</p>" + market_index,
             card=(
                 "Property lookup",
-                "Flood zone, monthly cost, assessment and owner for any address",
+                "Owner, flood zone, assessment and yearly tax for any address",
                 [("Parcels and condo units", f"{meta.get('property_count', 0):,}")],
             ),
         ),
@@ -482,6 +675,10 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
             "ownership. Nothing on the site is financial, legal or tax advice.</p>",
         ),
     ]
+    # The tab pages without a dataset still say where they sit in the site.
+    for page in pages:
+        if page.jsonld is None and page.path != "/":
+            page.jsonld = graph(breadcrumbs((page.title.removesuffix(" · NOLA Atlas"), page.path)))
     return pages
 
 
@@ -559,6 +756,64 @@ def write_sitemap(pages: list[Page], path: Path) -> None:
     )
 
 
+def llms_txt(pages: list[Page], meta: dict) -> str:
+    """/llms.txt (llmstxt.org): what the site is and which page answers what, for AI search tools.
+    Lookups of single addresses and owners are made in the browser, so they're described, not listed."""
+    by_path = {p.path: p for p in pages}
+
+    def line(p: Page) -> str:
+        return f"- [{p.title.removesuffix(' · NOLA Atlas')}]({SITE}{p.path}): {p.description}"
+
+    tabs = ["/property/", "/market/", "/scorecard/", "/compare/", "/macro/", "/ownership/", "/power/"]
+    markets = [p for p in pages if p.path.startswith("/market/") and p.path != "/market/"]
+    owners = [p for p in pages if p.path.startswith("/ownership/") and p.path != "/ownership/"]
+    count = meta.get("property_count") or 0
+    out = [
+        "# NOLA Atlas",
+        "",
+        "> A free, independent reference for homes in New Orleans and Metairie (Orleans and Jefferson "
+        "Parish, Louisiana), built on public records: who owns a property, its assessed value and "
+        "yearly property tax, its FEMA flood zone, nearby schools, and housing-market statistics for "
+        "24 ZIP codes.",
+        "",
+        f"- Property Lookup covers {count:,} parcels and condo units. A report for one address opens at "
+        f"{SITE}/property/?q=<address> (for example {SITE}/property/?q=1+Poydras+St) and is built in the "
+        "browser from the exported data.",
+        "- Sources: the Jefferson Parish Assessor, the City of New Orleans (the Orleans Parish Assessor's "
+        "roll), FEMA's National Flood Hazard Layer, OpenFEMA flood insurance policies, the Census ACS, "
+        "Redfin, Zillow and FRED. Orleans parcels have owners but no assessed values or sale prices yet.",
+        "- Owner names and parcel records are shown as published, unverified, and aren't proof of "
+        "ownership. Nothing here is financial, legal, tax or insurance advice, an appraisal or an "
+        "insurance quote.",
+        "",
+        "## Main pages",
+        "",
+        *(line(by_path[p]) for p in tabs if p in by_path),
+        "",
+        "## Housing market by area",
+        "",
+        *(line(p) for p in markets),
+        "",
+        "## Who owns each area",
+        "",
+        *(line(p) for p in owners),
+        "",
+        "## Related sites",
+        "",
+        f"- [NOLA Atlas School Finder]({SCHOOLS_URL}): every public and private school in Jefferson and "
+        "Orleans, with open seats, admission chances, tuition and key dates.",
+        f"- [FloodLens]({FLOODLENS_URL}): flood risk for any Louisiana address, with drainage, levee and "
+        "storm-surge views and past insurance claims nearby.",
+        "",
+        "## Optional",
+        "",
+        *([line(by_path["/about/"])] if "/about/" in by_path else []),
+        f"- [Sitemap]({SITE}/sitemap.xml): every pre-built page.",
+        "",
+    ]
+    return "\n".join(out)
+
+
 def build(dist: Path = DIST) -> int:
     shell = (dist / "index.html").read_text()
     if '<div id="root"></div>' not in shell and (dist / "404.html").exists():
@@ -582,6 +837,7 @@ def build(dist: Path = DIST) -> int:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(render(shell, page))
     write_sitemap(pages, dist / "sitemap.xml")
+    (dist / "llms.txt").write_text(llms_txt(pages, meta))
     return len(pages)
 
 
@@ -589,7 +845,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--dist", type=Path, default=DIST)
     args = ap.parse_args(argv)
-    print(f"Pre-built {build(args.dist)} pages and sitemap.xml in {args.dist}")
+    print(f"Pre-built {build(args.dist)} pages, sitemap.xml and llms.txt in {args.dist}")
 
 
 if __name__ == "__main__":

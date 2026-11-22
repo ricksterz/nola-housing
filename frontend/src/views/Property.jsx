@@ -478,7 +478,7 @@ function floodLensMethod(summary) {
   return (
     <p>
       {`Census tract flag: tested before the results were known, FloodLens ${pre.model.replace("FloodLens ", "")} found a claim rate ${pre.top_vs_bottom.toFixed(1)} times as high in its top fifth of high-risk-zone tracts as in its bottom fifth (${pre.claims.toLocaleString()} claims, ${pre.window}); rechecked monthly, latest ${summary.rates.top_vs_bottom.toFixed(1)} times. An area measure from census tracts, not a rating of this house. `}
-      <a href="https://nola-floodlens.onrender.com/about.html" target="_blank" rel="noreferrer">How it was tested ↗</a>
+      <a href="https://flood.nolaatlas.com/about.html" target="_blank" rel="noreferrer">How it was tested ↗</a>
     </p>
   );
 }

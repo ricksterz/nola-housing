@@ -1,0 +1,38 @@
+name: Keep FloodLens awake
+
+# FloodLens runs on Render's free plan, which puts it to sleep after 15 minutes without a request;
+# the first property report after that waits up to a minute for its flood details. This calls its
+# health check every 5 minutes. GitHub can start scheduled runs late, so a nap is still possible
+# now and then. The link-preview Worker's cron (cloudflare/link-previews/src/keepawake.js) does the
+# same job more reliably once it is deployed; the two can run together.
+#
+# Render's free plan gives a workspace 750 instance hours a month; FloodLens awake all month uses
+# 720-744. GitHub turns scheduled workflows off after 60 days without a commit to the repository.
+
+on:
+  schedule:
+    # Every 5 minutes, off the :00/:05 marks: GitHub delays and drops scheduled runs most at the
+    # popular minutes, and "*/5" never started a single scheduled run in its first 90 minutes.
+    - cron: "3-58/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-floodlens-awake
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call FloodLens's health check
+        # A failed ping only warns: an email for every nap would be noise, and the next run retries.
+        run: |
+          status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 90 \
+            -A "nolaatlas-keep-awake" https://nola-floodlens.onrender.com/api/health) || status="no answer"
+          echo "FloodLens health: $status"
+          if [ "$status" != "200" ]; then
+            echo "::warning::FloodLens health check returned $status"
+          fi

@@ -10,7 +10,7 @@
 // The lookup rules are the app's (frontend/src/api.js): keep them in step.
 
 export const SITE = "https://nolaatlas.com";
-const TAIL = "Flood risk, the true monthly cost and the market around it, on NOLA Atlas.";
+const TAIL = "Owner, flood risk, yearly tax and the market around it, on NOLA Atlas.";
 
 // Same result as the app's slugify, with the ends trimmed by index rather than a /^-+|-+$/
 // pattern, which backtracks badly on a crafted run of dashes (the input here is the shared URL).

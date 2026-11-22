@@ -37,7 +37,7 @@ export default function About({ ctx }) {
       <div className="panel">
         <h3 className="panel-title">What each view shows</h3>
         <ul className="text-list">
-          <li><strong>Home</strong> — four ways in: Homes (this site's market and property tabs), Schools (<a href="https://schools.nolaatlas.com/" target="_blank" rel="noreferrer">School Finder</a>), Flood (<a href="https://nola-floodlens.onrender.com/" target="_blank" rel="noreferrer">FloodLens</a>) and AI &amp; Power. School Finder and FloodLens are separate sites by the same builder, with their own sources and methods.</li>
+          <li><strong>Home</strong> — four ways in: Homes (this site's market and property tabs), Schools (<a href="https://schools.nolaatlas.com/" target="_blank" rel="noreferrer">School Finder</a>), Flood (<a href="https://flood.nolaatlas.com/" target="_blank" rel="noreferrer">FloodLens</a>) and AI &amp; Power. School Finder and FloodLens are separate sites by the same builder, with their own sources and methods.</li>
           <li><strong>Market Overview</strong> — one area at a time: home value (Zillow ZHVI) vs. median sale price (Redfin), rent (ZORI), days on market, listings pipeline, inventory, months of supply, $/sqft and negotiation metrics. Every chart has a table view.</li>
           <li><strong>ZIP Scorecard</strong> — all 24 ZIPs side by side with the latest reading, year-over-year change and a 24-month price sparkline. Cell shading is a single blue ramp for magnitude and blue/red for change. Below it: gross rent yield (rent vs. buy) and the true monthly cost of the median sale: loan, property tax, homeowners and flood insurance.</li>
           <li><strong>Compare</strong> — overlay up to six areas on one metric, optionally indexed to 100 so growth can be compared across very different price levels, with small multiples underneath.</li>
@@ -186,7 +186,7 @@ export default function About({ ctx }) {
         </div>
         <div className="faq-item">
           <div className="faq-q">What does the site track?</div>
-          <p className="text-block">Which tabs are opened and which features are used (for example, that an owner-name search ran or the cost calculator was changed), counted with Google Analytics and Cloudflare Web Analytics. The addresses, names and parcel numbers you search for are never sent, and Google Analytics is told to skip ad personalization. Google Analytics sets cookies; Cloudflare's doesn't. Browsers that send Global Privacy Control aren't counted by Google Analytics.</p>
+          <p className="text-block">Which tabs are opened and which features are used (for example, that an owner-name search ran or a school link was opened), counted with Google Analytics and Cloudflare Web Analytics. The addresses, names and parcel numbers you search for are never sent to them, and Google Analytics is told to skip ad personalization. One thing does leave your browser with a property: its map point goes to FloodLens, a separate flood-risk service by the same builder, to read the flood details for that spot. FloodLens logs each lookup for its own usage counts, with the point rounded to about a kilometer and your IP address stored only as a keyed hash. Google Analytics sets cookies; Cloudflare's doesn't. Browsers that send Global Privacy Control aren't counted by Google Analytics.</p>
         </div>
         <div className="faq-item">
           <div className="faq-q">Is the owner shown correct?</div>
