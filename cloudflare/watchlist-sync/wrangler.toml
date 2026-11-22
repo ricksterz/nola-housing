@@ -2,7 +2,7 @@
 # site's /watchlist/ page shows its Sync panel only once this answers /api/sync/health.
 #
 # First deploy, from this folder (after `npx wrangler login`):
-#   npx wrangler d1 create nolaatlas-watchlist-sync     # then put its database_id below
+#   npx wrangler d1 create nolaatlas-watchlist-sync     # done: its database_id is below
 #   npx wrangler d1 migrations apply nolaatlas-watchlist-sync --remote
 #   npx wrangler deploy
 name = "nolaatlas-watchlist-sync"
@@ -15,7 +15,7 @@ routes = [{ pattern = "nolaatlas.com/api/sync/*", zone_name = "nolaatlas.com" }]
 [[d1_databases]]
 binding = "DB"
 database_name = "nolaatlas-watchlist-sync"
-database_id = "PUT-THE-ID-FROM-wrangler-d1-create-HERE"
+database_id = "d05a8c36-309f-45ef-ac67-39e5bbdf9861"
 migrations_dir = "migrations"
 
 # Daily, 09:17 UTC: delete lists nobody has synced for 400 days.
