@@ -171,6 +171,12 @@ a.btn { text-decoration: none; }
 .btn .swatch { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .seg { display: inline-flex; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
 .seg--right { margin-left: auto; }
+/* Phones: segmented rows wrap instead of running off the screen (Compare's metric row was
+   915px wide at 375px), so every option stays visible without a hidden sideways scroll. */
+@media (max-width: 560px) {
+  .seg { display: flex; flex-wrap: wrap; max-width: 100%; border-radius: 16px; }
+  .seg--right { margin-left: 0; }
+}
 .seg-btn { appearance: none; border: none; background: transparent; color: var(--text-dim); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-family: var(--sans); font-weight: 550; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .seg-btn:hover { color: var(--text-bright); }
 .seg-btn.is-active { background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold); }
