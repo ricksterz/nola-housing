@@ -22,7 +22,6 @@ export const EVENTS = {
   ownerLinkFromProperty: "owner_link_from_property",
   copyLink: "copy_link",
   googleMaps: "open_google_maps",
-  costCalculator: "use_cost_calculator",
   ownershipArea: "ownership_change_area",
   ownershipSort: "ownership_sort_zips",
   openSchools: "open_schools",

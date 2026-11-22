@@ -57,7 +57,7 @@ cloudflare/link-previews/ Worker on nolaatlas.com/: link previews for property a
                          its 10-minute cron keeps FloodLens (Render free plan) awake
 .github/workflows/       ci.yml, security.yml, refresh-market-data.yml, refresh-assessor.yml,
                          refresh-flood.yml, refresh-addresses.yml, deploy-pages.yml,
-                         check-staleness.yml, keep-floodlens-awake.yml
+                         check-staleness.yml
 ```
 
 ## Setup
