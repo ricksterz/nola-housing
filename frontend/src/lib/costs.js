@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { monthlyPayment } from "./theme";
+import { monthlyPayment } from "./theme.js";
 
 // Homeowners (wind/fire) insurance has no public ZIP-level data, so it's always the reader's
 // number. The starting value is a placeholder inside the range 2026 insurance-comparison sites
@@ -86,6 +86,19 @@ export function useCostAssumptions(defaultRate) {
 
 // Louisiana assesses a home at 10% of its market value; millage applies per assessed dollar.
 const HOME_ASSESSMENT_RATIO = 0.1;
+
+/**
+ * A Jefferson home's market value read back from its assessed value (× 10), or null. Jefferson's
+ * roll carries assessed amounts only; Orleans parcels carry the Assessor's own market value
+ * (tot_mkt_val). It counts as a home when zoned residential (R*), or, with no zoning on the roll,
+ * when it has a homestead exemption (the full $7,500 of assessed value or less). A commercial
+ * building is assessed at 15%, so × 10 would be wrong for it.
+ */
+export function assessorMarket(p) {
+  if (p?.parish !== "jefferson" || p.tot_mkt_val || !(p.assessed_val > 0)) return null;
+  const home = /^R/i.test(p.zoning || "") || (!p.zoning && (p.homestead_exempt_val > 0 || (p.exempt_val > 0 && p.exempt_val <= 7500)));
+  return home ? Math.round(p.assessed_val / HOME_ASSESSMENT_RATIO) : null;
+}
 
 /**
  * A parcel's yearly property tax and flood insurance, from its own roll values and its ZIP's rates.

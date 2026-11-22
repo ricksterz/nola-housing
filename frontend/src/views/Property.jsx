@@ -6,7 +6,7 @@ import ChartPanel from "../components/ChartPanel";
 import { EVENTS, trackEvent } from "../lib/metrics";
 import { floodInfo } from "../lib/flood";
 import { subdivisionName, titleCase } from "../lib/names";
-import { yearlyCost } from "../lib/costs";
+import { assessorMarket, yearlyCost } from "../lib/costs";
 import { utilityFor } from "../lib/power";
 import { floodLensLink } from "../lib/links";
 import { wakeFloodLens } from "../lib/floodlens";
@@ -428,12 +428,6 @@ function CopyLinkButton({ address }) {
 // The Assessor's market value read back from a Jefferson home's assessed value (÷ 10%). Only for
 // homes: zoned residential, or with no zoning on the roll but a homestead exemption. A commercial
 // building is assessed at 15%, so the same arithmetic would overstate it.
-function assessorMarket(p) {
-  if (p.parish !== "jefferson" || p.tot_mkt_val || !(p.assessed_val > 0)) return null;
-  const home = /^R/i.test(p.zoning || "") || (!p.zoning && (p.homestead_exempt_val > 0 || (p.exempt_val > 0 && p.exempt_val <= 7500)));
-  return home ? p.assessed_val * 10 : null;
-}
-
 function lastSale(p) {
   if (p.last_sale_date) {
     return { label: "Last sale", value: `${fmt.date(p.last_sale_date)} · ${fmt.currency(p.last_sale_price)}` };

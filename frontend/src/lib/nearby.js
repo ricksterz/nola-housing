@@ -9,14 +9,18 @@ export function nearKey(lat, lng) {
   return `${Math.floor(lat / NEAR_CELL_DEG)}_${Math.floor(lng / NEAR_CELL_DEG)}`;
 }
 
-/** Grid cells a circle of ``radiusM`` around (lat, lng) touches. */
+/** Grid cells a circle of ``radiusM`` around (lat, lng) touches: every cell of its bounding box.
+ *  At this latitude a degree of longitude is short, so 400 m either way spans three columns;
+ *  the corners alone would miss the cells straight north and south. */
 export function cellsAround(lat, lng, radiusM = NEAR_RADIUS_M) {
   const dLat = radiusM / M_PER_DEG_LAT;
   const dLng = radiusM / (M_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180));
-  const keys = new Set();
-  for (const y of [lat - dLat, lat + dLat]) for (const x of [lng - dLng, lng + dLng]) keys.add(nearKey(y, x));
-  keys.add(nearKey(lat, lng));
-  return [...keys];
+  const cell = (v) => Math.floor(v / NEAR_CELL_DEG);
+  const keys = [];
+  for (let y = cell(lat - dLat); y <= cell(lat + dLat); y++) {
+    for (let x = cell(lng - dLng); x <= cell(lng + dLng); x++) keys.push(`${y}_${x}`);
+  }
+  return keys;
 }
 
 /** Distance in meters; equirectangular is exact enough at a few hundred meters. */
