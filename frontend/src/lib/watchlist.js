@@ -163,42 +163,119 @@ export function mergeLists(mine, incoming, now = new Date()) {
   return out;
 }
 
+// ---- Removals and merging (for sync) -------------------------------------------------------
+
+// A removal is remembered (key -> when) so that a synced device doesn't bring the item back.
+// Kept for REMOVED_DAYS, longer than any device should go without syncing.
+const REMOVED_DAYS = 180;
+
+export function parseRemoved(raw, now = new Date()) {
+  const out = {};
+  const cutoff = now.getTime() - REMOVED_DAYS * 86400000;
+  if (!raw || typeof raw !== "object") return out;
+  for (const [k, at] of Object.entries(raw)) {
+    const t = Date.parse(at);
+    if (/^(property|zip|owner):./.test(k) && Number.isFinite(t) && t >= cutoff) out[k] = at;
+  }
+  return out;
+}
+
+// When an item was last saved, re-saved or marked seen: the later copy wins a merge.
+const touched = (it) => Math.max(Date.parse(it.savedAt) || 0, Date.parse(it.snap?.at) || 0);
+
+/** Two copies of a list ({items, removed}) combined the same way whichever comes first: each item
+ *  is the copy touched last, unless it was removed after that; newest saved first. */
+export function mergeState(a, b, now = new Date()) {
+  const removed = { ...parseRemoved(a?.removed, now) };
+  for (const [k, at] of Object.entries(parseRemoved(b?.removed, now))) if (!removed[k] || Date.parse(at) > Date.parse(removed[k])) removed[k] = at;
+  const byKey = new Map();
+  for (const it of [...(a?.items || []), ...(b?.items || [])]) {
+    const k = itemKey(it);
+    const have = byKey.get(k);
+    if (!have || touched(it) > touched(have)) byKey.set(k, it);
+  }
+  const items = [...byKey.values()]
+    .filter((it) => !(removed[itemKey(it)] && Date.parse(removed[itemKey(it)]) >= touched(it)))
+    .sort((x, y) => (Date.parse(y.savedAt) || 0) - (Date.parse(x.savedAt) || 0) || itemKey(x).localeCompare(itemKey(y)));
+  for (const it of items) delete removed[itemKey(it)];
+  return { items: parseList({ items }), removed };
+}
+
+/** Whether two copies hold the same thing (for skipping writes that change nothing). */
+export function sameState(a, b) {
+  const norm = (s) => JSON.stringify({ items: [...(s?.items || [])].sort((x, y) => itemKey(x).localeCompare(itemKey(y))), removed: Object.keys(s?.removed || {}).sort().map((k) => [k, s.removed[k]]) });
+  return norm(a) === norm(b);
+}
+
 // ---- The shared copy -----------------------------------------------------------------------
 
 // One copy for every Save button and the dashboard, kept in step across tabs.
 let memory = null;
+let removedMemory = {};
 const listeners = new Set();
+const watchers = new Set(); // (state, source) for the sync engine
 
 function load() {
   if (memory) return memory;
   try {
-    memory = parseList(localStorage.getItem(KEY));
+    const raw = JSON.parse(localStorage.getItem(KEY) || "null");
+    memory = parseList(raw);
+    removedMemory = parseRemoved(raw?.removed);
   } catch {
     memory = [];
   }
   return memory;
 }
 
-function save(list) {
+function save(list, { removedKeys = [], removed = null, source = "local" } = {}) {
+  load();
+  const now = new Date().toISOString();
+  removedMemory = removed ? parseRemoved(removed) : { ...removedMemory };
+  for (const k of removedKeys) removedMemory[k] = now;
+  for (const it of list) delete removedMemory[itemKey(it)];
   memory = list;
   try {
-    localStorage.setItem(KEY, JSON.stringify({ v: 1, items: list }));
+    localStorage.setItem(KEY, JSON.stringify({ v: 1, items: list, removed: removedMemory }));
   } catch {
     /* private mode or full: the list lasts until the tab closes */
   }
   for (const fn of listeners) fn(list);
+  for (const fn of watchers) fn(getState(), source);
 }
 
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
     if (e.key !== KEY) return;
-    memory = parseList(e.newValue);
+    let raw = null;
+    try {
+      raw = JSON.parse(e.newValue || "null");
+    } catch {
+      /* unreadable: treat as empty */
+    }
+    memory = parseList(raw);
+    removedMemory = parseRemoved(raw?.removed);
     for (const fn of listeners) fn(memory);
   });
 }
 
 export function getWatchlist() {
   return load();
+}
+
+/** The whole list with its removals, as sync stores it. */
+export function getState() {
+  return { items: load(), removed: { ...removedMemory } };
+}
+
+/** Replace the whole list with a merged copy from sync (watchers hear it as source "sync"). */
+export function applyState(state) {
+  save(parseList({ items: state.items }), { removed: state.removed, source: "sync" });
+}
+
+/** Hear every change to the list: (state, source), source "local" or "sync". */
+export function watchState(fn) {
+  watchers.add(fn);
+  return () => watchers.delete(fn);
 }
 
 /** The list, plus the actions that update every component showing it. */
@@ -214,12 +291,18 @@ export function useWatchlist() {
     toggle: (item) => {
       const cur = load();
       const on = hasItem(cur, item.type, item.id);
-      save(on ? removeItem(cur, item.type, item.id) : addItem(cur, item));
+      if (on) save(removeItem(cur, item.type, item.id), { removedKeys: [itemKey(item)] });
+      else save(addItem(cur, item));
       return !on;
     },
-    remove: (type, id) => save(removeItem(load(), type, id)),
+    remove: (type, id) => save(removeItem(load(), type, id), { removedKeys: [`${type}:${id}`] }),
     setSnapshot: (type, id, snap) => snap && save(withSnapshot(load(), type, id, snap)),
-    importList: (incoming, { replace = false } = {}) => save(replace ? mergeLists([], incoming) : mergeLists(load(), incoming)),
+    importList: (incoming, { replace = false } = {}) => {
+      const cur = load();
+      if (!replace) return save(mergeLists(cur, incoming));
+      const next = mergeLists([], incoming);
+      save(next, { removedKeys: cur.filter((it) => !hasItem(next, it.type, it.id)).map(itemKey) });
+    },
     full: list.length >= MAX_ITEMS,
   };
 }

@@ -6,6 +6,8 @@ import { floodInfo } from "../lib/flood";
 import { pathFromParams } from "../lib/routes";
 import { fmt, fmtCompactCurrency } from "../lib/theme";
 import { copyText } from "../lib/clipboard";
+import { EVENTS, trackEvent } from "../lib/metrics";
+import { disableSync, enableSync, formatCode, joinSync, normalizeCode, syncAvailable, syncNow, useSync } from "../lib/sync";
 import { changesSince, decodeList, encodeList, hasItem, itemKey, snapshotOf, useWatchlist } from "../lib/watchlist";
 import { lastSale, ownerName } from "./Property";
 
@@ -27,15 +29,33 @@ function listFromHash() {
   return { items: decodeList(m[1]) };
 }
 
+// A sync code arriving in a link ("/watchlist/#sync=...").
+function syncFromHash() {
+  const m = typeof window !== "undefined" && window.location.hash.match(/^#sync=(.*)$/);
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return m[1]; // a stray "%": the panel then says the link is damaged
+  }
+}
+
+const clearHash = () => history.replaceState(null, "", window.location.pathname + window.location.search);
+
 export default function Watchlist({ ctx }) {
   const { meta } = ctx;
   const watch = useWatchlist();
   const { list, remove } = watch;
   const [costs, setCosts] = useState(null);
   const [incoming, setIncoming] = useState(listFromHash);
+  const [joinCode, setJoinCode] = useState(syncFromHash);
+  const sync = useSync();
   const [changed, setChanged] = useState({}); // itemKey -> number of changes, once its card loads
   useEffect(() => {
-    const onHash = () => setIncoming(listFromHash());
+    const onHash = () => {
+      setIncoming(listFromHash());
+      setJoinCode(syncFromHash());
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -57,7 +77,9 @@ export default function Watchlist({ ctx }) {
         <h2 className="panel-title">Your watchlist</h2>
         <p className="text-block" style={{ margin: "6px 0 0" }}>
           {list.length ? `${list.length} saved. ` : ""}
-          Saved in this browser only: it isn't sent anywhere, and clearing this site's data (or Safari, after a week without a visit) removes it.
+          {sync.on
+            ? "Synced across your devices with your sync code, encrypted before it leaves this browser."
+            : "Saved in this browser only: it isn't sent anywhere, and clearing this site's data (or Safari, after a week without a visit) removes it."}
           {meta?.generated ? ` Data as of ${fmt.date(meta.generated.slice(0, 10))}.` : ""}
         </p>
         {list.length > 0 && counted.length === list.length && (
@@ -69,8 +91,12 @@ export default function Watchlist({ ctx }) {
       </div>
 
       {incoming && <IncomingList incoming={incoming} list={list} watch={watch} onDone={() => {
-        history.replaceState(null, "", window.location.pathname + window.location.search);
+        clearHash();
         setIncoming(null);
+      }} />}
+      {joinCode && <SyncPanel sync={sync} joinCode={joinCode} onJoinDone={() => {
+        clearHash();
+        setJoinCode(null);
       }} />}
 
       {list.length === 0 && (
@@ -103,6 +129,7 @@ export default function Watchlist({ ctx }) {
           </section>
         );
       })}
+      {!joinCode && <SyncPanel sync={sync} />}
     </div>
   );
 }
@@ -384,5 +411,133 @@ function IncomingList({ incoming, list, watch, onDone }) {
         <button type="button" className="btn btn-sm" onClick={onDone}>Not now</button>
       </div>
     </div>
+  );
+}
+
+// ---- Sync across devices ---------------------------------------------------------------------
+
+function ago(iso) {
+  if (!iso) return null;
+  const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return fmt.date(iso.slice(0, 10));
+}
+
+/** Turn sync on, join with a code or a link, or stop. Shown only where the sync Worker answers
+ *  (or sync is already on), so the site works the same without it. */
+function SyncPanel({ sync, joinCode, onJoinDone }) {
+  const [available, setAvailable] = useState(null);
+  const [typing, setTyping] = useState(false);
+  const [input, setInput] = useState("");
+  const [error, setError] = useState(null);
+  const [showCode, setShowCode] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    let live = true;
+    syncAvailable().then((ok) => live && setAvailable(ok));
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!sync.on && !available && !joinCode) return null;
+
+  const act = async (fn) => {
+    setError(null);
+    try {
+      await fn();
+      return true;
+    } catch (e) {
+      setError(e.message || "Sync failed.");
+      return false;
+    }
+  };
+  const join = async (code) => {
+    if (await act(() => joinSync(code))) {
+      trackEvent(EVENTS.watchlistSyncJoin);
+      setTyping(false);
+      setInput("");
+      onJoinDone?.();
+    }
+  };
+  const copyLink = async () => {
+    setCopied(await copyText(`${window.location.origin}/watchlist/#sync=${sync.code}`));
+    setTimeout(() => setCopied(false), 4000);
+  };
+
+  if (joinCode && !sync.on) {
+    const code = normalizeCode(joinCode);
+    return (
+      <div className="panel watch-incoming" role="region" aria-label="Join a synced watchlist">
+        <h2 className="panel-title">Sync this watchlist here?</h2>
+        <p className="text-block">
+          {code
+            ? "This link carries a sync code. Joining shows the same watchlist here and keeps it in step with the other devices; anything saved in this browser is added to it."
+            : "This sync link is incomplete or damaged. Ask for it to be copied again, or choose Not now and enter the code under Sync across your devices."}
+        </p>
+        {error && <p className="stat-note watch-error" role="alert">{error}</p>}
+        <div className="parcel-actions">
+          {code && <button type="button" className="btn btn-sm btn-primary" disabled={sync.busy} onClick={() => join(code)}>{sync.busy ? "Joining…" : "Join"}</button>}
+          <button type="button" className="btn btn-sm" onClick={onJoinDone}>Not now</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <section className="panel" aria-labelledby="watch-sync">
+      <h2 className="panel-title" id="watch-sync">Sync across your devices</h2>
+      {!sync.on ? (
+        <>
+          <p className="text-block">
+            Turn on sync to get a code. Enter it, or open its link, on your phone or another computer and the same list shows there, kept in step. The
+            list is encrypted in this browser with the code before it&apos;s stored, so the site can&apos;t read it. No account or email.
+          </p>
+          {(error || sync.error) && <p className="stat-note watch-error" role="alert">{error || sync.error.message}</p>}
+          <div className="parcel-actions">
+            <button type="button" className="btn btn-sm btn-primary" disabled={sync.busy} onClick={async () => {
+              if (await act(enableSync)) {
+                trackEvent(EVENTS.watchlistSyncOn);
+                setShowCode(true);
+              }
+            }}>
+              {sync.busy ? "Turning on…" : "Turn on sync"}
+            </button>
+            <button type="button" className="btn btn-sm" aria-expanded={typing} onClick={() => setTyping(!typing)}>I have a code</button>
+          </div>
+          {typing && (
+            <form className="watch-code-form" onSubmit={(e) => { e.preventDefault(); join(input); }}>
+              <label htmlFor="sync-code">Sync code</label>
+              <input id="sync-code" className="search-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" autoComplete="off" autoCapitalize="characters" spellCheck={false} />
+              <button type="submit" className="btn btn-sm btn-primary" disabled={sync.busy || !input.trim()}>{sync.busy ? "Joining…" : "Join"}</button>
+            </form>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="text-block" role="status">
+            {sync.busy ? "Syncing…" : sync.error ? sync.error.message : `Sync is on. Last synced ${ago(sync.lastSync) || "not yet"}.`}
+          </p>
+          <div className="watch-code">
+            <span>Your sync code</span>
+            <code>{showCode ? formatCode(sync.code) : "••••-••••-••••-••••-••••"}</code>
+            <button type="button" className="link-button" onClick={() => setShowCode(!showCode)} aria-expanded={showCode}>{showCode ? "Hide" : "Show"}</button>
+          </div>
+          <p className="stat-note">Enter the code, or open the sync link, on your other devices. Anyone with either can see and change this list: share them only with people who should.</p>
+          {error && <p className="stat-note watch-error" role="alert">{error}</p>}
+          <div className="parcel-actions">
+            <button type="button" className="btn btn-sm" onClick={copyLink}>{copied ? "Copied" : "Copy sync link"}</button>
+            <button type="button" className="btn btn-sm" disabled={sync.busy} onClick={() => act(() => syncNow())}>Sync now</button>
+            <button type="button" className="btn btn-sm" onClick={() => act(() => disableSync())}>Stop syncing here</button>
+            <button type="button" className="btn btn-sm" onClick={() => {
+              if (window.confirm("Delete the synced copy? Every device stops syncing; each keeps the list it has now.")) act(() => disableSync({ remove: true }));
+            }}>
+              Delete synced copy
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

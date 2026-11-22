@@ -28,6 +28,8 @@ export const EVENTS = {
   openFloodLens: "open_floodlens",
   floodlensInlineError: "floodlens_inline_error",
   watchlistSave: "watchlist_save", // never which item: only that one was saved
+  watchlistSyncOn: "watchlist_sync_on",
+  watchlistSyncJoin: "watchlist_sync_join",
 };
 const ALLOWED = new Set(Object.values(EVENTS));
 
