@@ -146,6 +146,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main">Skip to content</a>
       {/* A slim bar on every page: the name (the way home), and on the data tabs their sources. */}
       <header className="topbar">
         <div className="topbar-inner">
@@ -166,7 +167,7 @@ export default function App() {
           </div>
         </div>
       </header>
-      <div className="container app-main">
+      <main id="main" className="container app-main" tabIndex={-1}>
         <nav className="btn-row nav-tabs" aria-label="Main navigation">
           <button
             className={`btn${view === "property" ? " is-active" : ""}`}
@@ -217,7 +218,7 @@ export default function App() {
           {view === "power" && <Power theme={theme} />}
           {view === "about" && <About ctx={ctx} />}
         </ErrorBoundary>
-      </div>
+      </main>
       <Footer generated={meta?.generated} sources={meta?.sources} navigate={navigate} />
     </div>
   );

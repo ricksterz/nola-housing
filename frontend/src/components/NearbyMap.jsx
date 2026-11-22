@@ -112,7 +112,7 @@ export default function NearbyMap({ p, theme, onPick }) {
     <div className="panel">
       <div className="panel-head">
         <div>
-          <h3 className="panel-title">Map &amp; nearby homes</h3>
+          <h2 className="panel-title">Map &amp; nearby homes</h2>
           <div className="panel-subtitle">
             Parcels within {fmtDistance(NEAR_RADIUS_M)}. Tap a dot for its details. Assessed values are tax values, not
             prices.

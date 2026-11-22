@@ -29,7 +29,7 @@ export default function GeoPicker({ geos, selected, onToggle, multi = false, col
   const full = multi && selected.length >= max;
 
   return (
-    <div className="geo-groups" role={multi ? "group" : "tablist"} aria-label="Geography">
+    <div className="geo-groups" role="group" aria-label="Geography">
       {groups.map((grp) => {
         const isExpanded = !grp.collapsible || grp.items.length <= DEFAULT_VISIBLE || expanded[grp.label];
         // Keep the first DEFAULT_VISIBLE ZIPs plus any already-selected one further
@@ -48,9 +48,9 @@ export default function GeoPicker({ geos, selected, onToggle, multi = false, col
               return (
                 <button
                   key={geoKey(g)}
-                  role={multi ? "checkbox" : "tab"}
-                  aria-checked={multi ? active : undefined}
-                  aria-selected={!multi ? active : undefined}
+                  // Toggle buttons: valid inside the labelled groups, unlike tabs (which need a
+                  // tablist as their direct parent).
+                  aria-pressed={active}
                   disabled={disabled}
                   className={`btn btn-sm${active ? " is-active" : ""}`}
                   style={color ? { "--active-color": color } : undefined}
@@ -60,7 +60,7 @@ export default function GeoPicker({ geos, selected, onToggle, multi = false, col
                   {color && <span className="swatch" style={{ background: color }} />}
                   {label}
                   {g.geo_level === "zip" && g.name && active && (
-                    <span style={{ color: "var(--text-dimmer)", fontWeight: 400, fontSize: 11 }}>{g.name}</span>
+                    <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 11 }}>{g.name}</span>
                   )}
                 </button>
               );

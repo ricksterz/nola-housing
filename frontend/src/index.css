@@ -8,8 +8,8 @@
   --border-alt: #1a2130;
   --text: #c4cedd;
   --text-bright: #eef2f8;
-  --text-dim: #8b98ac;
-  --text-dimmer: #5f6c80;
+  --text-dim: #9ba7ba;
+  --text-dimmer: #8794a8; /* dark: 4.9:1+ on every surface, chip tints included (WCAG AA) */
   --gold: #d4922a;
   --gold-bright: #e3a93e;
   --blue: #3987e5;
@@ -42,15 +42,16 @@
   --border-alt: #ebeef4;
   --text: #3a4356;
   --text-bright: #16202f;
-  --text-dim: #69758c;
-  --text-dimmer: #97a1b4;
-  --gold: #a8700e;
+  --text-dim: #5b6679; /* light: 5.2:1+ on every surface */
+  --text-dimmer: #626c80; /* light: 4.5:1+ on every surface (was 2.3-2.6:1) */
+  --gold: #8c5c06; /* light: white text on it and it on its tint both pass 4.5:1 */
+  --on-gold: #ffffff;
   --gold-bright: #c8851a;
-  --blue: #2a78d6;
+  --blue: #2269c4; /* light: links pass 4.5:1 on every surface (was 4.0-4.4:1) */
   --green: #006300;
-  --red: #c44f48;
+  --red: #b33f39; /* light: 5.1:1+ on every surface, the red flood-card tint included */
   --up: #006300;
-  --down: #c44f48;
+  --down: #b33f39;
 
   --shadow: 0 1px 2px rgba(22, 32, 47, 0.05), 0 6px 20px rgba(22, 32, 47, 0.06);
 }
@@ -81,6 +82,10 @@ a { color: var(--blue); }
 .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
 .container { width: 100%; max-width: 1180px; margin: 0 auto; padding: clamp(14px, 2.4vw, 22px) clamp(16px, 3vw, 24px) 0; }
 .app-main { flex: 1; }
+.app-main:focus { outline: none; }
+/* First thing a keyboard reaches: jumps past the top bar and tabs to the page itself. */
+.skip-link { position: absolute; left: 12px; top: -60px; z-index: 3000; padding: 8px 14px; border-radius: var(--radius-sm); background: var(--panel); color: var(--text-bright); border: 2px solid var(--gold); text-decoration: none; font-weight: 600; }
+.skip-link:focus { top: 12px; }
 
 /* ---------- Header ----------
    A slim bar that stays at the top while scrolling: the name (the way home), the tagline on the
@@ -135,7 +140,7 @@ a { color: var(--blue); }
 /* ---------- Parcel card ---------- */
 .parcel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
 .parcel-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.parcel-address { font-family: var(--serif); font-size: clamp(18px, 3vw, 22px); font-weight: 700; color: var(--text-bright); letter-spacing: -0.01em; line-height: 1.25; }
+.parcel-address { margin: 0; font-family: var(--serif); font-size: clamp(18px, 3vw, 22px); font-weight: 700; color: var(--text-bright); letter-spacing: -0.01em; line-height: 1.25; }
 .parcel-sub { font-size: 12.5px; color: var(--text-dim); margin-top: 3px; }
 .stat-section + .stat-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border-alt); }
 .stat-sub { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
@@ -159,6 +164,9 @@ a { color: var(--blue); }
 a.btn { text-decoration: none; }
 .btn:hover { border-color: var(--text-dimmer); color: var(--text-bright); }
 .btn.is-active { background: color-mix(in srgb, var(--active-color, var(--gold)) 13%, var(--panel)); border-color: color-mix(in srgb, var(--active-color, var(--gold)) 45%, transparent); color: var(--active-color, var(--gold)); font-weight: 650; }
+/* A series color (Compare) is a data color, too light or dark for text: the chip keeps it on its
+   border, tint and swatch and writes the label in normal ink. */
+.btn.is-active[style*="--active-color"] { color: var(--text-bright); border-color: var(--active-color); }
 .btn-sm { padding: 4px 11px; font-size: 12px; }
 .btn .swatch { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .seg { display: inline-flex; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
@@ -166,7 +174,7 @@ a.btn { text-decoration: none; }
 .seg-btn { appearance: none; border: none; background: transparent; color: var(--text-dim); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-family: var(--sans); font-weight: 550; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .seg-btn:hover { color: var(--text-bright); }
 .seg-btn.is-active { background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold); }
-.btn-primary { appearance: none; border: none; border-radius: var(--radius-sm); background: var(--gold); color: #fff; padding: 10px 24px; font-size: 13.5px; font-weight: 600; font-family: var(--sans); cursor: pointer; white-space: nowrap; }
+.btn-primary { appearance: none; border: none; border-radius: var(--radius-sm); background: var(--gold); color: var(--on-gold, #0a0e17); padding: 10px 24px; font-size: 13.5px; font-weight: 600; font-family: var(--sans); cursor: pointer; white-space: nowrap; }
 .btn-primary:hover:not(:disabled) { background: var(--gold-bright); }
 .btn-primary:disabled { background: var(--panel-alt); color: var(--text-dim); cursor: not-allowed; }
 .link-btn { appearance: none; background: none; border: none; padding: 0; color: var(--blue); cursor: pointer; font: inherit; }
@@ -200,13 +208,15 @@ a.btn { text-decoration: none; }
 .data-table th.sortable { cursor: pointer; user-select: none; }
 .data-table th.sortable:hover { color: var(--text-bright); }
 .data-table th.is-sorted { color: var(--gold); }
+/* Sort headers and row openers are buttons (keyboard-reachable) styled as the text they replace. */
+.th-sort, .row-link { all: unset; box-sizing: border-box; cursor: pointer; color: inherit; font: inherit; text-align: inherit; }
+.th-sort:focus-visible, .row-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
 .data-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-alt); color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .data-table td.num, .data-table th.num { text-align: right; }
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover td { background: color-mix(in srgb, var(--text-bright) 3%, transparent); }
 .data-table tr.clickable { cursor: pointer; }
 .heat { display: inline-block; min-width: 56px; padding: 2px 7px; border-radius: 6px; text-align: right; color: var(--text-bright); }
-[data-theme="light"] .heat.strong { color: #ffffff; }
 .thin-sample { display: inline-block; min-width: 56px; padding: 2px 7px; text-align: right; color: var(--text-dimmer); cursor: help; }
 .geo-cell { display: flex; flex-direction: column; line-height: 1.2; }
 .geo-cell .geo-name { font-size: 11px; color: var(--text-dim); font-weight: 400; }
@@ -327,7 +337,7 @@ a.btn { text-decoration: none; }
    can't cover the address suggestions or anything else on the page. */
 .nearby-map { height: 320px; border-radius: var(--radius-sm); border: 1px solid var(--border); overflow: hidden; position: relative; isolation: isolate; z-index: 0; background: var(--panel); }
 .nearby-map--dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
-.nearby-map .leaflet-control-attribution { font-size: 10px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-dim); }
+.nearby-map .leaflet-control-container .leaflet-control-attribution { font-size: 10px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-dim); }
 .nearby-map .leaflet-control-attribution a { color: var(--text-dim); }
 .nearby-map .leaflet-popup-content-wrapper, .nearby-map .leaflet-popup-tip { background: var(--panel); color: var(--text); }
 .map-popup-title { font-weight: 650; color: var(--text-bright); margin-bottom: 2px; }
@@ -518,7 +528,7 @@ a.btn { text-decoration: none; }
    cyan = AI data centers, gold = gas plants (solid approved, striped proposed), and one color per
    decision maker in the log. Every animation stops under prefers-reduced-motion. */
 :root { --ai: #36d6c3; --ai-2: #7c8cff; --lpsc: #3987e5; --nola: #d4922a; --parish: #199e70; --court: #9085e9; }
-[data-theme="light"] { --ai: #0b8a7a; --ai-2: #4a3aa7; --lpsc: #2a78d6; --nola: #a8700e; --parish: #0f7f57; --court: #4a3aa7; }
+[data-theme="light"] { --ai: #066a5e; --ai-2: #4a3aa7; --lpsc: #2a78d6; --nola: #a8700e; --parish: #0f7f57; --court: #4a3aa7; }
 .ai-mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .ai-dim { color: var(--text-dimmer); }
 
@@ -579,8 +589,8 @@ a.btn { text-decoration: none; }
 
 .power-map { height: 400px; border-radius: var(--radius-sm); border: 1px solid var(--border); overflow: hidden; position: relative; isolation: isolate; z-index: 0; background: var(--panel-alt); }
 .power-map--dark .leaflet-tile-pane { filter: invert(1) hue-rotate(185deg) brightness(0.85) contrast(1.05) saturate(0.6); }
-.power-map .leaflet-control-attribution { font-size: 10px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-dim); }
-.power-map .leaflet-control-attribution a { color: var(--text-dim); }
+.power-map .leaflet-control-container .leaflet-control-attribution { font-size: 10px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-dim); }
+.power-map .leaflet-control-container .leaflet-control-attribution a { color: var(--text-dim); }
 .pm-icon { background: none; border: 0; display: grid; place-items: center; }
 .pm-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; position: relative; flex: none; }
 .pm-dot--datacenter { width: 13px; height: 13px; border-radius: 3px; transform: rotate(45deg); background: var(--ai); box-shadow: 0 0 0 2px var(--panel), 0 0 14px var(--ai); }
@@ -615,7 +625,7 @@ a.btn { text-decoration: none; }
 .ai-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .ai-card { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: var(--radius-sm); background: var(--panel-alt); border: 1px solid var(--border); transition: border-color 0.2s ease, transform 0.2s ease; }
 .ai-card:hover { border-color: color-mix(in srgb, var(--ai) 45%, var(--border)); transform: translateY(-2px); }
-.ai-card--muted { opacity: 0.78; }
+.ai-card--muted { background: transparent; border-style: dashed; } /* not opacity: it faded the text below 4.5:1 */
 .ai-status { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; border: 1px solid; }
 .ai-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .ai-status--active { color: var(--ai); border-color: color-mix(in srgb, var(--ai) 40%, transparent); background: color-mix(in srgb, var(--ai) 10%, transparent); }
@@ -702,3 +712,4 @@ a.btn { text-decoration: none; }
   .key-stat dd { font-size: 18px; }
   .report-jumps a { padding: 4px 10px; font-size: 12px; }
 }
+.report-anchor:focus { outline: none; }

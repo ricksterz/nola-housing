@@ -139,7 +139,7 @@ function CapacityBars() {
     <div className="panel ai-panel">
       <div className="ai-panel-head">
         <span className="ai-index">01</span>
-        <h3 className="panel-title">Megawatts on the table</h3>
+        <h2 className="panel-title">Megawatts on the table</h2>
       </div>
       <div className="ai-bars">
         {power.capacity.map((c) => {
@@ -185,7 +185,7 @@ function MapPanel({ theme }) {
     <div className="panel ai-panel">
       <div className="ai-panel-head">
         <span className="ai-index">02</span>
-        <h3 className="panel-title">Where the power goes</h3>
+        <h2 className="panel-title">Where the power goes</h2>
       </div>
       <PowerMap sites={power.sites} theme={theme} />
       <div className="ai-bar-legend" style={{ marginTop: 10 }}>
@@ -208,7 +208,7 @@ function RateRoute({ route, setRoute, onShowDecisions }) {
     <div className="panel ai-panel">
       <div className="ai-panel-head">
         <span className="ai-index">03</span>
-        <h3 className="panel-title">Who sets your power rates</h3>
+        <h2 className="panel-title">Who sets your power rates</h2>
       </div>
       <div className="ai-toggle" role="radiogroup" aria-label="Where you live">
         {ROUTES.map((x) => (
@@ -251,7 +251,7 @@ function Projects() {
     <div className="panel ai-panel">
       <div className="ai-panel-head">
         <span className="ai-index">04</span>
-        <h3 className="panel-title">Projects</h3>
+        <h2 className="panel-title">Projects</h2>
       </div>
       <div className="ai-cards">
         {power.projects.map((p) => (
@@ -259,7 +259,7 @@ function Projects() {
             <div className="ai-card-top">
               <span className={`ai-status ai-status--${p.tone}`}>{p.stage}</span>
             </div>
-            <h4 className="ai-card-title">{p.name}</h4>
+            <h3 className="ai-card-title">{p.name}</h3>
             <div className="ai-mono ai-dim ai-card-where">{p.where}</div>
             <div className="ai-card-power">{p.power}</div>
             <p className="power-text">{p.status}</p>
@@ -286,7 +286,7 @@ function DecisionLog({ group, setGroup, logRef }) {
     <div className="panel ai-panel" ref={logRef}>
       <div className="ai-panel-head">
         <span className="ai-index">05</span>
-        <h3 className="panel-title">Decision log</h3>
+        <h2 className="panel-title">Decision log</h2>
       </div>
       <div className="ai-filters" role="group" aria-label="Filter decisions">
         {GROUPS.map(([k, label]) => (
@@ -326,7 +326,7 @@ function Bills() {
     <div className="panel ai-panel">
       <div className="ai-panel-head">
         <span className="ai-index">06</span>
-        <h3 className="panel-title">What it could mean for your bill</h3>
+        <h2 className="panel-title">What it could mean for your bill</h2>
       </div>
       <div className="panel-subtitle" style={{ marginBottom: 12 }}>
         The two sides disagree; both are summarized here. NOLA Atlas takes no position.

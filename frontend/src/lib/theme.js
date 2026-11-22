@@ -35,7 +35,7 @@ export const METRIC_SLOT = {
 
 // Sequential (blue, light->dark) and diverging (blue <-> red, gray midpoint) ramps.
 export const SEQ_LIGHT = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7", "#3987e5"];
-export const SEQ_DARK = ["#0d366b", "#104281", "#184f95", "#1c5cab", "#256abf", "#2a78d6", "#3987e5"];
+export const SEQ_DARK = ["#0d366b", "#104281", "#184f95", "#1c5cab", "#256abf", "#2370cc", "#3987e5"]; // #2370cc: every step takes white or near-black text at 4.5:1+
 
 export function sequential(t, theme) {
   const ramp = theme === "light" ? SEQ_LIGHT : SEQ_DARK;
@@ -44,12 +44,32 @@ export function sequential(t, theme) {
   return ramp[i];
 }
 
+// Text color for a filled cell: white or near-black, whichever contrasts more with the fill
+// (WCAG relative luminance). Mid-tone fills like #3987e5 fail with white and with dark gray.
+const INK_DARK = "#0a0e17";
+function luminance(hex) {
+  const n = String(hex).replace("#", "");
+  if (n.length !== 6) return null;
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const c = parseInt(n.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+export function readableOn(fill) {
+  const l = luminance(fill);
+  if (l == null) return undefined;
+  const onWhite = 1.05 / (l + 0.05);
+  const onDark = (l + 0.05) / (luminance(INK_DARK) + 0.05);
+  return onWhite >= onDark ? "#ffffff" : INK_DARK;
+}
+
 // t in [-1, 1]; negative -> red arm, positive -> blue arm, 0 -> neutral gray.
 export function diverging(t, theme) {
   if (t == null || Number.isNaN(t)) return "transparent";
   const light = theme === "light";
   const mid = light ? "#f0efec" : "#383835";
-  const blue = light ? ["#b7d3f6", "#6da7ec", "#2a78d6"] : ["#1c5cab", "#256abf", "#3987e5"];
+  const blue = light ? ["#b7d3f6", "#6da7ec", "#2269c4"] : ["#1c5cab", "#256abf", "#3987e5"];
   const red = light ? ["#f6c9c9", "#ee8f8e", "#e34948"] : ["#7a2323", "#a83636", "#e66767"];
   const a = Math.min(1, Math.abs(t));
   if (a < 0.12) return mid;
