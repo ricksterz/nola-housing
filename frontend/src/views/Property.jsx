@@ -667,23 +667,6 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
       ],
     ],
     [
-      "Utilities",
-      [
-        {
-          label: "Electricity",
-          value: utility ? utility.utility : null,
-          note: utility && (
-            <>
-              {`Rates set by the ${utility.regulator}. `}
-              <button type="button" className="link-button" onClick={() => navigate({ view: "power" })}>
-                AI data centers and your bill →
-              </button>
-            </>
-          ),
-        },
-      ],
-    ],
-    [
       "ZIP market context",
       [
         { label: "Median home value", value: p.zhvi ? fmtCompactCurrency(p.zhvi) : null },
@@ -704,9 +687,26 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
     .map((h) => ({ ...h, monthLabel: String(h.tax_year) }));
   const implied = trend && v ? trend.filter((d) => d.zhvi != null).map((d, _, arr) => ({ monthLabel: monthLabel(d.month), month: d.month, implied: Math.round((d.zhvi / arr[arr.length - 1].zhvi) * v.est_mid) })) : [];
 
-  const renderSection = ([title, items]) => (
+  // The numbers most readers came for, in one row under the address; the flood card follows.
+  const zone = floodInfo(p);
+  const keyStats = [
+    sections.find(([t]) => t === "Valuation")?.[1].find((s) => s.label === "Assessor market value") && {
+      label: "Assessor market value",
+      value: p.tot_mkt_val ? fmt.currency(p.tot_mkt_val) : `≈ ${fmt.currency(market)}`,
+      sub: p.tot_mkt_val ? "Assessor's roll" : "assessed value × 10",
+    },
+    yearly && {
+      label: yearly.flood ? "Tax + flood insurance" : "Property tax",
+      value: `≈ ${fmt.currency(yearly.total)}/yr`,
+      sub: yearly.flood ? `tax ${fmt.currency(yearly.tax)} + flood ${fmt.currency(yearly.flood.median)}` : "estimate, not a bill",
+    },
+  ].filter(Boolean);
+  const valuation = sections.find(([t]) => t === "Valuation");
+  const breakdown = valuation && valuation[1].filter((s) => s.label !== "Assessor market value");
+
+  const renderSection = ([title, items], { untitled = false } = {}) => (
     <div key={title} className="stat-section">
-      <div className="stat-section-title">{title}</div>
+      {!untitled && <div className="stat-section-title">{title}</div>}
       <div className="stat-grid">
         {items.map((s) => (
           <div key={s.label} className={`stat${s.wide ? " stat--wide" : ""}`}>
@@ -719,8 +719,24 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
     </div>
   );
 
+  // Section jumps for a long report; each target only if it renders.
+  const jumps = [
+    ["report-flood", "Flood", Boolean(zone)],
+    ["report-schools", "Schools", true],
+    ["report-compare", "Compare", Boolean(data.comparison && p.assessed_val)],
+    ["report-map", "Map", p.lat != null && p.lng != null],
+    ["report-history", "History", history.length > 0],
+  ].filter(([, , on]) => on);
+
   return (
     <>
+      <nav className="report-jumps" aria-label="Jump to a section">
+        {jumps.map(([id, label]) => (
+          <a key={id} href={`#${id}`} onClick={(e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+            {label}
+          </a>
+        ))}
+      </nav>
       <div className="panel">
         <div className="parcel-header">
           <div>
@@ -740,7 +756,25 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
         </div>
         {data.notice && <div className="stat-note" style={{ margin: "0 0 10px", color: "var(--text)" }}>{data.notice}</div>}
         {/* What it's worth first, then how it floods, then the rest of the record. */}
-        {sections.filter(([title]) => title === "Valuation").map(renderSection)}
+        {keyStats.length > 0 && (
+          <dl className="key-stats">
+            {keyStats.map((k) => (
+              <div key={k.label} className="key-stat">
+                <dt>{k.label}</dt>
+                <dd>
+                  {k.value}
+                  <span>{k.sub}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {breakdown && breakdown.length > 0 && (
+          <details className="report-more" id="report-value">
+            <summary>Valuation breakdown and tax math</summary>
+            {renderSection(valuation, { untitled: true })}
+          </details>
+        )}
         {p.parish === "orleans" && !hasValuation && (
           <div className="stat-section">
             <div className="stat-section-title">Valuation</div>
@@ -753,8 +787,18 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
             </div>
           </div>
         )}
-        <FloodZone p={p} floodlens={data.floodlens} floodlensSummary={floodlensSummary} />
-        {sections.filter(([title]) => title !== "Valuation").map(renderSection)}
+        <div id="report-flood" className="report-anchor">
+          <FloodZone p={p} floodlens={data.floodlens} floodlensSummary={floodlensSummary} />
+        </div>
+        {sections.filter(([title]) => title !== "Valuation").map((sec) => renderSection(sec))}
+        {utility && (
+          <div className="stat-note report-line">
+            {`Electricity: ${utility.utility}, rates set by the ${utility.regulator}. `}
+            <button type="button" className="link-button" onClick={() => navigate({ view: "power" })}>
+              AI data centers and your bill →
+            </button>
+          </div>
+        )}
         {p.legal_description && (
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border-alt)", color: "var(--text-dimmer)", fontSize: 12, overflowWrap: "anywhere" }}>
             Legal: {titleCase(p.legal_description)}
@@ -771,9 +815,17 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
       {/* After the record and how it floods (the card above): which schools are near, the
           assessment check, the neighbors. A mortgage calculator isn't here: most parcels aren't
           for sale, and the ZIP Scorecard compares the cost of buying by ZIP. */}
-      <NearbySchools key={`schools-${p.parcel_id}`} p={p} />
-      <AssessmentComparison key={`compare-${p.parcel_id}`} p={p} comparison={data.comparison} />
-      {p.lat != null && p.lng != null && <NearbyMap key={`map-${p.parcel_id}`} p={p} theme={theme} onPick={onPick} />}
+      <div id="report-schools" className="report-anchor">
+        <NearbySchools key={`schools-${p.parcel_id}`} p={p} />
+      </div>
+      <div id="report-compare" className="report-anchor">
+        <AssessmentComparison key={`compare-${p.parcel_id}`} p={p} comparison={data.comparison} />
+      </div>
+      {p.lat != null && p.lng != null && (
+        <div id="report-map" className="report-anchor">
+          <NearbyMap key={`map-${p.parcel_id}`} p={p} theme={theme} onPick={onPick} />
+        </div>
+      )}
 
       {v && (
         <div className="panel panel--gold">
@@ -792,6 +844,7 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
         </div>
       )}
 
+      <div id="report-history" className="report-anchor" />
       {history.length > 1 && (
         <ChartPanel title="Assessed value history" subtitle="From the assessor's roll, by tax year" rows={history} columns={[{ key: "tax_year", label: "Tax year" }, { key: "tot_mkt_val", label: "Market", type: "currency" }, { key: "assessed_val", label: "Assessed", type: "currency" }]} height={200}>
           <LineChart data={history}>

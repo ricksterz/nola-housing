@@ -115,45 +115,48 @@ export default function AssessmentComparison({ p, comparison }) {
         <span><i className="legend-swatch range-key-whisker" />10th–90th percentile</span>
       </div>
 
-      <div className="table-wrap">
-        <table className="data-table compare-table">
-          <thead>
-            <tr>
-              <th />
-              <th className="num">This parcel</th>
-              {groups.map(({ key }) => (
-                <th key={key} className="num">{key === "nearby" ? "Nearest" : "Subdivision"}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ["Assessed", p.assessed_val, "assessed"],
-              ["Land", p.land_val, "land"],
-              ["Building", p.bld_val, "building"],
-            ].map(([label, own, field]) => (
-              <tr key={field}>
-                <td>{label}</td>
-                <td className="num">{own != null ? fmt.currency(own) : "—"}</td>
-                {groups.map(({ key, g }) => (
-                  <td key={key} className="num">{middle(g[field])}</td>
+      <details className="report-more">
+        <summary>{review ? "Land and building values, and how to question an assessment" : "Land and building values, and what this comparison leaves out"}</summary>
+        <div className="table-wrap">
+          <table className="data-table compare-table">
+            <thead>
+              <tr>
+                <th />
+                <th className="num">This parcel</th>
+                {groups.map(({ key }) => (
+                  <th key={key} className="num">{key === "nearby" ? "Nearest" : "Subdivision"}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="stat-note" style={{ marginTop: 6 }}>Neighbor columns: median, then the middle half.</div>
+            </thead>
+            <tbody>
+              {[
+                ["Assessed", p.assessed_val, "assessed"],
+                ["Land", p.land_val, "land"],
+                ["Building", p.bld_val, "building"],
+              ].map(([label, own, field]) => (
+                <tr key={field}>
+                  <td>{label}</td>
+                  <td className="num">{own != null ? fmt.currency(own) : "—"}</td>
+                  {groups.map(({ key, g }) => (
+                    <td key={key} className="num">{middle(g[field])}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="stat-note" style={{ marginTop: 6 }}>Neighbor columns: median, then the middle half.</div>
 
-      <ul className="text-list compare-notes">
-        {residential && (
-          <li>{`At Louisiana's 10% residential assessment ratio, ${fmt.currency(p.assessed_val)} assessed means the Assessor values this property at about ${fmt.currency(p.assessed_val * 10)}.`}</li>
-        )}
-        <li>These compare assessed values only. The Assessor doesn't publish living area or condition here, so a higher value can simply mean a bigger or newer building. Land values are the fairer like-for-like check, since lots in one subdivision tend to be valued alike.</li>
-        {review && (
-          <li>{`${review} To question a value, contact the Assessor's office while the rolls are open; recent sales of comparable homes carry the most weight. A formal appeal then goes to the parish Board of Review and, after that, the Louisiana Tax Commission.`}</li>
-        )}
-      </ul>
+        <ul className="text-list compare-notes">
+          {residential && (
+            <li>{`At Louisiana's 10% residential assessment ratio, ${fmt.currency(p.assessed_val)} assessed means the Assessor values this property at about ${fmt.currency(p.assessed_val * 10)}.`}</li>
+          )}
+          <li>These compare assessed values only. The Assessor doesn't publish living area or condition here, so a higher value can simply mean a bigger or newer building. Land values are the fairer like-for-like check, since lots in one subdivision tend to be valued alike.</li>
+          {review && (
+            <li>{`${review} To question a value, contact the Assessor's office while the rolls are open; recent sales of comparable homes carry the most weight. A formal appeal then goes to the parish Board of Review and, after that, the Louisiana Tax Commission.`}</li>
+          )}
+        </ul>
+      </details>
     </div>
   );
 }
