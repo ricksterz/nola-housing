@@ -1,0 +1,7 @@
+# Exact versions for the GitHub Actions jobs that refresh, publish and deploy the data
+# (.github/workflows/refresh-*.yml, deploy-pages.yml, check-staleness.yml, ci.yml's site build).
+# Several of those jobs can push to the repo, publish the database release or deploy the site,
+# so they don't take whatever version is newest on PyPI that day. Dependabot proposes updates.
+duckdb==2.0.1
+requests==2.34.2
+pillow==13.0.0

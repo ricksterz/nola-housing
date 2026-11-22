@@ -37,7 +37,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install duckdb requests pillow
+      - run: pip install -r requirements-jobs.txt
       # DejaVu fonts for the link-preview images (etl/og_images.py).
       - run: sudo apt-get install -y --no-install-recommends fonts-dejavu-core
       - name: Download the database from the data release
