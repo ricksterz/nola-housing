@@ -337,10 +337,7 @@ a.btn { text-decoration: none; }
    can't cover the address suggestions or anything else on the page. */
 .nearby-map { height: 320px; border-radius: var(--radius-sm); border: 1px solid var(--border); overflow: hidden; position: relative; isolation: isolate; z-index: 0; background: var(--panel); }
 .nearby-map--dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
-.nearby-map .leaflet-control-attribution { font-size: 10px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-dim); }
-/* Every map's attribution sits on Leaflet's light box unless themed above: keep its text dark. */
-.leaflet-container .leaflet-control-attribution { color: #333; }
-.nearby-map .leaflet-control-attribution { color: var(--text-dim); }
+.nearby-map .leaflet-control-container .leaflet-control-attribution { font-size: 10px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-dim); }
 .nearby-map .leaflet-control-attribution a { color: var(--text-dim); }
 .nearby-map .leaflet-popup-content-wrapper, .nearby-map .leaflet-popup-tip { background: var(--panel); color: var(--text); }
 .map-popup-title { font-weight: 650; color: var(--text-bright); margin-bottom: 2px; }
@@ -531,7 +528,7 @@ a.btn { text-decoration: none; }
    cyan = AI data centers, gold = gas plants (solid approved, striped proposed), and one color per
    decision maker in the log. Every animation stops under prefers-reduced-motion. */
 :root { --ai: #36d6c3; --ai-2: #7c8cff; --lpsc: #3987e5; --nola: #d4922a; --parish: #199e70; --court: #9085e9; }
-[data-theme="light"] { --ai: #08776a; --ai-2: #4a3aa7; --lpsc: #2a78d6; --nola: #a8700e; --parish: #0f7f57; --court: #4a3aa7; }
+[data-theme="light"] { --ai: #066a5e; --ai-2: #4a3aa7; --lpsc: #2a78d6; --nola: #a8700e; --parish: #0f7f57; --court: #4a3aa7; }
 .ai-mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .ai-dim { color: var(--text-dimmer); }
 
@@ -592,8 +589,8 @@ a.btn { text-decoration: none; }
 
 .power-map { height: 400px; border-radius: var(--radius-sm); border: 1px solid var(--border); overflow: hidden; position: relative; isolation: isolate; z-index: 0; background: var(--panel-alt); }
 .power-map--dark .leaflet-tile-pane { filter: invert(1) hue-rotate(185deg) brightness(0.85) contrast(1.05) saturate(0.6); }
-.power-map .leaflet-control-attribution { font-size: 10px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-dim); }
-.power-map .leaflet-control-attribution a { color: var(--text-dim); }
+.power-map .leaflet-control-container .leaflet-control-attribution { font-size: 10px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--text-dim); }
+.power-map .leaflet-control-container .leaflet-control-attribution a { color: var(--text-dim); }
 .pm-icon { background: none; border: 0; display: grid; place-items: center; }
 .pm-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; position: relative; flex: none; }
 .pm-dot--datacenter { width: 13px; height: 13px; border-radius: 3px; transform: rotate(45deg); background: var(--ai); box-shadow: 0 0 0 2px var(--panel), 0 0 14px var(--ai); }
@@ -628,7 +625,7 @@ a.btn { text-decoration: none; }
 .ai-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .ai-card { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: var(--radius-sm); background: var(--panel-alt); border: 1px solid var(--border); transition: border-color 0.2s ease, transform 0.2s ease; }
 .ai-card:hover { border-color: color-mix(in srgb, var(--ai) 45%, var(--border)); transform: translateY(-2px); }
-.ai-card--muted { opacity: 0.78; }
+.ai-card--muted { background: transparent; border-style: dashed; } /* not opacity: it faded the text below 4.5:1 */
 .ai-status { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; border: 1px solid; }
 .ai-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .ai-status--active { color: var(--ai); border-color: color-mix(in srgb, var(--ai) 40%, transparent); background: color-mix(in srgb, var(--ai) 10%, transparent); }

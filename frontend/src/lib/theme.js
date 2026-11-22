@@ -69,7 +69,7 @@ export function diverging(t, theme) {
   if (t == null || Number.isNaN(t)) return "transparent";
   const light = theme === "light";
   const mid = light ? "#f0efec" : "#383835";
-  const blue = light ? ["#b7d3f6", "#6da7ec", "#2a78d6"] : ["#1c5cab", "#256abf", "#3987e5"];
+  const blue = light ? ["#b7d3f6", "#6da7ec", "#2269c4"] : ["#1c5cab", "#256abf", "#3987e5"];
   const red = light ? ["#f6c9c9", "#ee8f8e", "#e34948"] : ["#7a2323", "#a83636", "#e66767"];
   const a = Math.min(1, Math.abs(t));
   if (a < 0.12) return mid;

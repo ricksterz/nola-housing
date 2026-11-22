@@ -60,7 +60,7 @@ export default function GeoPicker({ geos, selected, onToggle, multi = false, col
                   {color && <span className="swatch" style={{ background: color }} />}
                   {label}
                   {g.geo_level === "zip" && g.name && active && (
-                    <span style={{ color: "var(--text-dimmer)", fontWeight: 400, fontSize: 11 }}>{g.name}</span>
+                    <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 11 }}>{g.name}</span>
                   )}
                 </button>
               );
