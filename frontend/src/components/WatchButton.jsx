@@ -1,9 +1,11 @@
 import { EVENTS, trackEvent } from "../lib/metrics";
-import { MAX_ITEMS, useWatchlist } from "../lib/watchlist";
+import { MAX_ITEMS, snapshotOf, useWatchlist } from "../lib/watchlist";
 
 /** Save or unsave one address, ZIP or owner to the watchlist. The visible word carries the state
  *  ("Save" / "Saved") and the name says what a click does; a save is counted, never what was saved. */
-export default function WatchButton({ type, id, label, className = "btn" }) {
+// `record` is what the page shows (a parcel, a ZIP's scorecard row, an owner): its numbers are
+// kept with the item so the dashboard can say what changed since it was saved.
+export default function WatchButton({ type, id, label, record, className = "btn" }) {
   const { has, toggle, full } = useWatchlist();
   if (!id) return null;
   const saved = has(type, id);
@@ -16,7 +18,7 @@ export default function WatchButton({ type, id, label, className = "btn" }) {
       disabled={blocked}
       title={blocked ? `Your watchlist is full (${MAX_ITEMS} items). Remove one to save this.` : saved ? "Saved to your watchlist in this browser. Click to remove." : "Save to your watchlist in this browser"}
       onClick={() => {
-        if (toggle({ type, id, label })) trackEvent(EVENTS.watchlistSave);
+        if (toggle({ type, id, label, snap: snapshotOf(type, record) })) trackEvent(EVENTS.watchlistSave);
       }}
     >
       <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">

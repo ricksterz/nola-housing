@@ -755,7 +755,7 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
                 {`All units at ${data.building.full.split(",")[0]}`}
               </button>
             )}
-            <WatchButton type="property" id={parcelQueryText(p, data.lookup)} label={address} />
+            <WatchButton type="property" id={parcelQueryText(p, data.lookup)} label={address} record={p} />
             <CopyLinkButton address={parcelQueryText(p, data.lookup)} />
           </div>
         </div>
