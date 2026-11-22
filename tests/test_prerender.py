@@ -134,7 +134,7 @@ def test_home_names_the_site_for_search(dist):
     assert site["publisher"]["@id"] == "https://nolaatlas.com/#organization"
     assert _node(ld, "Organization")["@id"] == "https://nolaatlas.com/#organization"
     assert "<h1>NOLA Atlas</h1>" in home
-    for link in ('href="/market/"', 'href="/power/"', "schools.nolaatlas.com", "nola-floodlens.onrender.com"):
+    for link in ('href="/market/"', 'href="/power/"', "schools.nolaatlas.com", "flood.nolaatlas.com"):
         assert link in home, link  # the hub links every topic
 
 

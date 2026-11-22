@@ -5,7 +5,7 @@
 export const SCHOOLS_URL = "https://schools.nolaatlas.com/";
 
 // FloodLens (flood score plus Drainage, Levee and Surge lenses for any Louisiana address).
-export const FLOODLENS_URL = "https://nola-floodlens.onrender.com/";
+export const FLOODLENS_URL = "https://flood.nolaatlas.com/";
 
 /** FloodLens opened on an address, optionally on one lens (home, drains, levees, surge). */
 export function floodLensLink(address, lens) {
