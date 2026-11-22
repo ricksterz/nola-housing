@@ -35,7 +35,7 @@ export const METRIC_SLOT = {
 
 // Sequential (blue, light->dark) and diverging (blue <-> red, gray midpoint) ramps.
 export const SEQ_LIGHT = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7", "#3987e5"];
-export const SEQ_DARK = ["#0d366b", "#104281", "#184f95", "#1c5cab", "#256abf", "#2a78d6", "#3987e5"];
+export const SEQ_DARK = ["#0d366b", "#104281", "#184f95", "#1c5cab", "#256abf", "#2370cc", "#3987e5"]; // #2370cc: every step takes white or near-black text at 4.5:1+
 
 export function sequential(t, theme) {
   const ramp = theme === "light" ? SEQ_LIGHT : SEQ_DARK;
