@@ -814,6 +814,22 @@ def llms_txt(pages: list[Page], meta: dict) -> str:
     return "\n".join(out)
 
 
+# Personal pages: opened straight from a bookmark with a 200 and the app, but kept out of search
+# engines (noindex), the sitemap and llms.txt. Their content lives in the reader's browser.
+PRIVATE_PAGES = [("/watchlist/", "Your watchlist · NOLA Atlas")]
+
+
+def private_page(shell: str, path: str, title: str) -> str:
+    out = re.sub(r"<title>.*?</title>", f"<title>{esc(title)}</title>", shell, count=1, flags=re.S)
+    out = re.sub(
+        r'<link rel="canonical" href="[^"]*"\s*/?>',
+        f'<link rel="canonical" href="{SITE}{path}" />',
+        out,
+        count=1,
+    )
+    return out.replace("</head>", '    <meta name="robots" content="noindex" />\n  </head>', 1)
+
+
 def build(dist: Path = DIST) -> int:
     shell = (dist / "index.html").read_text()
     if '<div id="root"></div>' not in shell and (dist / "404.html").exists():
@@ -836,6 +852,10 @@ def build(dist: Path = DIST) -> int:
         target = dist / page.path.strip("/") / "index.html" if page.path != "/" else dist / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(render(shell, page))
+    for path, title in PRIVATE_PAGES:
+        target = dist / path.strip("/") / "index.html"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(private_page(shell, path, title))
     write_sitemap(pages, dist / "sitemap.xml")
     (dist / "llms.txt").write_text(llms_txt(pages, meta))
     return len(pages)

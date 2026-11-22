@@ -16,6 +16,8 @@ import Ownership from "./views/Ownership";
 import Power from "./views/Power";
 import Property from "./views/Property";
 import Scorecard from "./views/Scorecard";
+import Watchlist from "./views/Watchlist";
+import { useWatchlist } from "./lib/watchlist";
 
 const VIEWS = [
   ["home", "Home"],
@@ -27,6 +29,7 @@ const VIEWS = [
   ["ownership", "Ownership"],
   ["power", "AI & Power"],
   ["about", "About"],
+  ["watchlist", "Watchlist"],
 ];
 // The main bar is the four things a reader comes for: an address, the market, schools, flood.
 // The market's own tabs ride in a second row while one of them is open. AI & Power and About
@@ -63,6 +66,7 @@ function pageMeta(view, url, geos) {
     ownership: url.owner ? "Owner" : area ? `Who owns ${area}` : "Who owns New Orleans and Metairie",
     power: "AI data centers and power in Louisiana",
     about: "About and methodology",
+    watchlist: "Your watchlist",
   };
   const canonicalGeo = view === "overview" || (view === "ownership" && !url.owner) ? url.geo : undefined;
   const path = pathFromParams({ view, geo: canonicalGeo }) || pathFromParams({ view }) || "/"; // no query: just the tab or area
@@ -84,6 +88,7 @@ export default function App() {
   const [macro, setMacro] = useState(null);
   const [scorecard, setScorecard] = useState(null);
   const [error, setError] = useState(null);
+  const saved = useWatchlist().list.length;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -189,6 +194,17 @@ export default function App() {
           <a className="btn" href={FLOODLENS_URL} target="_blank" rel="noreferrer" onClick={() => trackEvent(EVENTS.openFloodLens)} title="FloodLens runs on a free host and can take up to a minute to wake on a first visit">
             Flood ↗
           </a>
+          {/* Only once something is saved (or the page is open), so the bar stays the four things a
+              reader comes for until they've used it. */}
+          {(saved > 0 || view === "watchlist") && (
+            <button
+              className={`btn${view === "watchlist" ? " is-active" : ""}`}
+              onClick={() => navigate({ view: "watchlist", owner: null, q: null, street: null, geo: null })}
+              aria-current={view === "watchlist" ? "page" : undefined}
+            >
+              {`Saved${saved ? ` · ${saved}` : ""}`}
+            </button>
+          )}
         </nav>
         {MARKET_VIEWS.has(view) && (
           <nav className="btn-row nav-tabs nav-tabs--sub" aria-label="Market data">
@@ -217,6 +233,7 @@ export default function App() {
           {view === "ownership" && <Ownership ctx={ctx} />}
           {view === "power" && <Power theme={theme} />}
           {view === "about" && <About ctx={ctx} />}
+          {view === "watchlist" && <Watchlist ctx={ctx} />}
         </ErrorBoundary>
       </main>
       <Footer generated={meta?.generated} sources={meta?.sources} navigate={navigate} />

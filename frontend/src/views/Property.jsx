@@ -14,6 +14,7 @@ import FloodLensDetails from "../components/FloodLensDetails";
 import NearbySchools from "../components/NearbySchools";
 import AssessmentComparison from "../components/AssessmentComparison";
 import NearbyMap from "../components/NearbyMap";
+import WatchButton from "../components/WatchButton";
 import Table from "../components/Table";
 import { Frame, currencyAxis, lineProps } from "../components/charts";
 import { monthLabel } from "../lib/rangeUtils";
@@ -369,7 +370,7 @@ function StreetList({ street, onPick }) {
 
 // Assessor style is "LAST,FIRST M & CO OWNER" with no space after the comma. A trailing "&" means
 // the record names a co-owner the Assessor didn't publish in the name field.
-function ownerName(raw) {
+export function ownerName(raw) {
   const s = titleCase(String(raw).replace(/\s*&\s*/g, " & "));
   return s.endsWith("&") ? `${s.slice(0, -1).trim()} & co-owner` : markCutOff(s);
 }
@@ -428,7 +429,7 @@ function CopyLinkButton({ address }) {
 // The Assessor's market value read back from a Jefferson home's assessed value (÷ 10%). Only for
 // homes: zoned residential, or with no zoning on the roll but a homestead exemption. A commercial
 // building is assessed at 15%, so the same arithmetic would overstate it.
-function lastSale(p) {
+export function lastSale(p) {
   if (p.last_sale_date) {
     return { label: "Last sale", value: `${fmt.date(p.last_sale_date)} · ${fmt.currency(p.last_sale_price)}` };
   }
@@ -754,6 +755,7 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
                 {`All units at ${data.building.full.split(",")[0]}`}
               </button>
             )}
+            <WatchButton type="property" id={parcelQueryText(p, data.lookup)} label={address} />
             <CopyLinkButton address={parcelQueryText(p, data.lookup)} />
           </div>
         </div>

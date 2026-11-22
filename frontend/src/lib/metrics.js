@@ -27,6 +27,7 @@ export const EVENTS = {
   openSchools: "open_schools",
   openFloodLens: "open_floodlens",
   floodlensInlineError: "floodlens_inline_error",
+  watchlistSave: "watchlist_save", // never which item: only that one was saved
 };
 const ALLOWED = new Set(Object.values(EVENTS));
 

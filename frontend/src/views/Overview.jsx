@@ -5,6 +5,7 @@ import ChartPanel from "../components/ChartPanel";
 import GeoPicker from "../components/GeoPicker";
 import RangeToggle from "../components/RangeToggle";
 import StatTile from "../components/StatTile";
+import WatchButton from "../components/WatchButton";
 import { Frame, MetricLine, currencyAxis } from "../components/charts";
 import { geoKey, geoLabel, parseGeo } from "../lib/geo";
 import { filterRange, monthLabel, monthsSince, RANGES } from "../lib/rangeUtils";
@@ -54,7 +55,10 @@ export default function Overview({ ctx }) {
                 Latest readings · Redfin {fmt.monthYear(row.price_month)} · Zillow {fmt.monthYear(row.zhvi_month)}
               </div>
             </div>
-            <RangeToggle value={range} onChange={(r) => navigate({ range: r }, { replace: true })} right={false} />
+            <div className="parcel-actions">
+              {geo.geo_level === "zip" && <WatchButton type="zip" id={geo.geo_id} label={label} className="btn btn-sm" />}
+              <RangeToggle value={range} onChange={(r) => navigate({ range: r }, { replace: true })} right={false} />
+            </div>
           </div>
           {monthsSince(row.price_month) > 2 && (
             <div className="stat-note" style={{ margin: "-6px 0 14px" }}>
