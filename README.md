@@ -55,6 +55,8 @@ etl/
 tests/                   fixture-backed tests for every loader, the assessor fallbacks and the join
 cloudflare/link-previews/ Worker on nolaatlas.com/: link previews for property and owner lookups;
                          its cron keeps FloodLens (Render free plan) awake, 7 am to midnight
+cloudflare/watchlist-sync/ Worker on nolaatlas.com/api/sync/: stores watchlists encrypted in the
+                         browser (D1), for the opt-in sync code on /watchlist/
 .github/workflows/       ci.yml, security.yml, refresh-market-data.yml, refresh-assessor.yml,
                          refresh-flood.yml, refresh-addresses.yml, deploy-pages.yml,
                          check-staleness.yml

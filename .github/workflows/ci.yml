@@ -65,6 +65,17 @@ jobs:
       - run: npm test
         working-directory: frontend
 
+  sync-worker-tests:
+    name: Watchlist sync Worker tests (node --test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm test
+        working-directory: cloudflare/watchlist-sync
+
   worker-tests:
     name: Link-preview Worker tests (node --test)
     runs-on: ubuntu-latest

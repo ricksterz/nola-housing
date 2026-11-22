@@ -18,6 +18,7 @@ import Property from "./views/Property";
 import Scorecard from "./views/Scorecard";
 import Watchlist from "./views/Watchlist";
 import { useWatchlist } from "./lib/watchlist";
+import { startSync } from "./lib/sync";
 
 const VIEWS = [
   ["home", "Home"],
@@ -111,6 +112,7 @@ export default function App() {
   }, [view]);
 
   useEffect(() => {
+    startSync(); // only does anything once the reader has turned watchlist sync on
     getMeta().then(setMeta);
     getMacroSnapshot().then(setMacro);
     getScorecard()

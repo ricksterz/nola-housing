@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_ITEMS, addItem, changesSince, decodeList, encodeList, hasItem, mergeLists, parseList, removeItem, snapshotOf, withSnapshot } from "../src/lib/watchlist.js";
+import { MAX_ITEMS, addItem, changesSince, decodeList, encodeList, hasItem, mergeLists, mergeState, parseList, removeItem, sameState, snapshotOf, withSnapshot } from "../src/lib/watchlist.js";
 
 const NOW = new Date("2026-11-22T12:00:00Z");
 
@@ -131,4 +131,18 @@ test("adding a shared list keeps yours first, skips repeats and stops at the lim
   assert.deepEqual(mergeLists([], theirs, NOW).map((it) => it.id), ["70005", "70130"]); // replace
   const many = Array.from({ length: MAX_ITEMS }, (_, i) => ({ type: "zip", id: String(71000 + i) }));
   assert.equal(mergeLists(mine, many, NOW).length, MAX_ITEMS);
+});
+
+test("merging two copies: the later save wins, removals stick, and order doesn't matter", () => {
+  const a = { items: [{ type: "zip", id: "70005", label: "old", savedAt: "2026-11-01T00:00:00Z" }], removed: {} };
+  const b = { items: [{ type: "zip", id: "70005", label: "new", savedAt: "2026-11-01T00:00:00Z", snap: { zhvi: 1, at: "2026-11-05T00:00:00Z" } }], removed: { "zip:70130": "2026-11-04T00:00:00Z" } };
+  const ab = mergeState(a, b, NOW);
+  assert.deepEqual(ab, mergeState(b, a, NOW));
+  assert.equal(ab.items[0].label, "new"); // marked seen later
+  assert.deepEqual(Object.keys(ab.removed), ["zip:70130"]);
+  const removedLater = mergeState(ab, { items: [], removed: { "zip:70005": "2026-11-06T00:00:00Z" } }, NOW);
+  assert.deepEqual(removedLater.items, []);
+  assert.ok(sameState(mergeState(ab, ab, NOW), ab));
+  // Removals older than 180 days are forgotten.
+  assert.deepEqual(mergeState({ items: [], removed: { "zip:1": "2026-01-01T00:00:00Z" } }, null, NOW).removed, {});
 });

@@ -744,3 +744,9 @@ a.btn { text-decoration: none; }
 .watch-changes li + li { margin-top: 2px; }
 .watch-incoming { border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); }
 .watch-incoming .text-block { margin: 6px 0 12px; }
+.watch-code-form { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.watch-code-form label { font-size: 13px; color: var(--text-dim); }
+.watch-code-form .search-input { flex: 1 1 220px; font-family: var(--mono, ui-monospace, monospace); letter-spacing: 0.04em; text-transform: uppercase; }
+.watch-code { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 4px 0 6px; font-size: 13px; color: var(--text-dim); }
+.watch-code code { font-family: var(--mono, ui-monospace, monospace); font-size: 15px; letter-spacing: 0.06em; color: var(--text-bright); background: var(--panel-alt); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; overflow-wrap: anywhere; }
+.watch-error { color: var(--red); }

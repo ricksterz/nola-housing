@@ -60,6 +60,17 @@ from a database (`NOLA_DB_PATH=... python -m etl.export_static`), build with
   anything new leaves the browser. The watchlist (`lib/watchlist.js`) stays in localStorage;
   its dashboard reads only the site's own files and counts a save, never what was saved. Its
   backup/share link carries the list after "#", so it never reaches a server or the analytics.
+  Sync (`lib/sync.js`, opt-in) stores the list encrypted in the browser with keys derived from
+  the sync code (HKDF; AES-GCM); the code itself is never sent. Keep it that way.
+
+## Watchlist sync Worker
+
+- `cloudflare/watchlist-sync` serves `nolaatlas.com/api/sync/*` from a D1 database. Like the
+  link-preview Worker, CI tests it but doesn't deploy it: first deploy needs `wrangler d1 create`,
+  the database id in its `wrangler.toml`, `wrangler d1 migrations apply --remote`, then
+  `wrangler deploy`. A schema change is a new file in `migrations/`.
+- The site shows the Sync panel only when `/api/sync/health` answers, so the site works the
+  same while the Worker is down or not deployed.
 
 ## FloodLens from this site
 
