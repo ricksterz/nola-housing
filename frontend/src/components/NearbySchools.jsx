@@ -58,7 +58,7 @@ export default function NearbySchools({ p }) {
   if (!schools) {
     return (
       <div className="panel">
-        <h3 className="panel-title">Schools</h3>
+        <h2 className="panel-title">Schools</h2>
         <div className="stat-note">Seats, chances of getting in and tuition: {allLink}</div>
       </div>
     );
@@ -73,7 +73,7 @@ export default function NearbySchools({ p }) {
   const kindWord = (SCHOOL_KINDS.find(([k]) => k === kind)?.[1] || "").toLowerCase();
   return (
     <div className="panel">
-      <h3 className="panel-title">Schools near this address</h3>
+      <h2 className="panel-title">Schools near this address</h2>
       <div className="panel-subtitle" style={{ marginBottom: 10 }}>{`Within ${SCHOOL_RADIUS_MI} miles in a straight line, nearest first. From NOLA Atlas School Finder.`}</div>
       <div className="btn-row" role="tablist" aria-label="Kind of school" style={{ marginBottom: 6 }}>
         {SCHOOL_KINDS.map(([k, label]) => (

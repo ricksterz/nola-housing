@@ -210,7 +210,7 @@ function BuildingView({ building, notice, onPick }) {
     <div className="panel">
       <div className="parcel-header">
         <div>
-          <div className="parcel-address">{building.full}</div>
+          <h2 className="parcel-address">{building.full}</h2>
           <div className="parcel-sub">{`${building.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · ${(units.length || other.length).toLocaleString()} unit${(units.length || other.length) === 1 ? "" : "s"} on record`}</div>
         </div>
         <div className="parcel-actions">
@@ -347,7 +347,7 @@ function StreetList({ street, onPick }) {
     <div className="panel">
       <div className="panel-head">
         <div>
-          <h3 className="panel-title">{street.name}</h3>
+          <h2 className="panel-title">{street.name}</h2>
           <div className="panel-subtitle">{`${street.count.toLocaleString()} parcels${street.cities ? ` · ${street.cities}` : ""}. Pick a house number.`}</div>
         </div>
       </div>
@@ -719,6 +719,15 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
     </div>
   );
 
+  // Scroll to a section and move keyboard focus there; no smooth scroll for reduced motion.
+  const jumpTo = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
+    el.focus({ preventScroll: true });
+  };
   // Section jumps for a long report; each target only if it renders.
   const jumps = [
     ["report-flood", "Flood", Boolean(zone)],
@@ -732,7 +741,7 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
     <>
       <nav className="report-jumps" aria-label="Jump to a section">
         {jumps.map(([id, label]) => (
-          <a key={id} href={`#${id}`} onClick={(e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+          <a key={id} href={`#${id}`} onClick={(e) => { e.preventDefault(); jumpTo(id); }}>
             {label}
           </a>
         ))}
@@ -740,7 +749,7 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
       <div className="panel">
         <div className="parcel-header">
           <div>
-            <div className="parcel-address">{address}</div>
+            <h2 className="parcel-address">{address}</h2>
             <div className="parcel-sub">
               {`${p.parish === "jefferson" ? "Jefferson Parish" : "Orleans Parish"} · ${p.tax_bill_number && p.tax_bill_number === p.parcel_id ? "Tax bill" : "Parcel"} ${p.parcel_id}${hasAddress ? "" : ` · No street address listed${p.city ? ` · ${p.city}` : ""}`}`}
             </div>
@@ -829,7 +838,7 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
 
       {v && (
         <div className="panel panel--gold">
-          <h3 className="panel-title panel-title--gold">Indicative market value</h3>
+          <h2 className="panel-title panel-title--gold">Indicative market value</h2>
           <div className="range-stats">
             <div><div className="stat-label">Low</div><div className="range-stat-value">{fmt.currency(v.est_low)}</div></div>
             <div><div className="stat-label">Mid</div><div className="range-stat-value range-stat-value--mid">{fmt.currency(v.est_mid)}</div></div>
@@ -856,8 +865,8 @@ function ParcelCard({ data, trend, theme, navigate, onPick, floodlensSummary }) 
       )}
       {history.length === 1 && (
         <div className="panel">
-          <h3 className="panel-title">Assessed value history</h3>
-          <Table columns={[{ key: "tax_year", label: "Tax year" }, { key: "land_val", label: "Land", type: "currency" }, { key: "bld_val", label: "Building", type: "currency" }, { key: "tot_mkt_val", label: "Market", type: "currency" }, { key: "assessed_val", label: "Assessed", type: "currency" }]} rows={history} />
+          <h2 className="panel-title">Assessed value history</h2>
+          <Table columns={[{ key: "tax_year", label: "Tax year" }, { key: "land_val", label: "Land", type: "currency" }, { key: "bld_val", label: "Building", type: "currency" }, { key: "tot_mkt_val", label: "Market", type: "currency" }, { key: "assessed_val", label: "Assessed", type: "currency" }]} rows={history} label="Assessed value history by tax year" />
         </div>
       )}
 

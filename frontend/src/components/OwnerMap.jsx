@@ -66,7 +66,7 @@ export default function OwnerMap({ records, theme, onPick }) {
     <div className="panel">
       <div className="panel-head">
         <div>
-          <h3 className="panel-title">Map</h3>
+          <h2 className="panel-title">Map</h2>
           <div className="panel-subtitle">{`${placed.length.toLocaleString()} properties with a location on record. Tap a dot for its details.`}</div>
         </div>
       </div>

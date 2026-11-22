@@ -49,7 +49,7 @@ export default function Overview({ ctx }) {
         <div className="panel">
           <div className="panel-head">
             <div>
-              <h3 className="panel-title">{label}</h3>
+              <h2 className="panel-title">{label}</h2>
               <div className="panel-subtitle">
                 Latest readings · Redfin {fmt.monthYear(row.price_month)} · Zillow {fmt.monthYear(row.zhvi_month)}
               </div>

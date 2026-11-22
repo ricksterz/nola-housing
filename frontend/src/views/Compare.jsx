@@ -144,7 +144,7 @@ export default function Compare({ ctx }) {
           <div className="panel">
             <div className="panel-head">
               <div>
-                <h3 className="panel-title">Small multiples</h3>
+                <h2 className="panel-title">Small multiples</h2>
                 <div className="panel-subtitle">Same metric, one panel per area, shared y-scale</div>
               </div>
             </div>

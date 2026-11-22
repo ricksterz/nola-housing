@@ -44,6 +44,26 @@ export function sequential(t, theme) {
   return ramp[i];
 }
 
+// Text color for a filled cell: white or near-black, whichever contrasts more with the fill
+// (WCAG relative luminance). Mid-tone fills like #3987e5 fail with white and with dark gray.
+const INK_DARK = "#0a0e17";
+function luminance(hex) {
+  const n = String(hex).replace("#", "");
+  if (n.length !== 6) return null;
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const c = parseInt(n.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+export function readableOn(fill) {
+  const l = luminance(fill);
+  if (l == null) return undefined;
+  const onWhite = 1.05 / (l + 0.05);
+  const onDark = (l + 0.05) / (luminance(INK_DARK) + 0.05);
+  return onWhite >= onDark ? "#ffffff" : INK_DARK;
+}
+
 // t in [-1, 1]; negative -> red arm, positive -> blue arm, 0 -> neutral gray.
 export function diverging(t, theme) {
   if (t == null || Number.isNaN(t)) return "transparent";

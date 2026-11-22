@@ -9,7 +9,7 @@ export default function ChartPanel({ title, subtitle, children, rows, columns, a
     <div className={`panel${wide ? " panel--wide" : ""} ${className}`}>
       <div className="panel-head">
         <div>
-          <h3 className="panel-title">{title}</h3>
+          <h2 className="panel-title">{title}</h2>
           {subtitle && <div className="panel-subtitle">{subtitle}</div>}
         </div>
         <div className="chart-actions">
@@ -28,7 +28,7 @@ export default function ChartPanel({ title, subtitle, children, rows, columns, a
       </div>
       {mode === "table" ? (
         <div style={{ maxHeight: 360, overflow: "auto" }}>
-          <Table columns={columns} rows={rows} />
+          <Table columns={columns} rows={rows} label={`${title}: table`} />
         </div>
       ) : (
         <div className="chart-box" style={height ? { height } : undefined}>

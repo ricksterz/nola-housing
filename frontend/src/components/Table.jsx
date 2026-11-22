@@ -1,7 +1,9 @@
 import { fmt } from "../lib/theme";
 
 // columns: [{ key, label, type: 'currency'|'compact'|'date'|'num'|'int'|'pct'|'raw', align }]
-export default function Table({ columns, rows, onRowClick }) {
+// `label` names the table for screen readers; its scroll box is focusable so a keyboard can
+// scroll a table wider than the screen.
+export default function Table({ columns, rows, onRowClick, label = "Data table" }) {
   if (!rows || rows.length === 0) {
     return <div className="loading">No data</div>;
   }
@@ -17,7 +19,7 @@ export default function Table({ columns, rows, onRowClick }) {
     days: fmt.days,
   };
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0} role="region" aria-label={label}>
       <table className="data-table">
         <thead>
           <tr>

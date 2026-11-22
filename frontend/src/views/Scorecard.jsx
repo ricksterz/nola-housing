@@ -3,7 +3,7 @@ import { getOwnershipCosts } from "../api";
 import { CostInputs, CostLegend, StackedCostBar } from "../components/MonthlyCost";
 import Sparkline from "../components/Sparkline";
 import { COST_PARTS, HOMEOWNERS_RANGE, annualTax, monthlyCost, useCostAssumptions } from "../lib/costs";
-import { diverging, fmt, fmtCompactCurrency, seriesColor, sequential } from "../lib/theme";
+import { diverging, fmt, fmtCompactCurrency, readableOn, sequential, seriesColor } from "../lib/theme";
 
 // Redfin's median sale price is the median of whatever sold in the 3-month window; on a dozen sales
 // it swings ±20% a year from the mix alone. Below this many sales its YoY is greyed and unshaded.
@@ -62,10 +62,14 @@ export default function Scorecard({ ctx }) {
   function cellStyle(c, v) {
     const r = ranges[c.key];
     if (!c.heat || v == null || !r) return undefined;
-    if (c.heat === "div") return { background: diverging(r.absmax ? v / r.absmax : 0, theme) };
-    let t = r.max === r.min ? 0.5 : (v - r.min) / (r.max - r.min);
-    if (c.heat === "seqrev") t = 1 - t;
-    return { background: sequential(t, theme) };
+    let background;
+    if (c.heat === "div") background = diverging(r.absmax ? v / r.absmax : 0, theme);
+    else {
+      let t = r.max === r.min ? 0.5 : (v - r.min) / (r.max - r.min);
+      if (c.heat === "seqrev") t = 1 - t;
+      background = sequential(t, theme);
+    }
+    return { background, color: readableOn(background) };
   }
   function strong(c, v) {
     const r = ranges[c.key];
@@ -106,16 +110,22 @@ export default function Scorecard({ ctx }) {
       </div>
 
       <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="ZIP Scorecard">
           <table className="data-table scorecard-table">
             <thead>
               <tr>
                 {COLS.map((c) => {
                   const k = c.sort === undefined ? c.key : c.sort;
                   return (
-                    <th key={c.key} className={`${c.align === "left" ? "" : "num"}${k ? " sortable" : ""}${sortKey === k ? " is-sorted" : ""}`} onClick={() => sortBy(c)} aria-sort={sortKey === k ? (dir > 0 ? "ascending" : "descending") : undefined}>
-                      {c.label}
-                      {sortKey === k && (dir > 0 ? " ▲" : " ▼")}
+                    <th key={c.key} className={`${c.align === "left" ? "" : "num"}${k ? " sortable" : ""}${sortKey === k ? " is-sorted" : ""}`} aria-sort={sortKey === k ? (dir > 0 ? "ascending" : "descending") : undefined}>
+                      {k ? (
+                        <button type="button" className="th-sort" onClick={() => sortBy(c)}>
+                          {c.label}
+                          {sortKey === k && <span aria-hidden="true">{dir > 0 ? " ▲" : " ▼"}</span>}
+                        </button>
+                      ) : (
+                        c.label
+                      )}
                     </th>
                   );
                 })}
@@ -128,10 +138,19 @@ export default function Scorecard({ ctx }) {
                     if (c.key === "geo")
                       return (
                         <td key="geo">
-                          <div className="geo-cell">
+                          {/* The row opens the ZIP on a click anywhere; this button is the keyboard way in. */}
+                          <button
+                            type="button"
+                            className="geo-cell row-link"
+                            aria-label={`Open the ${r.geo_id} ${r.name} market`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate({ view: "overview", geo: `zip:${r.geo_id}` });
+                            }}
+                          >
                             <span className="geo-id">{r.geo_id}</span>
                             <span className="geo-name">{r.name}</span>
-                          </div>
+                          </button>
                         </td>
                       );
                     if (c.key === "spark") return <td key="spark"><Sparkline values={r.spark_price} width={80} height={22} /></td>;
@@ -203,7 +222,7 @@ function YieldPanel({ rows, theme }) {
     <div className="panel">
       <div className="panel-head">
         <div>
-          <h3 className="panel-title">Rent vs. buy · gross rent yield</h3>
+          <h2 className="panel-title">Rent vs. buy · gross rent yield</h2>
           <div className="panel-subtitle">Zillow typical rent × 12 ÷ typical home value. Higher = rents cover more of the price.</div>
         </div>
       </div>
@@ -247,7 +266,7 @@ function AffordabilityPanel({ rows, theme, macro }) {
     <div className="panel">
       <div className="panel-head">
         <div>
-          <h3 className="panel-title">Affordability · true monthly cost of the median sale</h3>
+          <h2 className="panel-title">Affordability · true monthly cost of the median sale</h2>
           <div className="panel-subtitle">
             Each ZIP's median sale price with a 30-year fixed loan, plus property tax at the ZIP's rate
             ({a.homestead ? "with the homestead exemption for a home you live in" : "on the full price, as a rental or second home"}),

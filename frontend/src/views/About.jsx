@@ -20,7 +20,7 @@ export default function About({ ctx }) {
   return (
     <div>
       <div className="panel">
-        <h3 className="panel-title">About NOLA Atlas</h3>
+        <h2 className="panel-title">About NOLA Atlas</h2>
         <p className="text-block">
           NOLA Atlas is a free, independent reference for homes in New Orleans and Metairie: parcel records,
           flood risk, how an assessment compares, the monthly cost of buying in each ZIP, and home values, rents and
@@ -35,7 +35,7 @@ export default function About({ ctx }) {
       </div>
 
       <div className="panel">
-        <h3 className="panel-title">What each view shows</h3>
+        <h2 className="panel-title">What each view shows</h2>
         <ul className="text-list">
           <li><strong>Home</strong> — four ways in: Homes (this site's market and property tabs), Schools (<a href="https://schools.nolaatlas.com/" target="_blank" rel="noreferrer">School Finder</a>), Flood (<a href="https://flood.nolaatlas.com/" target="_blank" rel="noreferrer">FloodLens</a>) and AI &amp; Power. School Finder and FloodLens are separate sites by the same builder, with their own sources and methods.</li>
           <li><strong>Market Overview</strong> — one area at a time: home value (Zillow ZHVI) vs. median sale price (Redfin), rent (ZORI), days on market, listings pipeline, inventory, months of supply, $/sqft and negotiation metrics. Every chart has a table view.</li>
@@ -49,7 +49,7 @@ export default function About({ ctx }) {
       </div>
 
       <div className="panel">
-        <h3 className="panel-title">Data sources & cadence</h3>
+        <h2 className="panel-title">Data sources & cadence</h2>
         <ul className="text-list">
           <li><strong>Redfin Data Center</strong> — county, metro and ZIP market trackers (median sale price, homes sold, DOM, inventory, price drops, sale-to-list). Monthly.</li>
           <li><strong>Zillow Research</strong> — ZHVI (typical home value) and ZORI (typical asking rent) at metro, parish and ZIP level. Monthly.</li>

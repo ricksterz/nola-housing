@@ -148,7 +148,7 @@ function OwnerSearch({ navigate }) {
     <div className="panel">
       <div className="panel-head">
         <div>
-          <h3 className="panel-title">Search by owner name</h3>
+          <h2 className="panel-title">Search by owner name</h2>
           <div className="panel-subtitle">Find every property on the Assessors' rolls filed under a name.</div>
         </div>
       </div>
@@ -274,7 +274,7 @@ function OwnershipStats({ ctx }) {
         <div className="panel">
           <div className="panel-head">
             <div>
-              <h3 className="panel-title">{`Who owns ${geoLabel(geo, geos)}`}</h3>
+              <h2 className="panel-title">{`Who owns ${geoLabel(geo, geos)}`}</h2>
               <div className="panel-subtitle">Every parcel and condo unit on the Assessors' rolls, by who it's written to.</div>
             </div>
           </div>
@@ -339,11 +339,11 @@ function OwnershipStats({ ctx }) {
         <div className="panel">
           <div className="panel-head">
             <div>
-              <h3 className="panel-title">ZIPs side by side</h3>
+              <h2 className="panel-title">ZIPs side by side</h2>
               <div className="panel-subtitle">Tap a column to sort, a row to open that ZIP.</div>
             </div>
           </div>
-          <div className="table-wrap">
+          <div className="table-wrap" tabIndex={0} role="region" aria-label="ZIPs side by side">
             <table className="data-table">
               <thead>
                 <tr>
@@ -355,11 +355,17 @@ function OwnershipStats({ ctx }) {
                     ["big", "Owner holds 10+"],
                     ["home", "Lived in by owner *"],
                   ].map(([k, label]) => (
-                    <th key={k} className={`num sortable${sort === k ? " is-sorted" : ""}`} onClick={() => {
-                      trackEvent(EVENTS.ownershipSort);
-                      setSort(k);
-                    }} aria-sort={sort === k ? "descending" : undefined}>
-                      {label}
+                    <th key={k} className={`num sortable${sort === k ? " is-sorted" : ""}`} aria-sort={sort === k ? "descending" : undefined}>
+                      <button
+                        type="button"
+                        className="th-sort"
+                        onClick={() => {
+                          trackEvent(EVENTS.ownershipSort);
+                          setSort(k);
+                        }}
+                      >
+                        {label}
+                      </button>
                     </th>
                   ))}
                 </tr>
@@ -368,7 +374,17 @@ function OwnershipStats({ ctx }) {
                 {zipRows.map((r) => (
                   <tr key={r.g.geo_id} className="clickable" onClick={() => navigate({ geo: geoKey(r.g) })}>
                     <td className="geo-cell">
-                      <span className="geo-id">{r.g.geo_id}</span> {r.g.name}
+                      <button
+                        type="button"
+                        className="row-link"
+                        aria-label={`Who owns ${r.g.geo_id} ${r.g.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate({ geo: geoKey(r.g) });
+                        }}
+                      >
+                        <span className="geo-id">{r.g.geo_id}</span> {r.g.name}
+                      </button>
                     </td>
                     <td className="num">{r.s.records.toLocaleString()}</td>
                     <td className="num">{pct(r.org, 1)}</td>
@@ -463,7 +479,7 @@ function OwnerPage({ ctx, slug }) {
       <div className="panel">
         <div className="panel-head">
           <div>
-            <h3 className="panel-title">{`Every property (${owner.count.toLocaleString()})`}</h3>
+            <h2 className="panel-title">{`Every property (${owner.count.toLocaleString()})`}</h2>
             <div className="panel-subtitle">Matched by the owner's name as written on the roll.</div>
           </div>
         </div>

@@ -89,7 +89,7 @@ export default function AssessmentComparison({ p, comparison }) {
     <div className="panel">
       <div className="panel-head">
         <div>
-          <h3 className="panel-title">How this assessment compares</h3>
+          <h2 className="panel-title">How this assessment compares</h2>
           <div className="panel-subtitle">{`Against ${peers}.`}</div>
         </div>
       </div>
@@ -117,7 +117,7 @@ export default function AssessmentComparison({ p, comparison }) {
 
       <details className="report-more">
         <summary>{review ? "Land and building values, and how to question an assessment" : "Land and building values, and what this comparison leaves out"}</summary>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Land and building values compared with similar parcels">
           <table className="data-table compare-table">
             <thead>
               <tr>
