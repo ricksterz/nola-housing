@@ -54,7 +54,7 @@ etl/
   probe_assessor_bulk.py report which official bulk options answer
 tests/                   fixture-backed tests for every loader, the assessor fallbacks and the join
 cloudflare/link-previews/ Worker on nolaatlas.com/: link previews for property and owner lookups;
-                         its 10-minute cron keeps FloodLens (Render free plan) awake
+                         its cron keeps FloodLens (Render free plan) awake, 7 am to midnight
 .github/workflows/       ci.yml, security.yml, refresh-market-data.yml, refresh-assessor.yml,
                          refresh-flood.yml, refresh-addresses.yml, deploy-pages.yml,
                          check-staleness.yml

@@ -64,7 +64,8 @@ from a database (`NOLA_DB_PATH=... python -m etl.export_static`), build with
 - `frontend/src/lib/links.js` `FLOODLENS_URL` (flood.nolaatlas.com) is both the link target
   and the API base for the flood card's live lookups. FloodLens's CORS allows nolaatlas.com.
 - FloodLens runs on Render's free plan and sleeps after 15 idle minutes. The keep-awake ping
-  (the Worker cron in `cloudflare/link-previews/src/keepawake.js`) calls the onrender.com
+  (the Worker cron in `cloudflare/link-previews/src/keepawake.js`, 7 am to midnight Central so
+  the account's 750 free hours stretch to its other free services) calls the onrender.com
   address on purpose, so it works whatever happens to the custom domain's DNS. GitHub
   Actions schedules proved unreliable for this (a 5-minute cron never fired).
 - The link-preview Worker is not deployed by CI: run `npx wrangler deploy` in
