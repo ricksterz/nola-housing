@@ -1,7 +1,7 @@
 """Shared types for the assessor leg: one normalized parcel record per parish source."""
 
 import re
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import dataclass, field, fields
 from typing import Any
 
 # Column order of assessor_parcels_raw / assessor_parcels (excluding payload).
@@ -179,9 +179,6 @@ class ParcelRecord:
 
     def as_row(self) -> tuple:
         return tuple(getattr(self, f) for f in PARCEL_FIELDS)
-
-    def as_dict(self) -> dict:
-        return asdict(self)
 
 
 RECORD_FIELD_NAMES = {f.name for f in fields(ParcelRecord)}

@@ -1,9 +1,5 @@
 // Geography helpers. The authoritative list comes from meta.json (exported by the
 // ETL); these constants only shape the UI when meta has not loaded yet.
-export const PARISHES = {
-  jefferson: { key: "jefferson", label: "Metairie & East Jefferson", short: "Metairie", fips: "22051" },
-  orleans: { key: "orleans", label: "New Orleans", short: "New Orleans", fips: "22071" },
-};
 export const METRO = { geo_level: "metro", geo_id: "35380", name: "New Orleans–Metairie metro" };
 
 export function parseGeo(s) {
