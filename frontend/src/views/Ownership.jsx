@@ -449,7 +449,7 @@ function OwnerPage({ ctx, slug }) {
             {owner.also_written.length > 0 && <div className="stat-note" style={{ marginTop: 4 }}>{`Also written ${owner.also_written.slice(0, 4).map((v) => `“${v}”`).join(", ")}`}</div>}
           </div>
           <div className="parcel-actions">
-            <WatchButton type="owner" id={slug} label={owner.name} />
+            <WatchButton type="owner" id={slug} label={owner.name} record={owner} />
             <button type="button" className="btn" onClick={() => navigate({ owner: null })}>
               Ownership overview
             </button>

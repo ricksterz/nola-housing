@@ -56,7 +56,7 @@ export default function Overview({ ctx }) {
               </div>
             </div>
             <div className="parcel-actions">
-              {geo.geo_level === "zip" && <WatchButton type="zip" id={geo.geo_id} label={label} className="btn btn-sm" />}
+              {geo.geo_level === "zip" && <WatchButton type="zip" id={geo.geo_id} label={label} record={row} className="btn btn-sm" />}
               <RangeToggle value={range} onChange={(r) => navigate({ range: r }, { replace: true })} right={false} />
             </div>
           </div>
