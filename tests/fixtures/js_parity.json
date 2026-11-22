@@ -1,0 +1,40 @@
+{
+  "_about": "Rules the Python ETL and the JavaScript site (frontend/src/lib, cloudflare/link-previews) both implement. tests/test_js_parity.py checks the Python side and frontend/test/parity.test.js and cloudflare/link-previews/test/parity.test.js the JavaScript side against these same cases, so a change to one side that the other doesn't follow fails CI. display_name takes owner keys (no commas); the site's titleCase also reads the roll's 'LAST,FIRST' form.",
+  "bundle_key": [
+    ["420-bonnabel-blvd-metairie-la-70005", 8192, "13a6"],
+    ["327-carrollton-ave-metairie-la-70005", 8192, "01a7"],
+    ["new-orleans-city-of", 512, "0ac"],
+    ["schlanker-william-a", 512, "04c"],
+    ["mcd", 2048, "57f"],
+    ["café-du-monde", 8192, "195f"],
+    ["", 512, "1c5"]
+  ],
+  "near_key": [
+    [29.9841, -90.1521, "5996_-18031"],
+    [29.95, -90.07, "5990_-18014"],
+    [30.0, -90.0, "6000_-18000"],
+    [29.9551, -90.0752, "5991_-18016"]
+  ],
+  "display_name": [
+    ["STATE OF LOUISIANA-DOTD", "State of Louisiana-DOTD"],
+    ["KH & JW METRO LAND LLC", "KH & JW Metro Land LLC"],
+    ["RXMD LLC", "RXMD LLC"],
+    ["ST MARY'S ACADEMY INC", "St Mary's Academy Inc"],
+    ["US BANK NA", "US Bank NA"],
+    ["HUD", "HUD"],
+    ["LAKE TRAIL", "Lake Trail"],
+    ["MCDONALD MARY A & WF", "McDonald Mary A & wife"],
+    ["O'BRIEN JOHN P JR", "O'Brien John P Jr"],
+    ["JONES ROBERT III", "Jones Robert III"],
+    ["SMITH JOHN ETAL", "Smith John et al"],
+    ["DOE JANE & HUS", "Doe Jane & husband"],
+    ["CITY OF NEW ORLEANS", "City of New Orleans"]
+  ],
+  "slugify": [
+    ["420 BONNABEL BLVD, Metairie, LA 70005", "420-bonnabel-blvd-metairie-la-70005"],
+    ["  1234 St. Charles Ave #3  ", "1234-st-charles-ave-3"],
+    ["--O'Brien, John--", "o-brien-john"],
+    ["Café du Monde", "caf-du-monde"],
+    ["", ""]
+  ]
+}

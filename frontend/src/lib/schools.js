@@ -1,7 +1,7 @@
 // Schools near an address, from School Finder's school list (etl/export_schools.py writes
 // data/schools.json at deploy). Distances are straight-line miles: a ranking of what's close,
 // not a commute. Chances of getting in, seats and dates live on School Finder, linked per school.
-import { SCHOOLS_URL } from "./links";
+import { SCHOOLS_URL } from "./links.js";
 
 export const SCHOOL_RADIUS_MI = 2;
 export const SCHOOLS_SHOWN = 8;

@@ -4,9 +4,10 @@
 // The report shows FloodLens's 0-100 score under the FEMA zone, always labeled as a model estimate
 // validated only inside FEMA A zones (README "FloodLens tracts"), then its facts for the spot
 // (ground elevation, levee, storm surge, past insurance claims in the census tract).
-import { FLOODLENS_URL } from "./links";
+import { FLOODLENS_URL } from "./links.js";
 
-const API = (import.meta.env.VITE_FLOODLENS_API || FLOODLENS_URL).replace(/\/$/, "");
+// `?.`: import.meta.env exists only under Vite; the unit tests (node --test) import this file directly.
+const API = (import.meta.env?.VITE_FLOODLENS_API || FLOODLENS_URL).replace(/\/$/, "");
 const TIMEOUT_MS = 90_000; // a cold start plus a full lookup
 const cache = new Map();
 

@@ -11,7 +11,7 @@ ricksterz/floodlens) and School Finder (schools.nolaatlas.com).
 ```bash
 .venv/bin/ruff check etl tests && .venv/bin/ruff format --check etl tests   # line length 110
 .venv/bin/pytest -q
-cd frontend && npx eslint src && VITE_STATIC_DATA=true npm run build
+cd frontend && npx eslint . && npm test && VITE_STATIC_DATA=true npm run build
 cd cloudflare/link-previews && npm test
 ```
 
