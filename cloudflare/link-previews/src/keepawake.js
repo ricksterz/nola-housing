@@ -1,10 +1,11 @@
 // Keeps FloodLens awake. It runs on Render's free plan, which puts a service to sleep after 15
 // minutes without a request, so the first property report after a quiet spell waited up to a
 // minute for its flood details. The Worker's cron trigger (wrangler.toml) calls its health check
-// every 10 minutes instead; Cloudflare's free plan includes cron triggers.
+// every 10 minutes from 7 am to midnight Central; Cloudflare's free plan includes cron triggers.
 //
-// Render's free plan gives a workspace 750 instance hours a month. One service awake all month
-// uses 720-744, so this fits only while FloodLens is the workspace's one free service.
+// Render's free plan gives a workspace 750 instance hours a month, shared by every free service.
+// Awake all day FloodLens alone would use 720-744; awake 17 hours a day it uses about 530, which
+// leaves the workspace's other free services room to wake when someone opens them.
 
 // The onrender.com address, not flood.nolaatlas.com: it answers whatever happens to that domain's DNS.
 export const FLOODLENS_HEALTH = "https://nola-floodlens.onrender.com/api/health";

@@ -31,8 +31,8 @@ test("the cron trigger hands the ping to waitUntil", async () => {
   }
 });
 
-test("wrangler.toml schedules the ping every 10 minutes", async () => {
+test("wrangler.toml schedules the ping every 10 minutes, 7 am to midnight Central (UTC 13-05)", async () => {
   const { readFile } = await import("node:fs/promises");
   const toml = await readFile(new URL("../wrangler.toml", import.meta.url), "utf8");
-  assert.match(toml, /\[triggers\]\s*\ncrons = \["\*\/10 \* \* \* \*"\]/);
+  assert.match(toml, /\[triggers\]\s*\ncrons = \["\*\/10 0-5,13-23 \* \* \*"\]/);
 });

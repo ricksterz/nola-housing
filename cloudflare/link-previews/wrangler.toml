@@ -14,7 +14,9 @@ routes = [
   { pattern = "nolaatlas.com/ownership/*", zone_name = "nolaatlas.com" },
 ]
 
-# Every 10 minutes: call FloodLens's health check so Render's free plan never puts it to sleep
-# (it sleeps after 15 idle minutes). See src/keepawake.js.
+# Every 10 minutes from 7 am to midnight Central Standard Time (cron runs in UTC: 13:00-05:50),
+# call FloodLens's health check so Render's free plan doesn't put it to sleep (it sleeps after
+# 15 idle minutes). Overnight it sleeps. During daylight time this window is 8 am to 1 am.
+# See src/keepawake.js.
 [triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/10 0-5,13-23 * * *"]
