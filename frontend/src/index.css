@@ -200,7 +200,9 @@ a.btn { text-decoration: none; }
 .num-input { width: 96px; padding: 6px 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
 .search-input:focus, .num-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 18%, transparent); }
 .search-input::placeholder { color: var(--text-dimmer); font-weight: 400; }
-.suggestions { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); z-index: 10; overflow: hidden; box-shadow: var(--shadow); }
+/* Above the report's sticky jump chips (.report-jumps, 1050), which sit right under the box and
+   covered the first suggestion; below the sticky top bar (1100). */
+.suggestions { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); z-index: 1060; overflow: hidden; box-shadow: var(--shadow); }
 .suggestion { padding: 10px 14px; font-size: 13.5px; font-weight: 500; color: var(--text); cursor: pointer; border-bottom: 1px solid var(--border-alt); }
 .suggestion:last-child { border-bottom: none; }
 .suggestion:hover, .suggestion--active { background: var(--panel-alt); color: var(--text-bright); }

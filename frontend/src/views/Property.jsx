@@ -167,7 +167,7 @@ export default function Property({ ctx }) {
         </div>
       )}
 
-      <AddressSearch value={address} onChange={setAddress} onPick={pick} onSubmit={(text) => search(text)} loading={loading} boxRef={boxRef} />
+      <AddressSearch value={address} onChange={setAddress} onPick={pick} onSubmit={(text) => search(text)} loading={loading} boxRef={boxRef} selectOnFocus={showParcel || showStreet} />
 
       {error && (
         <div className="error">
