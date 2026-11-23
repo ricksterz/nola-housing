@@ -26,8 +26,10 @@ function highlightMatch(text, query) {
  *
  * onPick(suggestion)  a suggestion was chosen ({ kind?, address, full, slug? })
  * onSubmit(text)      Enter or the button with no suggestion highlighted
+ * selectOnFocus       select the text on focus, so typing replaces it: on a report the box holds the
+ *                     full address shown, and a new search shouldn't start by deleting it
  */
-export default function AddressSearch({ value, onChange, onPick, onSubmit, loading = false, boxRef, idPrefix = "address", size, autoFocus = false }) {
+export default function AddressSearch({ value, onChange, onPick, onSubmit, loading = false, boxRef, idPrefix = "address", size, autoFocus = false, selectOnFocus = false }) {
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -35,6 +37,7 @@ export default function AddressSearch({ value, onChange, onPick, onSubmit, loadi
   const ref = boxRef || ownRef;
   const debounceRef = useRef(null);
   const seqRef = useRef(0);
+  const justFocused = useRef(false);
   const listId = `${idPrefix}-suggestions`;
 
   useEffect(() => {
@@ -65,16 +68,22 @@ export default function AddressSearch({ value, onChange, onPick, onSubmit, loadi
     }, SUGGEST_DEBOUNCE_MS);
   }
 
-  function pick(s) {
+  // A finished search leaves no list behind to pop back open on the next click into the box.
+  function close() {
     setOpen(false);
+    setSuggestions([]);
+    setActive(-1);
+    clearTimeout(debounceRef.current);
     seqRef.current++; // drop any suggestion request still in flight
+  }
+
+  function pick(s) {
+    close();
     onPick(s);
   }
 
   function submit() {
-    setOpen(false);
-    seqRef.current++;
-    clearTimeout(debounceRef.current);
+    close();
     if (value.trim()) onSubmit(value);
   }
 
@@ -110,7 +119,21 @@ export default function AddressSearch({ value, onChange, onPick, onSubmit, loadi
           className="search-input"
           value={value}
           onChange={(e) => onInput(e.target.value)}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          onFocus={(e) => {
+            if (selectOnFocus && value) {
+              e.target.select();
+              justFocused.current = true;
+            }
+            if (suggestions.length > 0) setOpen(true);
+          }}
+          // A click's mouseup would put the caret back and undo the selection made on focus.
+          onMouseUp={(e) => {
+            if (justFocused.current) e.preventDefault();
+            justFocused.current = false;
+          }}
+          onBlur={() => {
+            justFocused.current = false;
+          }}
           onKeyDown={onKeyDown}
           placeholder={size === "large" ? "Address, street or owner name" : "Address, street, owner name or parcel #"}
           aria-label="Address, street name, owner name or parcel number"
