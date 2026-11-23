@@ -75,7 +75,7 @@ def dist(tmp_path):
 
 
 def test_builds_a_page_per_tab_and_area_and_lists_them(dist):
-    assert prerender.build(dist) == 1 + 1 + 4 + 1 + 4 + 6  # hub, markets, ownership + areas, tabs
+    assert prerender.build(dist) == 1 + 1 + 4 + 1 + 4 + 6 + 2  # hub, markets, ownership + areas, tabs, legal
     for path in (
         "market",
         "market/70130",
@@ -90,7 +90,7 @@ def test_builds_a_page_per_tab_and_area_and_lists_them(dist):
     assert (dist / "404.html").read_text() == SHELL  # any other path opens the plain app
     sitemap = (dist / "sitemap.xml").read_text()
     assert "<loc>https://nolaatlas.com/ownership/70130/</loc>" in sitemap
-    assert sitemap.count("<url>") == 17
+    assert sitemap.count("<url>") == 19
 
 
 def test_page_has_its_own_title_canonical_and_readable_content(dist):
@@ -177,7 +177,7 @@ def test_each_page_gets_its_own_preview_image(dist):
 
 def test_rebuilding_an_already_built_site_starts_from_the_plain_app(dist):
     prerender.build(dist)
-    assert prerender.build(dist) == 17
+    assert prerender.build(dist) == 19
     assert (dist / "404.html").read_text() == SHELL
     assert (dist / "index.html").read_text().count('class="prerender"') == 1
 
@@ -277,3 +277,45 @@ def test_the_watchlist_opens_from_a_bookmark_but_stays_out_of_search(dist):
     assert '<div id="root"></div>' in page  # the plain app: the list lives in the browser
     assert "/watchlist/" not in (dist / "sitemap.xml").read_text()
     assert "/watchlist/" not in (dist / "llms.txt").read_text()
+
+
+def test_terms_and_privacy_pages_carry_the_full_text(dist):
+    prerender.build(dist)
+    terms = (dist / "terms" / "index.html").read_text()
+    assert "<title>Terms of Use · NOLA Atlas</title>" in terms
+    for clause in (
+        "not a consumer reporting agency",
+        "not an official flood zone determination",
+        "to the fullest extent permitted by law",
+        "Louisiana Civil Code article 2004",
+        "governed by the laws of the State of Louisiana",
+    ):
+        assert clause.lower() in terms.lower(), clause
+    privacy = (dist / "privacy" / "index.html").read_text()
+    assert "<title>Privacy Policy · NOLA Atlas</title>" in privacy
+    assert "never receive the addresses, names or parcel numbers you search for" in privacy
+    for page in (terms, privacy):
+        assert not re.search(r"\{[a-z_]+\}", page)  # every placeholder filled
+    sitemap = (dist / "sitemap.xml").read_text()
+    assert "/terms/</loc>" in sitemap and "/privacy/</loc>" in sitemap
+    assert "/terms/" in (dist / "llms.txt").read_text()
+
+
+def test_the_operator_is_named_only_once_registered():
+    legal = json.loads(prerender.LEGAL.read_text())
+    unregistered = {**legal, "operator": None, "operator_full": None, "contact": None}
+    text = prerender.legal_fill(legal["terms"]["intro"] + " {owner} {parties} {same_operator}", unregistered)
+    assert "independent project based in Louisiana" in text and "LLC" not in text
+    registered = {**legal, **legal["when_registered"]}
+    text = prerender.legal_fill(legal["terms"]["intro"] + " {parties}", registered)
+    assert "is operated by JCE Labs LLC, a Louisiana limited liability company" in text
+    assert "JCE Labs LLC and its members, managers and contributors" in text
+    pages = prerender.legal_pages(registered)
+    assert "mailto:hello@nolaatlas.com" in pages[0].body
+
+
+def test_every_page_links_terms_and_privacy(dist):
+    prerender.build(dist)
+    page = (dist / "market" / "70130" / "index.html").read_text()
+    assert 'href="/terms/"' in page and 'href="/privacy/"' in page
+    assert "not a consumer reporting agency" in page

@@ -1,0 +1,115 @@
+{
+  "_about": "Who operates the site, and the Terms of Use and Privacy Policy text. Read by the app (lib/legal.js) and by etl/prerender.py, so both show the same words. Placeholders: {operated_by}, {owner}, {parties}, {same_operator} (filled from operator and operator_full; see lib/legal.js legalFill). Until the LLC is registered, operator and contact are null and the pages say 'an independent project based in Louisiana'. A draft for review by a Louisiana attorney.",
+  "operator": null,
+  "operator_full": null,
+  "contact": null,
+  "when_registered": {
+    "operator": "JCE Labs LLC",
+    "operator_full": "JCE Labs LLC, a Louisiana limited liability company",
+    "contact": "hello@nolaatlas.com"
+  },
+  "updated": "2026-11-23",
+  "copyright_year": 2026,
+  "terms": {
+    "title": "Terms of Use",
+    "intro": "NOLA Atlas (nolaatlas.com){operated_by} (\"we\"). By using the site, you agree to these terms.",
+    "sections": [
+      {
+        "heading": "Information only",
+        "paragraphs": [
+          "The site is free general information from public records and other sources. It isn't financial, legal, tax, insurance or real estate advice, an appraisal, a title search or an insurance quote. Flood zones come from FEMA's maps, but they're not an official flood zone determination, and FloodLens scores are estimates. Check with a licensed professional before relying on anything here."
+        ]
+      },
+      {
+        "heading": "Data can be wrong",
+        "paragraphs": [
+          "Data is shown as its sources publish it, isn't verified, and can be out of date or wrong. Owner names come straight from the Assessors' rolls and may name a former owner. Nothing here proves who owns a property: the Clerk of Court's and the Assessor's records do. Send corrections to the Assessor."
+        ]
+      },
+      {
+        "heading": "Not a consumer reporting agency",
+        "paragraphs": [
+          "We're not a consumer reporting agency under the Fair Credit Reporting Act. Don't use the site to decide anyone's eligibility for credit, insurance, employment or housing, or to screen tenants."
+        ]
+      },
+      {
+        "heading": "Use it fairly",
+        "paragraphs": [
+          "Don't use the site to harass, threaten or discriminate against anyone (including under the Fair Housing Act), to bulk-download its data in a way that strains it, or to break its security or the sync service."
+        ]
+      },
+      {
+        "heading": "Your watchlist",
+        "paragraphs": [
+          "Your watchlist lives in your browser. With sync on, an encrypted copy is kept under a code only you hold, and anyone you give the code to can see and change the list. Synced lists unused for 400 days are deleted."
+        ]
+      },
+      {
+        "heading": "Other sites and content",
+        "paragraphs": [
+          "School Finder and FloodLens are separate sites {same_operator}. Data from other providers belongs to them, and we're not affiliated with them. The site's own design, text and code are © {owner}; you're welcome to link to it and quote it with credit."
+        ]
+      },
+      {
+        "heading": "No warranty, limited liability",
+        "paragraphs": [
+          "The site is provided \"as is\", without warranties of any kind, to the fullest extent permitted by law. To the same extent, {parties} aren't liable for any loss from using or relying on the site, and total liability for any claim is limited to $100. This doesn't limit liability that the law doesn't allow to be limited, such as for intentional or gross fault or physical injury (Louisiana Civil Code article 2004)."
+        ]
+      },
+      {
+        "heading": "Changes and governing law",
+        "paragraphs": [
+          "We may change the site or these terms at any time; the date above shows the latest version. These terms are governed by the laws of the State of Louisiana, and disputes go to courts in Louisiana."
+        ]
+      }
+    ]
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "intro": "NOLA Atlas (nolaatlas.com){operated_by}. No accounts, no ads, nothing sold. Here's what leaves your browser and what we keep.",
+    "sections": [
+      {
+        "heading": "Usage counts",
+        "paragraphs": [
+          "Google Analytics (which uses cookies) and Cloudflare Web Analytics (which doesn't) count which pages and features are used. They never receive the addresses, names or parcel numbers you search for, or your watchlist. Google Analytics doesn't load if your browser sends Global Privacy Control."
+        ]
+      },
+      {
+        "heading": "Flood details",
+        "paragraphs": [
+          "Opening a property report sends its map point to FloodLens (flood.nolaatlas.com), a flood-risk service {same_operator}, for its flood details. FloodLens keeps the point rounded to about a kilometer and your IP address only as a keyed hash."
+        ]
+      },
+      {
+        "heading": "Watchlist and sync",
+        "paragraphs": [
+          "Your watchlist stays in your browser. With sync on, it's encrypted in your browser before a copy is stored on our server, using a code that never leaves your devices, so we can't read it. Synced lists unused for 400 days are deleted, and Delete synced copy removes one at once."
+        ]
+      },
+      {
+        "heading": "In your browser",
+        "paragraphs": [
+          "The site remembers your theme, Scorecard settings, watchlist and sync code in your browser's storage. Clearing this site's data removes them."
+        ]
+      },
+      {
+        "heading": "Hosting",
+        "paragraphs": [
+          "GitHub Pages and Cloudflare deliver the site and see your IP address, under their own privacy policies. We keep no visit logs of our own."
+        ]
+      },
+      {
+        "heading": "Public records",
+        "paragraphs": [
+          "Owner names come from the Assessors' public records, not from you. Questions about a record go to the Assessor's office."
+        ]
+      },
+      {
+        "heading": "Changes",
+        "paragraphs": [
+          "If this policy changes, the date above changes too."
+        ]
+      }
+    ]
+  }
+}

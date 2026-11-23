@@ -1,3 +1,7 @@
+import { legal, legalValues } from "../lib/legal";
+
+const LEGAL = legalValues();
+
 const SOURCES = [
   { name: "Jefferson Parish Assessor", href: "https://www.jpassessor.net/", desc: "Public parcel records: owner, assessed and market value, legal description" },
   { name: "Orleans Parish Assessor", href: "https://nolaassessor.com/", desc: "Public parcel records: owner, assessed value, tax bill number" },
@@ -19,7 +23,26 @@ const TERMS =
 const FOOTER_LINKS = [
   ["power", "/power/", "AI data centers and your power bill"],
   ["about", "/about/", "About, sources and methods"],
+  ["terms", "/terms/", "Terms of Use"],
+  ["privacy", "/privacy/", "Privacy Policy"],
 ];
+
+/** A link to one of the site's own pages that opens in the app (or a new tab with a modifier key). */
+function FooterLink({ view, navigate, children }) {
+  return (
+    <a
+      href={`/${view}/`}
+      onClick={(e) => {
+        if (!navigate || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        navigate({ view, q: null, street: null, owner: null, geo: null });
+        window.scrollTo({ top: 0 });
+      }}
+    >
+      {children}
+    </a>
+  );
+}
 
 export default function Footer({ generated, sources, navigate }) {
   const day = (iso) => (iso ? iso.slice(0, 10) : null);
@@ -29,64 +52,37 @@ export default function Footer({ generated, sources, navigate }) {
     <footer className="footer">
       <div className="footer-inner">
         <nav className="footer-links" aria-label="More from NOLA Atlas">
-          {FOOTER_LINKS.map(([view, href, label]) => (
-            <a
-              key={view}
-              href={href}
-              onClick={(e) => {
-                if (!navigate || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-                e.preventDefault();
-                navigate({ view, q: null, street: null, owner: null, geo: null });
-                window.scrollTo({ top: 0 });
-              }}
-            >
+          {FOOTER_LINKS.map(([view, , label]) => (
+            <FooterLink key={view} view={view} navigate={navigate}>
               {label}
-            </a>
+            </FooterLink>
           ))}
         </nav>
         <div className="footer-heading">Disclaimer</div>
         <p style={{ margin: "0 0 10px" }}>
-          This site is provided for general informational and educational purposes only. Nothing here constitutes
-          financial, investment, legal, or tax advice, an offer to buy or sell real estate, or a professional
-          appraisal or broker price opinion. Automated value indexes and aggregated market statistics are estimates
-          and may differ materially from the actual value or condition of any individual property. Consult a
-          licensed real estate professional, appraiser, or financial advisor before making decisions based on this
-          information.
+          General information only: not financial, legal, tax, insurance or real estate advice, an appraisal, a title
+          search or an official FEMA flood zone determination. Data comes from public records and other sources “as
+          is”, isn&apos;t verified and may be wrong or out of date.
+          {generated && <> Data snapshot generated {generated.slice(0, 10)}.</>} See the{" "}
+          <FooterLink view="terms" navigate={navigate}>Terms of Use</FooterLink>.
         </p>
         <p style={{ margin: "0 0 10px" }}>
-          Data is drawn from third-party and public-record sources, is provided “as is” without warranty of any
-          kind, and may be incomplete, delayed, or contain errors. Parcel records reflect the public files of the
-          Jefferson and Orleans Parish Assessors at the time of export and may not reflect current ownership,
-          valuation, or condition.
-          {generated && <> Data snapshot generated {generated.slice(0, 10)}.</>}
+          <b>Owner names</b> are copied from the Assessors&apos; rolls and may name a former owner; they aren&apos;t
+          proof of ownership (the Clerk of Court&apos;s records are). NOLA Atlas is not a consumer reporting agency:
+          don&apos;t use it for decisions about credit, insurance, employment or housing, or to harass or
+          discriminate against anyone.
         </p>
         <p style={{ margin: "0 0 10px" }}>
-          <b>Owner names and property records.</b> Owner names, addresses and other parcel details are copied as
-          published from public records of the Jefferson Parish Assessor, the Orleans Parish Assessor and the City of
-          New Orleans, which are public under Louisiana's Public Records Law. They are not verified by this site, and
-          there is no guarantee that any owner name, ownership listing or property record is accurate, complete or
-          current: the rolls lag sales, inheritances and other transfers, can contain errors, and may still name a
-          former owner. Properties are grouped under an owner by matching the name as written, so an owner page or name
-          search may combine different people or businesses who share a name, and may miss properties listed under
-          another spelling or entity. Nothing here is a title search, legal description of ownership or proof of who
-          owns a property; for legal, lending or tax purposes rely on the parish Clerk of Court's conveyance and
-          mortgage records and the Assessor's official records. To correct a record, contact the Assessor's office;
-          corrections made there appear here after the next refresh. Don't use this information to harass, threaten
-          or discriminate against anyone.
+          <b>Usage counts.</b> Google Analytics (with cookies) and Cloudflare Web Analytics count page and feature
+          use, never the addresses, names or parcel numbers you search for. See the{" "}
+          <FooterLink view="privacy" navigate={navigate}>Privacy Policy</FooterLink>.
         </p>
         <p style={{ margin: "0 0 10px" }}>
-          <b>Usage counts.</b> Visits are counted with Google Analytics, which sets cookies, and Cloudflare Web
-          Analytics, which doesn't. They receive which pages and features are used, never the addresses, names or
-          parcel numbers you search for. Browsers that send Global Privacy Control aren't counted by Google
-          Analytics; you can also opt out with Google's opt-out browser add-on or an ad blocker.
+          <b>School Finder and FloodLens</b> are separate sites {LEGAL.same_operator}. FloodLens&apos;s flood score is a
+          model estimate, not a FEMA determination or an insurance quote.
         </p>
         <p style={{ margin: "0 0 10px" }}>
-          <b>School Finder and FloodLens</b> are separate sites by the same independent builder, linked from the home
-          page and opened in a new tab. Each has its own sources, methods and notes; FloodLens's flood score is a
-          model, not a FEMA determination or an insurance quote.
-        </p>
-        <p style={{ margin: "0 0 10px" }}>
-          This site is an independent project and is not affiliated with, endorsed by, or sponsored by either
+          NOLA Atlas is an independent project{legal.operator ? ` of ${legal.operator}` : ""} and is not affiliated with, endorsed by, or sponsored by either
           Parish Assessor, the City of New Orleans, FEMA, the U.S. Census Bureau, Zillow, Redfin, realtor.com,
           Freddie Mac, the Federal Reserve Bank of St. Louis, OpenStreetMap, the Louisiana Public Service Commission,
           Entergy or Meta. All trademarks are the property of their respective owners.
@@ -111,6 +107,15 @@ export default function Footer({ generated, sources, navigate }) {
           ))}
         </div>
         <p style={{ margin: "12px 0 0", color: "var(--text-dimmer)" }}>{TERMS}</p>
+        <p className="footer-operator">
+          {`© ${legal.copyright_year} ${LEGAL.owner}.${legal.operator_full ? ` NOLA Atlas is operated by ${legal.operator_full}.` : ""}`}
+          {legal.contact && (
+            <>
+              {" Contact: "}
+              <a href={`mailto:${legal.contact}`}>{legal.contact}</a>
+            </>
+          )}
+        </p>
       </div>
     </footer>
   );

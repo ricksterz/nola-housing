@@ -750,3 +750,10 @@ a.btn { text-decoration: none; }
 .watch-code { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 4px 0 6px; font-size: 13px; color: var(--text-dim); }
 .watch-code code { font-family: var(--mono, ui-monospace, monospace); font-size: 15px; letter-spacing: 0.06em; color: var(--text-bright); background: var(--panel-alt); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; overflow-wrap: anywhere; }
 .watch-error { color: var(--red); }
+
+/* Terms of Use and Privacy Policy (views/Legal.jsx); the operator line under the footer. */
+.legal { max-width: 760px; }
+.legal h3 { margin: 22px 0 6px; font-size: 15px; color: var(--text-bright); }
+.legal .text-block { margin: 0 0 10px; }
+.footer-operator { margin: 14px 0 0; color: var(--text-dim); font-size: 12.5px; }
+.legal > .panel-title { font-family: var(--serif); font-size: clamp(20px, 3vw, 24px); color: var(--text-bright); text-transform: none; letter-spacing: -0.01em; margin-bottom: 2px; }

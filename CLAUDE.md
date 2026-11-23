@@ -63,6 +63,16 @@ from a database (`NOLA_DB_PATH=... python -m etl.export_static`), build with
   Sync (`lib/sync.js`, opt-in) stores the list encrypted in the browser with keys derived from
   the sync code (HKDF; AES-GCM); the code itself is never sent. Keep it that way.
 
+## Terms, Privacy and the operator
+
+- The Terms of Use and Privacy Policy text, and who operates the site, live in
+  `frontend/src/data/legal.json`, read by the app (`lib/legal.js`) and `etl/prerender.py`
+  (/terms/, /privacy/). Placeholders (`{operated_by}`, `{owner}`, `{parties}`, `{same_operator}`)
+  are filled the same way in both (`legalFill`, `legal_fill`).
+- `operator`, `operator_full` and `contact` stay null until the LLC is registered and the address
+  receives mail; `when_registered` holds the values to copy in. Bump `updated` with any wording
+  change. When the site starts sending or storing something new, update the Privacy Policy too.
+
 ## Watchlist sync Worker
 
 - `cloudflare/watchlist-sync` serves `nolaatlas.com/api/sync/*` from a D1 database. Like the

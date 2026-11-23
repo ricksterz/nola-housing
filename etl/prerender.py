@@ -40,6 +40,7 @@ DEFAULT_DESCRIPTION = (
     "and which schools are near. Free, independent, and built on public records."
 )
 POWER = config.ETL_DIR.parent / "frontend" / "src" / "data" / "power.json"
+LEGAL = config.ETL_DIR.parent / "frontend" / "src" / "data" / "legal.json"
 SCHOOLS_URL = "https://schools.nolaatlas.com/"
 FLOODLENS_URL = "https://flood.nolaatlas.com/"
 PARISH_SLUG = {"22051": "jefferson", "22071": "orleans"}
@@ -135,6 +136,11 @@ class Page:
 # BreadcrumbList on every page but the home page. Facts only: no license, rating or claim the
 # page doesn't make.
 ORG = {"@type": "Organization", "@id": f"{SITE}/#organization", "name": "NOLA Atlas", "url": f"{SITE}/"}
+_legal = json.loads(LEGAL.read_text())
+if _legal.get("operator"):  # once the operating company is registered (frontend/src/data/legal.json)
+    ORG["legalName"] = _legal["operator"]
+if _legal.get("contact"):
+    ORG["email"] = _legal["contact"]
 PUBLISHER = ORG  # in full on every page: a bare @id would point at a node only the home page has
 MARKET_SOURCES = [
     {
@@ -682,12 +688,62 @@ def build_pages(meta: dict, scorecard: dict, ownership: dict, power: dict) -> li
     return pages
 
 
+def legal_fill(text: str, legal: dict) -> str:
+    """A legal.json sentence with its placeholders filled. Same as frontend/src/lib/legal.js legalFill."""
+    op = legal.get("operator")
+    values = {
+        "operated_by": f" is operated by {legal['operator_full']}"
+        if legal.get("operator_full")
+        else " is an independent project based in Louisiana",
+        "owner": op or "NOLA Atlas",
+        "parties": f"{op} and its members, managers and contributors"
+        if op
+        else "NOLA Atlas and the people who build it",
+        "same_operator": f"also operated by {op}" if op else "by the same independent builder",
+    }
+    return re.sub(r"\{(operated_by|owner|parties|same_operator)\}", lambda m: values[m.group(1)], text)
+
+
+def legal_pages(legal: dict) -> list[Page]:
+    """/terms/ and /privacy/, from frontend/src/data/legal.json (the app shows the same text)."""
+    updated = datetime.strptime(legal["updated"], "%Y-%m-%d").strftime("%B %-d, %Y")
+    pages = []
+    for path, key, description in (
+        (
+            "/terms/",
+            "terms",
+            "The terms for using NOLA Atlas: what the site is and isn't, data accuracy, acceptable use and liability.",
+        ),
+        (
+            "/privacy/",
+            "privacy",
+            "What leaves your browser on NOLA Atlas and what is kept: usage counts, flood lookups, the watchlist and sync.",
+        ),
+    ):
+        doc = legal[key]
+        body = f"<h1>{esc(doc['title'])}</h1><p><em>Last updated {esc(updated)}</em></p>"
+        body += f"<p>{esc(legal_fill(doc['intro'], legal))}</p>"
+        for sec in doc["sections"]:
+            body += f"<h2>{esc(sec['heading'])}</h2>" + "".join(
+                f"<p>{esc(legal_fill(par, legal))}</p>" for par in sec["paragraphs"]
+            )
+        if legal.get("contact"):
+            body += (
+                f"<h2>Contact</h2><p>{esc(legal.get('operator_full') or 'NOLA Atlas')}. "
+                f'<a href="mailto:{esc(legal["contact"])}">{esc(legal["contact"])}</a></p>'
+            )
+        pages.append(Page(path, f"{doc['title']} · NOLA Atlas", description, body))
+    return pages
+
+
 # On every pre-built page, under its content: the short form of the app's footer disclaimer.
 NOTICE = (
     '<p class="prerender-notice"><small>For general information only, not financial, legal, tax or insurance '
     "advice, an appraisal or proof of ownership. Owner names and parcel records are shown as published in public "
-    "records and aren't verified. NOLA Atlas is independent and not affiliated with the Assessors, the City, FEMA "
-    'or any data provider. <a href="/about/">Sources and methods</a>.</small></p>'
+    "records and aren't verified. NOLA Atlas is not a consumer reporting agency, and its flood zones aren't official "
+    "FEMA determinations. It is independent and not affiliated with the Assessors, the City, FEMA or any data "
+    'provider. <a href="/about/">Sources and methods</a> · <a href="/terms/">Terms of Use</a> · '
+    '<a href="/privacy/">Privacy Policy</a>.</small></p>'
 )
 
 
@@ -807,7 +863,7 @@ def llms_txt(pages: list[Page], meta: dict) -> str:
         "",
         "## Optional",
         "",
-        *([line(by_path["/about/"])] if "/about/" in by_path else []),
+        *(line(by_path[p]) for p in ("/about/", "/terms/", "/privacy/") if p in by_path),
         f"- [Sitemap]({SITE}/sitemap.xml): every pre-built page.",
         "",
     ]
@@ -843,6 +899,7 @@ def build(dist: Path = DIST) -> int:
         json.loads((data / "ownership.json").read_text()) if (data / "ownership.json").exists() else {}
     )
     pages = build_pages(meta, scorecard, ownership, json.loads(POWER.read_text()))
+    pages += legal_pages(json.loads(LEGAL.read_text()))
     (dist / "404.html").write_text(shell)  # any other path still opens the app
     for page in pages:
         og_images.card(dist / "og" / page.image, page.card[1], page.card[0], page.card[2], page.description)
