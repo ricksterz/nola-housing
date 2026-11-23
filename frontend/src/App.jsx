@@ -17,6 +17,7 @@ import Power from "./views/Power";
 import Property from "./views/Property";
 import Scorecard from "./views/Scorecard";
 import Watchlist from "./views/Watchlist";
+import Legal from "./views/Legal";
 import { useWatchlist } from "./lib/watchlist";
 import { startSync } from "./lib/sync";
 
@@ -31,6 +32,8 @@ const VIEWS = [
   ["power", "AI & Power"],
   ["about", "About"],
   ["watchlist", "Watchlist"],
+  ["terms", "Terms of Use"],
+  ["privacy", "Privacy Policy"],
 ];
 // The main bar is the four things a reader comes for: an address, the market, schools, flood.
 // The market's own tabs ride in a second row while one of them is open. AI & Power and About
@@ -68,6 +71,8 @@ function pageMeta(view, url, geos) {
     power: "AI data centers and power in Louisiana",
     about: "About and methodology",
     watchlist: "Your watchlist",
+    terms: "Terms of Use",
+    privacy: "Privacy Policy",
   };
   const canonicalGeo = view === "overview" || (view === "ownership" && !url.owner) ? url.geo : undefined;
   const path = pathFromParams({ view, geo: canonicalGeo }) || pathFromParams({ view }) || "/"; // no query: just the tab or area
@@ -236,6 +241,7 @@ export default function App() {
           {view === "power" && <Power theme={theme} />}
           {view === "about" && <About ctx={ctx} />}
           {view === "watchlist" && <Watchlist ctx={ctx} />}
+          {(view === "terms" || view === "privacy") && <Legal doc={view} />}
         </ErrorBoundary>
       </main>
       <Footer generated={meta?.generated} sources={meta?.sources} navigate={navigate} />
