@@ -12,131 +12,102 @@
   "copyright_year": 2026,
   "terms": {
     "title": "Terms of Use",
-    "intro": "NOLA Atlas (nolaatlas.com){operated_by} (\"we\", \"us\"). These terms apply to your use of the site. By using it you agree to them; if you don't, please don't use the site.",
+    "intro": "NOLA Atlas (nolaatlas.com){operated_by} (\"we\"). By using the site, you agree to these terms.",
     "sections": [
       {
-        "heading": "What the site is",
+        "heading": "Information only",
         "paragraphs": [
-          "NOLA Atlas is a free reference for general information, built from public records and third-party data about homes in New Orleans and Metairie. It is not financial, investment, legal, tax, insurance or real estate advice, and nothing on it is an appraisal, a broker price opinion, a title search, a survey, an offer to buy or sell property, or an insurance quote.",
-          "Flood zones shown are read from FEMA's published maps for a parcel's location. They are not an official flood zone determination, an elevation certificate or a flood insurance rating. Flood scores from FloodLens are model estimates.",
-          "Consult a licensed professional (appraiser, real estate agent, attorney, insurance agent, surveyor or financial advisor) before making decisions based on anything here."
+          "The site is free general information from public records and other sources. It isn't financial, legal, tax, insurance or real estate advice, an appraisal, a title search or an insurance quote. Flood zones come from FEMA's maps, but they're not an official flood zone determination, and FloodLens scores are estimates. Check with a licensed professional before relying on anything here."
         ]
       },
       {
-        "heading": "Accuracy of the data",
+        "heading": "Data can be wrong",
         "paragraphs": [
-          "Data comes from the sources listed on the About page and is shown as of each source's last refresh. It may be incomplete, out of date or wrong, and we don't verify it.",
-          "Owner names, addresses and other parcel details are copied as published from the public records of the Jefferson Parish Assessor, the Orleans Parish Assessor and the City of New Orleans. The rolls lag sales, inheritances and other transfers, can contain errors and may still name a former owner. Properties are grouped under an owner by matching the name as written, so an owner page may combine different people or businesses who share a name and may miss properties listed under another spelling or entity. Nothing here is proof of who owns a property: for legal, lending or tax purposes rely on the parish Clerk of Court's conveyance and mortgage records and the Assessor's official records. To correct a record, contact the Assessor's office; corrections made there appear here after the next refresh."
+          "Data is shown as its sources publish it, isn't verified, and can be out of date or wrong. Owner names come straight from the Assessors' rolls and may name a former owner. Nothing here proves who owns a property: the Clerk of Court's and the Assessor's records do. Send corrections to the Assessor."
         ]
       },
       {
         "heading": "Not a consumer reporting agency",
         "paragraphs": [
-          "We are not a consumer reporting agency as defined by the Fair Credit Reporting Act (15 U.S.C. § 1681 et seq.), and the site doesn't provide consumer reports. You may not use it to decide anyone's eligibility for credit, insurance, employment or housing, to screen tenants, or for any other purpose covered by that Act."
+          "We're not a consumer reporting agency under the Fair Credit Reporting Act. Don't use the site to decide anyone's eligibility for credit, insurance, employment or housing, or to screen tenants."
         ]
       },
       {
-        "heading": "Acceptable use",
+        "heading": "Use it fairly",
         "paragraphs": [
-          "Use the site lawfully. Don't use it to harass, stalk, threaten or intimidate anyone, or to discriminate against anyone, including in violation of the Fair Housing Act. Don't download its data in bulk by automated means in a way that burdens the site (ordinary browsing and search engines that follow robots.txt are fine), try to get around its security, interfere with the watchlist sync service, or suggest that we or our sources endorse you."
+          "Don't use the site to harass, threaten or discriminate against anyone (including under the Fair Housing Act), to bulk-download its data in a way that strains it, or to break its security or the sync service."
         ]
       },
       {
-        "heading": "Your watchlist and sync",
+        "heading": "Your watchlist",
         "paragraphs": [
-          "Your watchlist is stored in your browser. If you turn on sync, an encrypted copy is stored on our server under a code only you hold; anyone you give the code or its link to can see and change the list, so keep it private. We delete synced lists nobody has synced for 400 days, and we may change or discontinue sync. Keep your own copy (the watchlist's Copy link) of anything you can't afford to lose."
+          "Your watchlist lives in your browser. With sync on, an encrypted copy is kept under a code only you hold, and anyone you give the code to can see and change the list. Synced lists unused for 400 days are deleted."
         ]
       },
       {
-        "heading": "Other sites and data providers",
+        "heading": "Other sites and content",
         "paragraphs": [
-          "NOLA Atlas School Finder (schools.nolaatlas.com) and FloodLens (flood.nolaatlas.com) are separate sites {same_operator}, each with its own sources and notes. Links to other sites are for convenience; we don't control them. Data from third parties is subject to their own terms, and their trademarks belong to them. NOLA Atlas is not affiliated with, endorsed by or sponsored by either Parish Assessor, the City of New Orleans, FEMA, the U.S. Census Bureau, Zillow, Redfin, realtor.com, Freddie Mac, the Federal Reserve Bank of St. Louis or any other data provider."
+          "School Finder and FloodLens are separate sites {same_operator}. Data from other providers belongs to them, and we're not affiliated with them. The site's own design, text and code are © {owner}; you're welcome to link to it and quote it with credit."
         ]
       },
       {
-        "heading": "Our content",
+        "heading": "No warranty, limited liability",
         "paragraphs": [
-          "The site's design, text, charts and code are © {owner}. The underlying public records and third-party data belong to their sources. You're welcome to link to any page and to quote short passages with a link back."
+          "The site is provided \"as is\", without warranties of any kind, to the fullest extent permitted by law. To the same extent, {parties} aren't liable for any loss from using or relying on the site, and total liability for any claim is limited to $100. This doesn't limit liability that the law doesn't allow to be limited, such as for intentional or gross fault or physical injury (Louisiana Civil Code article 2004)."
         ]
       },
       {
-        "heading": "No warranty",
+        "heading": "Changes and governing law",
         "paragraphs": [
-          "The site and its data are provided \"as is\" and \"as available\", without warranties of any kind, express or implied, including warranties of accuracy, completeness, merchantability, fitness for a particular purpose and non-infringement, to the fullest extent permitted by law."
-        ]
-      },
-      {
-        "heading": "Limitation of liability",
-        "paragraphs": [
-          "To the fullest extent permitted by law, {parties} are not liable for any indirect, incidental, special, consequential or punitive damages, or for any loss arising from your use of or reliance on the site, including decisions about buying, selling, renting, insuring or financing property. Because the site is free, our total liability for any claim relating to it is limited to one hundred U.S. dollars ($100).",
-          "Nothing in these terms excludes or limits liability that the law doesn't allow to be excluded or limited, including liability for intentional or gross fault or for physical injury (Louisiana Civil Code article 2004)."
-        ]
-      },
-      {
-        "heading": "Changes",
-        "paragraphs": [
-          "We may change, suspend or stop any part of the site at any time. We may update these terms; the date at the top shows the latest version, and using the site after a change means you accept it."
-        ]
-      },
-      {
-        "heading": "Governing law",
-        "paragraphs": [
-          "These terms are governed by the laws of the State of Louisiana, without regard to its conflict-of-laws rules. Any dispute relating to the site will be heard in the state or federal courts located in Louisiana."
+          "We may change the site or these terms at any time; the date above shows the latest version. These terms are governed by the laws of the State of Louisiana, and disputes go to courts in Louisiana."
         ]
       }
     ]
   },
   "privacy": {
     "title": "Privacy Policy",
-    "intro": "NOLA Atlas (nolaatlas.com){operated_by}. This policy says what leaves your browser when you use the site and what we keep. In short: no accounts, no ads, nothing sold, and the addresses and names you search for aren't sent to our analytics.",
+    "intro": "NOLA Atlas (nolaatlas.com){operated_by}. No accounts, no ads, nothing sold. Here's what leaves your browser and what we keep.",
     "sections": [
       {
         "heading": "Usage counts",
         "paragraphs": [
-          "We count visits with Google Analytics, which sets cookies, and Cloudflare Web Analytics, which doesn't. They receive which tabs are opened and which features are used (for example, that an owner-name search ran or a school link was opened), plus what those services read from any web request, such as browser type and approximate location. They never receive the addresses, names or parcel numbers you search for, or what you save to your watchlist. Google Analytics is told not to use the data for ad personalization or Google signals. If your browser sends Global Privacy Control, Google Analytics isn't loaded at all; you can also opt out with Google's opt-out browser add-on or an ad blocker."
+          "Google Analytics (which uses cookies) and Cloudflare Web Analytics (which doesn't) count which pages and features are used. They never receive the addresses, names or parcel numbers you search for, or your watchlist. Google Analytics doesn't load if your browser sends Global Privacy Control."
         ]
       },
       {
         "heading": "Flood details",
         "paragraphs": [
-          "When you open a property report, its map point (latitude and longitude) is sent to FloodLens (flood.nolaatlas.com), a flood-risk service {same_operator}, to read the flood details for that spot. FloodLens logs each lookup for its own usage counts, with the point rounded to about a kilometer and your IP address stored only as a keyed hash."
+          "Opening a property report sends its map point to FloodLens (flood.nolaatlas.com), a flood-risk service {same_operator}, for its flood details. FloodLens keeps the point rounded to about a kilometer and your IP address only as a keyed hash."
         ]
       },
       {
-        "heading": "Your watchlist and sync",
+        "heading": "Watchlist and sync",
         "paragraphs": [
-          "The addresses, ZIP codes and owners you save are kept in your browser only. A watchlist's Copy link puts the list in the part of the link after \"#\", which browsers don't send to any server: it goes only where you paste it.",
-          "If you turn on sync, your browser makes a sync code and encrypts the list with a key derived from it before sending a copy to our server. We store that encrypted copy, an identifier and a hash of a write token (both also derived from the code) and the time it last changed. The code never leaves your devices, so we can't read your list. Lists nobody syncs for 400 days are deleted, and Delete synced copy on the watchlist page removes one at once."
+          "Your watchlist stays in your browser. With sync on, it's encrypted in your browser before a copy is stored on our server, using a code that never leaves your devices, so we can't read it. Synced lists unused for 400 days are deleted, and Delete synced copy removes one at once."
         ]
       },
       {
-        "heading": "Stored in your browser",
+        "heading": "In your browser",
         "paragraphs": [
-          "The site keeps a few things in your browser's local storage so they're there on your next visit: your light or dark theme, the ZIP Scorecard's cost assumptions, your watchlist and, if you turned it on, your sync code. Clearing this site's data in your browser removes them."
+          "The site remembers your theme, Scorecard settings, watchlist and sync code in your browser's storage. Clearing this site's data removes them."
         ]
       },
       {
         "heading": "Hosting",
         "paragraphs": [
-          "The site is served by GitHub Pages through Cloudflare, which process each request, including your IP address, to deliver the site and protect it from abuse, under their own privacy policies. We don't add our own logs of visits."
+          "GitHub Pages and Cloudflare deliver the site and see your IP address, under their own privacy policies. We keep no visit logs of our own."
         ]
       },
       {
         "heading": "Public records",
         "paragraphs": [
-          "Owner names and property details come from public records published by the Parish Assessors and the City of New Orleans; we don't collect them from you. A question about a record belongs with the Assessor's office, whose roll this site reflects after each refresh."
-        ]
-      },
-      {
-        "heading": "What we don't do",
-        "paragraphs": [
-          "We don't sell or rent personal information, show ads or build profiles of visitors. The site isn't directed to children under 13."
+          "Owner names come from the Assessors' public records, not from you. Questions about a record go to the Assessor's office."
         ]
       },
       {
         "heading": "Changes",
         "paragraphs": [
-          "If this policy changes, the date at the top changes with it."
+          "If this policy changes, the date above changes too."
         ]
       }
     ]

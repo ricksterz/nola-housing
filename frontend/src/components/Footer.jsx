@@ -60,33 +60,26 @@ export default function Footer({ generated, sources, navigate }) {
         </nav>
         <div className="footer-heading">Disclaimer</div>
         <p style={{ margin: "0 0 10px" }}>
-          For general information only. Nothing here is financial, investment, legal, tax, insurance or real estate
-          advice, an appraisal or broker price opinion, a title search, or an official FEMA flood zone determination.
-          Automated value indexes and market statistics are estimates and may differ materially from a property&apos;s
-          actual value or condition. Data from public records and third parties is provided “as is”, without warranty
-          of any kind, and may be incomplete, delayed or wrong.
-          {generated && <> Data snapshot generated {generated.slice(0, 10)}.</>} Use of this site is subject to the{" "}
+          General information only: not financial, legal, tax, insurance or real estate advice, an appraisal, a title
+          search or an official FEMA flood zone determination. Data comes from public records and other sources “as
+          is”, isn&apos;t verified and may be wrong or out of date.
+          {generated && <> Data snapshot generated {generated.slice(0, 10)}.</>} See the{" "}
           <FooterLink view="terms" navigate={navigate}>Terms of Use</FooterLink>.
         </p>
         <p style={{ margin: "0 0 10px" }}>
-          <b>Owner names and property records</b> are copied as published from the public records of the Jefferson
-          Parish Assessor, the Orleans Parish Assessor and the City of New Orleans, without verification. The rolls lag
-          sales and other transfers and may still name a former owner, and owner pages group properties by the name as
-          written. Nothing here is a title search or proof of who owns a property: rely on the parish Clerk of
-          Court&apos;s and the Assessor&apos;s records, and send corrections to the Assessor. NOLA Atlas is not a
-          consumer reporting agency under the Fair Credit Reporting Act: don&apos;t use it for decisions about credit,
-          insurance, employment or housing, or to harass, threaten or discriminate against anyone.
+          <b>Owner names</b> are copied from the Assessors&apos; rolls and may name a former owner; they aren&apos;t
+          proof of ownership (the Clerk of Court&apos;s records are). NOLA Atlas is not a consumer reporting agency:
+          don&apos;t use it for decisions about credit, insurance, employment or housing, or to harass or
+          discriminate against anyone.
         </p>
         <p style={{ margin: "0 0 10px" }}>
-          <b>Usage counts.</b> Visits are counted with Google Analytics, which sets cookies, and Cloudflare Web
-          Analytics, which doesn&apos;t. They receive which pages and features are used, never the addresses, names or
-          parcel numbers you search for. Browsers that send Global Privacy Control aren&apos;t counted by Google
-          Analytics. More in the <FooterLink view="privacy" navigate={navigate}>Privacy Policy</FooterLink>.
+          <b>Usage counts.</b> Google Analytics (with cookies) and Cloudflare Web Analytics count page and feature
+          use, never the addresses, names or parcel numbers you search for. See the{" "}
+          <FooterLink view="privacy" navigate={navigate}>Privacy Policy</FooterLink>.
         </p>
         <p style={{ margin: "0 0 10px" }}>
-          <b>School Finder and FloodLens</b> are separate sites {LEGAL.same_operator}, linked from the home
-          page and opened in a new tab. Each has its own sources, methods and notes; FloodLens&apos;s flood score is a
-          model, not a FEMA determination or an insurance quote.
+          <b>School Finder and FloodLens</b> are separate sites {LEGAL.same_operator}. FloodLens&apos;s flood score is a
+          model estimate, not a FEMA determination or an insurance quote.
         </p>
         <p style={{ margin: "0 0 10px" }}>
           NOLA Atlas is an independent project{legal.operator ? ` of ${legal.operator}` : ""} and is not affiliated with, endorsed by, or sponsored by either
